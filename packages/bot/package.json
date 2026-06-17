@@ -1,0 +1,2 @@
+{ "name": "@cs-okey/bot", "version": "0.0.0", "type": "module", "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }, "dependencies": { "@cs-okey/engine": "*" } }
