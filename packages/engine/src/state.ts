@@ -10,6 +10,8 @@ export interface PlayerState {
   discard: Tile[]
   hasOpened: boolean
   isOut: boolean
+  declaredCift?: boolean
+  openedValue?: number
 }
 
 export interface Terminal {
@@ -32,6 +34,9 @@ export interface GameState {
   scores: number[]
   status: 'CREATED' | 'DEALT' | 'PLAYING' | 'ENDED'
   terminal?: Terminal
+  tableMelds?: { owner: number; kind: 'run' | 'group'; tiles: Tile[] }[]
+  rizikoActive?: boolean
+  penaltiesApplied?: { seat: number; type: string }[]
 }
 
 export function nextSeat(seat: number, players: number): number {

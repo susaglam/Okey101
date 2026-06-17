@@ -36,9 +36,13 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         stock: [], turn: { seat: 0, phase: 'DRAW' },
         players: Array.from({ length: event.config.players }, (_, seat) => ({
           seat, rack: [], discard: [], hasOpened: false, isOut: false,
+          declaredCift: false, openedValue: 0,
         })),
         scores: Array.from({ length: event.config.players }, () => 0),
         status: 'CREATED',
+        tableMelds: [],
+        rizikoActive: false,
+        penaltiesApplied: [],
       }
 
     case 'StartHand': {
