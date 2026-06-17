@@ -22,7 +22,7 @@ export interface PlayerState {
 }
 
 export interface Terminal {
-  reason: 'win' | 'hand-void'
+  reason: 'win' | 'hand-void' | 'exhausted'
   winnerSeat?: number
   winType?: WinKind
   finishingTile?: Tile

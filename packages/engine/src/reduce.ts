@@ -136,7 +136,9 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (!state) throw new RuleError('No game')
       requireTurn(state, event.seat, 'DRAW')
       if (state.stock.length === 0) {
-        return { ...state, status: 'ENDED', terminal: { reason: 'hand-void' } }
+        // 101 (yuzbir-penalty) games score on exhaustion; Klasik voids and replays.
+        const exhaustionReason = state.config.scoringModel === 'yuzbir-penalty' ? 'exhausted' : 'hand-void'
+        return { ...state, status: 'ENDED', terminal: { reason: exhaustionReason } }
       }
       const stock = state.stock.slice()
       const drawn = stock.pop()!
@@ -178,6 +180,11 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (!state) throw new RuleError('No game')
       requireTurn(state, event.seat, 'DISCARD')
       const p = state.players.find((x) => x.seat === event.seat)!
+      // 101 rule: player must have opened before finishing.
+      // Gated on requiresOpening (true for 101, false for Klasik) so Klasik is unaffected.
+      if (state.config.requiresOpening && !p.hasOpened) {
+        throw new RuleError('must open before finishing')
+      }
       const idx = p.rack.findIndex((t) => tilesEqual(t, event.discardTile))
       if (idx < 0) throw new RuleError('Finishing discard tile not in rack')
       const rack = p.rack.slice(); const [finishing] = rack.splice(idx, 1)
