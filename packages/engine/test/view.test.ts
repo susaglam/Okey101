@@ -18,6 +18,20 @@ function fixtureState(): GameState {
   }
 }
 
+function fixtureStateWithTableMelds(): GameState {
+  return {
+    ...fixtureState(),
+    tableMelds: [
+      {
+        owner: 1,
+        kind: 'run',
+        tiles: [tileFromString('11R'), tileFromString('12R'), tileFromString('13R')],
+      },
+    ],
+    rizikoActive: true,
+  }
+}
+
 describe('redactFor', () => {
   it('reveals your own rack but not opponents tiles', () => {
     const v = redactFor(fixtureState(), 0, 5)
@@ -35,5 +49,17 @@ describe('redactFor', () => {
   })
   it('carries the version stamp', () => {
     expect(redactFor(fixtureState(), 0, 5).version).toBe(5)
+  })
+  it('exposes tableMelds and rizikoActive from state', () => {
+    const v = redactFor(fixtureStateWithTableMelds(), 0, 5)
+    expect(v.tableMelds).toHaveLength(1)
+    expect(v.tableMelds[0]!.owner).toBe(1)
+    expect(v.tableMelds[0]!.kind).toBe('run')
+    expect(v.rizikoActive).toBe(true)
+  })
+  it('defaults tableMelds to [] and rizikoActive to false when not set', () => {
+    const v = redactFor(fixtureState(), 0, 5)
+    expect(v.tableMelds).toEqual([])
+    expect(v.rizikoActive).toBe(false)
   })
 })

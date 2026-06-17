@@ -23,6 +23,8 @@ export interface PlayerView {
   scores: number[]
   status: GameState['status']
   terminal?: Terminal
+  tableMelds: { owner: number; kind: 'run' | 'group'; tiles: Tile[] }[]
+  rizikoActive: boolean
   version: number
 }
 
@@ -45,6 +47,9 @@ export function redactFor(state: GameState, seat: number, version: number): Play
     stockCount: state.stock.length,
     indicator: state.indicator, okey: state.okey,
     turn: state.turn, scores: state.scores.slice(), status: state.status,
-    terminal: state.terminal, version,
+    terminal: state.terminal,
+    tableMelds: state.tableMelds ?? [],
+    rizikoActive: state.rizikoActive ?? false,
+    version,
   }
 }

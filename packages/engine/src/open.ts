@@ -1,6 +1,7 @@
 import type { Tile } from './tile'
 import { tilesEqual } from './tile'
 import type { VariantConfig } from './config'
+import { arrange } from './arrange'
 
 // ─── Wild detection ───────────────────────────────────────────────────────────
 
@@ -222,6 +223,46 @@ function isValidPair(meld: Tile[], okey: Tile): boolean {
 }
 
 // ─── Public: canOpen ──────────────────────────────────────────────────────────
+
+// ─── Public: findOpening ──────────────────────────────────────────────────────
+
+/**
+ * Attempt to find a valid opening subset from the given rack.
+ *
+ * Uses `arrange` to get the best set of valid melds from the rack, then
+ * greedily accumulates melds sorted by their individual openingValue descending
+ * until the cumulative value reaches config.openingThreshold.
+ *
+ * Verifies the accumulated subset with canOpen. Returns the subset if it
+ * passes, otherwise returns null.
+ */
+export function findOpening(rack: Tile[], okey: Tile, config: VariantConfig): Tile[][] | null {
+  const { melds } = arrange(rack, okey, config)
+  if (melds.length === 0) return null
+
+  const threshold = config.openingThreshold ?? 101
+
+  // Sort melds by individual openingValue descending
+  const sorted = [...melds].sort(
+    (a, b) => openingValue([b], okey) - openingValue([a], okey),
+  )
+
+  // Greedy accumulation: add melds until cumulative value >= threshold
+  const subset: Tile[][] = []
+  let cumulative = 0
+  for (const meld of sorted) {
+    subset.push(meld)
+    cumulative += openingValue([meld], okey)
+    if (cumulative >= threshold) {
+      // Verify with canOpen
+      if (canOpen(subset, okey, config)) {
+        return subset
+      }
+    }
+  }
+
+  return null
+}
 
 /**
  * Returns true if the player can open with the given melds under the config:
