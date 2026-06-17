@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { arrange, suggestDiscard, tilesEqual } from '@cs-okey/engine'
+import { arrange, suggestDiscard, tilesEqual, findOpening, isValidMeldSet } from '@cs-okey/engine'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { Rack } from '../components/Rack'
 import { Scoreboard } from '../components/Scoreboard'
+import { TableMelds } from '../components/TableMelds'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 
@@ -88,6 +89,33 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     if (patch.theme) applyTheme(patch.theme)
   }
 
+  // ── 101-specific pre-computed values ──────────────────────────────────────
+  const is101 = !!view.config.requiresOpening
+
+  // findOpening result (null if can't open or already opened)
+  const opening101 = is101 && view.okey && !view.you.hasOpened
+    ? findOpening(view.you.rack, view.okey, view.config)
+    : null
+
+  // Find first rack tile + meld index that produces a legal LayOff
+  type LayOffTarget = { meldIndex: number; tile: typeof view.you.rack[0] } | null
+  const layOffTarget: LayOffTarget = (() => {
+    if (!is101 || !view.you.hasOpened || !view.okey) return null
+    const tableMelds = view.tableMelds
+    const okey = view.okey
+    for (let mi = 0; mi < tableMelds.length; mi++) {
+      const meld = tableMelds[mi]!
+      // Only try 1-tile lay-off (cap per run is 2, but we try one at a time)
+      for (const tile of view.you.rack) {
+        const merged = [...meld.tiles, tile]
+        if (isValidMeldSet([merged], okey, view.config)) {
+          return { meldIndex: mi, tile }
+        }
+      }
+    }
+    return null
+  })()
+
   // Determine hand result text
   let handResultLine: string
   if (view.terminal?.reason === 'win') {
@@ -107,6 +135,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   return (
     <Table view={view}>
+      {is101 && <TableMelds melds={view.tableMelds} />}
       <Rack
         tiles={displayedTiles}
         selectedIndex={sel}
@@ -129,6 +158,32 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'Discard', seat: view.seat, tile: displayedTiles[sel]! })}>Taş At</button>
             <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: displayedTiles[sel]! })}>Elimi Aç / Bitir</button>
             <button onClick={handleHint}>💡 İpucu</button>
+            {is101 && (
+              <>
+                <button
+                  disabled={opening101 === null}
+                  onClick={() => {
+                    if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
+                  }}
+                >
+                  Aç (≥101)
+                </button>
+                <button
+                  disabled={layOffTarget === null}
+                  onClick={() => {
+                    if (layOffTarget) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] })
+                  }}
+                >
+                  İşle
+                </button>
+                <button
+                  disabled={!!view.you.declaredCift}
+                  onClick={() => send({ type: 'DeclareCift', seat: view.seat })}
+                >
+                  Çifte Git
+                </button>
+              </>
+            )}
           </>
         )}
         {isMyTurn && (
