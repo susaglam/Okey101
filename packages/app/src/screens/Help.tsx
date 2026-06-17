@@ -38,7 +38,7 @@ export default function Help({ onBack }: { onBack: () => void }) {
 
         <h2>Tur Akışı</h2>
         <p>
-          <strong>Soldan çek</strong> (stoktan) veya atılan son taşı al; <strong>sağa at</strong> (bir taşı çöpe bırak). Sıra sola geçer.
+          <strong>Stoktan çek</strong> veya <strong>solundaki</strong> oyuncunun attığı son taşı al; <strong>sağdaki</strong> oyuncuya bir taş at. Sıra <strong>sağa</strong> geçer.
         </p>
       </section>
 

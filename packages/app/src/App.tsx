@@ -8,8 +8,9 @@ type View = 'menu' | 'game' | 'help'
 
 export default function App() {
   const [view, setView] = useState<View>('menu')
-  const adapter = useMemo(() => new LocalAdapter({ seed: 12345, humanSeat: 0 }), [])
+  const [gameKey, setGameKey] = useState(0)
+  const adapter = useMemo(() => new LocalAdapter({ seed: 1000 + gameKey, humanSeat: 0 }), [gameKey])
   if (view === 'game') return <GameScreen adapter={adapter} />
   if (view === 'help') return <Help onBack={() => setView('menu')} />
-  return <Menu onStart={() => setView('game')} onHelp={() => setView('help')} />
+  return <Menu onStart={() => { setGameKey(k => k + 1); setView('game') }} onHelp={() => setView('help')} />
 }

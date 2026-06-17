@@ -7,12 +7,14 @@ export function Rack({
   onSelect,
   colorblind,
   repValue,
+  okeyNumber,
 }: {
   tiles: Tile[]
   selectedIndex: number | null
   onSelect: (i: number) => void
   colorblind?: boolean
   repValue?: boolean
+  okeyNumber?: number
 }) {
   const split = Math.ceil(tiles.length / 2)
   const back = tiles.slice(0, split)
@@ -27,7 +29,7 @@ export function Rack({
             selected={selectedIndex === i}
             onClick={() => onSelect(i)}
             colorblind={colorblind}
-            repValue={repValue && t.kind === 'FALSE_JOKER' ? undefined : undefined}
+            repValue={repValue && t.kind === 'FALSE_JOKER' && okeyNumber !== undefined ? okeyNumber : undefined}
           />
         ))}
       </div>
@@ -39,7 +41,7 @@ export function Rack({
             selected={selectedIndex === split + i}
             onClick={() => onSelect(split + i)}
             colorblind={colorblind}
-            repValue={repValue && t.kind === 'FALSE_JOKER' ? undefined : undefined}
+            repValue={repValue && t.kind === 'FALSE_JOKER' && okeyNumber !== undefined ? okeyNumber : undefined}
           />
         ))}
       </div>

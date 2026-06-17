@@ -113,6 +113,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         onSelect={setSel}
         colorblind={settings.colorblind}
         repValue={settings.repValue}
+        okeyNumber={view.okey?.number}
       />
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
