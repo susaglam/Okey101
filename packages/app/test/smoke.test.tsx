@@ -6,6 +6,6 @@ import App from '../src/App'
 describe('app smoke', () => {
   it('renders the menu with an Oyna button', () => {
     render(<App />)
-    expect(screen.getByRole('button', { name: /oyna/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^oyna/i })).toBeTruthy()
   })
 })

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 
-export default function Menu({ onStart }: { onStart: () => void }) {
+export default function Menu({ onStart, onHelp }: { onStart: () => void; onHelp: () => void }) {
   const [theme, setTheme] = useState(() => loadSettings().theme)
 
   const toggleTheme = () => {
@@ -17,6 +17,7 @@ export default function Menu({ onStart }: { onStart: () => void }) {
     <div className="menu">
       <h1>♣ CS OKEY</h1>
       <button onClick={onStart}>OYNA ▸</button>
+      <button onClick={onHelp}>Nasıl Oynanır?</button>
       <button
         onClick={toggleTheme}
         aria-label={theme === 'klasik' ? 'Gece moduna geç' : 'Gündüz moduna geç'}
