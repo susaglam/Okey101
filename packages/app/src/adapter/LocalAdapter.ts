@@ -1,11 +1,12 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves, legalMoves101, makeRng, deriveSeed, KLASIK, scoreHand, scoreHand101,
+  reduce, RuleError, redactFor, legalMoves, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101,
   type GameState, type GameEvent, type PlayerView, type VariantConfig,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
 import { applyHandScore, type MatchState } from '../match'
+import { saveGame, clearGame, type SaveData } from '../persistence'
 
 export class LocalAdapter implements Adapter {
   private state: GameState
@@ -15,25 +16,50 @@ export class LocalAdapter implements Adapter {
   private readonly humanSeat: number
   private readonly seed: number
   private readonly totalHands: number
-  private readonly variant: VariantConfig
+  private variant: VariantConfig
   private standings: number[]
   private scoredHandNo: number | null = null
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
     this.seed = opts.seed
-    this.variant = opts.variant ?? KLASIK
-    this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
-    this.standings = [0, 0, 0, 0]
-    let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
-    s = reduce(s, { type: 'StartHand' })
-    this.state = s
-    // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
-    this.settleIfEnded()
+
+    if (opts.resumeFrom) {
+      const rf = opts.resumeFrom
+      // Restore variant from saved variantId
+      this.variant = rf.variantId === 'yuzbir' ? KLASIK_101 : KLASIK
+      // totalHands from the restored variant (or opts override)
+      this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
+      // Restore state directly — no CreateGame/StartHand
+      this.state = rf.state as GameState
+      this.version = rf.version
+      this.standings = [...rf.standings]
+      this.scoredHandNo = rf.scoredHandNo
+    } else {
+      this.variant = opts.variant ?? KLASIK
+      this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
+      this.standings = [0, 0, 0, 0]
+      let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
+      s = reduce(s, { type: 'StartHand' })
+      this.state = s
+      // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
+      this.settleIfEnded()
+    }
   }
 
   currentVersion(): number { return this.version }
   getHumanView(): PlayerView { return redactFor(this.state, this.humanSeat, this.version) }
+
+  snapshot(): SaveData {
+    return {
+      version: this.version,
+      variantId: this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik',
+      state: JSON.parse(JSON.stringify(this.state)),
+      standings: [...this.standings],
+      scoredHandNo: this.scoredHandNo ?? 0,
+      savedAt: 0,
+    }
+  }
 
   getMatch(): MatchState {
     const { handNo, status } = this.state
@@ -50,6 +76,12 @@ export class LocalAdapter implements Adapter {
     this.state = reduce(this.state, { type: 'StartHand' })
     this.version++
     this.viewCb?.(this.getHumanView())
+    // Auto-save after nextHand
+    if (this.getMatch().over) {
+      clearGame()
+    } else {
+      saveGame(this.snapshot())
+    }
   }
 
   subscribe(onView: (v: PlayerView) => void, onStatus: (s: Status) => void): () => void {
@@ -72,6 +104,12 @@ export class LocalAdapter implements Adapter {
     this.runBots()
     this.settleIfEnded()
     this.viewCb?.(this.getHumanView())
+    // Auto-save after dispatch
+    if (this.getMatch().over) {
+      clearGame()
+    } else {
+      saveGame(this.snapshot())
+    }
     return { accepted: true }
   }
 

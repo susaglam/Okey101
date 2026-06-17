@@ -1,8 +1,13 @@
+// @vitest-environment jsdom
 // packages/app/test/localAdapter.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import { KLASIK_101 } from '@cs-okey/engine'
 import type { PlayerView } from '@cs-okey/engine'
+
+afterEach(() => {
+  localStorage.clear()
+})
 
 describe('LocalAdapter', () => {
   it('starts a hand and pushes the human view at seat 0 on subscribe', () => {
