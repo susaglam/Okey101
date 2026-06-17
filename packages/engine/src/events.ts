@@ -8,3 +8,6 @@ export type GameEvent =
   | { type: 'DrawFromDiscard'; seat: number }
   | { type: 'Discard'; seat: number; tile: Tile }
   | { type: 'DeclareWin'; seat: number; discardTile: Tile }
+  | { type: 'DeclareCift'; seat: number }
+  | { type: 'OpenMeld'; seat: number; melds: Tile[][] }
+  | { type: 'LayOff'; seat: number; meldIndex: number; tiles: Tile[] }

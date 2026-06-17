@@ -55,7 +55,7 @@ describe('reduce — turn enforcement', () => {
     const s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
     expect(s2.players[1]!.rack).toContainEqual(topOfLeft)
     expect(s2.players[0]!.discard).toHaveLength(0)
-    expect(s2.turn).toEqual({ seat: 1, phase: 'DISCARD' })
+    expect(s2.turn).toMatchObject({ seat: 1, phase: 'DISCARD' })
   })
   it('voids the hand when stock is exhausted on a stock draw', () => {
     let s = started()

@@ -4,6 +4,13 @@ import type { WinKind } from './evaluator'
 
 export type Phase = 'DRAW' | 'DISCARD'
 
+export interface TurnState {
+  seat: number
+  phase: Phase
+  /** Set to true when the player took the left neighbour's top discard tile this turn. */
+  tookFromLeft?: boolean
+}
+
 export interface PlayerState {
   seat: number
   rack: Tile[]
@@ -29,7 +36,7 @@ export interface GameState {
   stock: Tile[]
   indicator?: Tile
   okey?: Tile
-  turn: { seat: number; phase: Phase }
+  turn: TurnState
   players: PlayerState[]
   scores: number[]
   status: 'CREATED' | 'DEALT' | 'PLAYING' | 'ENDED'
