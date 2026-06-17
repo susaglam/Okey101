@@ -6,4 +6,4 @@ export interface Adapter {
   dispatch(intent: GameEvent & { expectedVersion: number }): Promise<{ accepted: boolean; reason?: RejectionCode }>
   subscribe(onView: (v: PlayerView) => void, onStatus: (s: Status) => void): () => void
 }
-export interface LocalOptions { seed: number; humanSeat: number; difficulty?: 'easy' }
+export interface LocalOptions { seed: number; humanSeat: number; difficulty?: 'easy'; matchHands?: number }

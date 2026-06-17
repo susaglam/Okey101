@@ -1,10 +1,11 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves, makeRng, deriveSeed, KLASIK,
+  reduce, RuleError, redactFor, legalMoves, makeRng, deriveSeed, KLASIK, scoreHand,
   type GameState, type GameEvent, type PlayerView,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
+import { applyHandScore, type MatchState } from '../match'
 
 export class LocalAdapter implements Adapter {
   private state: GameState
@@ -13,17 +14,41 @@ export class LocalAdapter implements Adapter {
   private statusCb: ((s: Status) => void) | null = null
   private readonly humanSeat: number
   private readonly seed: number
+  private readonly totalHands: number
+  private standings: number[]
+  private scoredHandNo: number | null = null
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
     this.seed = opts.seed
+    this.totalHands = opts.matchHands ?? 5
+    this.standings = [0, 0, 0, 0]
     let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: KLASIK })
     s = reduce(s, { type: 'StartHand' })
     this.state = s
+    // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
+    this.settleIfEnded()
   }
 
   currentVersion(): number { return this.version }
   getHumanView(): PlayerView { return redactFor(this.state, this.humanSeat, this.version) }
+
+  getMatch(): MatchState {
+    const { handNo, status } = this.state
+    return {
+      handNo,
+      totalHands: this.totalHands,
+      standings: [...this.standings],
+      over: handNo >= this.totalHands && status === 'ENDED',
+    }
+  }
+
+  nextHand(): void {
+    if (this.getMatch().over) return
+    this.state = reduce(this.state, { type: 'StartHand' })
+    this.version++
+    this.viewCb?.(this.getHumanView())
+  }
 
   subscribe(onView: (v: PlayerView) => void, onStatus: (s: Status) => void): () => void {
     this.viewCb = onView; this.statusCb = onStatus
@@ -43,8 +68,17 @@ export class LocalAdapter implements Adapter {
       throw e
     }
     this.runBots()
+    this.settleIfEnded()
     this.viewCb?.(this.getHumanView())
     return { accepted: true }
+  }
+
+  private settleIfEnded(): void {
+    if (this.state.status === 'ENDED' && this.state.handNo !== this.scoredHandNo) {
+      const deltas = scoreHand(this.state)
+      this.standings = applyHandScore(this.standings, deltas)
+      this.scoredHandNo = this.state.handNo
+    }
   }
 
   private runBots(): void {
