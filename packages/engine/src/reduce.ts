@@ -4,7 +4,7 @@ import { nextSeat, leftSeat } from './state'
 import type { Tile } from './tile'
 import { tilesEqual } from './tile'
 import { buildDeck } from './deck'
-import { makeRng, shuffle } from './rng'
+import { makeRng, shuffle, deriveSeed } from './rng'
 import { evaluateHand } from './evaluator'
 
 export class RuleError extends Error {}
@@ -44,7 +44,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
     case 'StartHand': {
       if (!state) throw new RuleError('No game')
       const cfg = state.config
-      const rng = makeRng(state.rngSeed + state.handNo) // distinct shuffle per hand, deterministic
+      const rng = makeRng(deriveSeed(state.rngSeed, 'hand:' + state.handNo)) // distinct shuffle per hand, deterministic
       const deck = shuffle(buildDeck(cfg), rng)
       const stock = deck.slice()
       const indicator = stock.pop()! // flip indicator off the stock; never drawable

@@ -34,6 +34,11 @@ describe('evaluator', () => {
     const rack = h('9R','9K','9M','9S','2K','2M','2S','2R','12R','13R','1R','4S','5S','6S')
     expect(evaluateHand(rack, OKEY, KLASIK).isWinning).toBe(true)
   })
+  it('rejects a wrap-only hand when runWrap13to1 is false', () => {
+    const noWrap = { ...KLASIK, runWrap13to1: false }
+    const rack = h('9R','9K','9M','9S','2K','2M','2S','2R','12R','13R','1R','4S','5S','6S')
+    expect(evaluateHand(rack, OKEY, noWrap).isWinning).toBe(false)
+  })
   it('rejects a non-winning hand', () => {
     expect(evaluateHand(NOT_WINNING, OKEY, KLASIK).isWinning).toBe(false)
   })
