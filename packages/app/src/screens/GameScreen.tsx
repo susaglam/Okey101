@@ -6,6 +6,8 @@ import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { Rack } from '../components/Rack'
 import { Scoreboard } from '../components/Scoreboard'
+import { loadSettings, saveSettings } from '../settings'
+import { applyTheme } from '../theme/themes'
 
 const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
 
@@ -14,6 +16,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [sel, setSel] = useState<number | null>(null)
   const [order, setOrder] = useState<number[] | null>(null)
   const [match, setMatch] = useState<MatchState>(() => adapter.getMatch())
+  const [settings, setSettings] = useState(() => loadSettings())
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() =>
     adapter.subscribe(
@@ -27,6 +31,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     ),
     [adapter]
   )
+
   if (!view) return null
 
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
@@ -76,6 +81,13 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     setMatch(adapter.getMatch())
   }
 
+  const updateSettings = (patch: Partial<typeof settings>) => {
+    const next = { ...settings, ...patch }
+    setSettings(next)
+    saveSettings(next)
+    if (patch.theme) applyTheme(patch.theme)
+  }
+
   // Determine hand result text
   let handResultLine: string
   if (view.terminal?.reason === 'win') {
@@ -95,7 +107,13 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   return (
     <Table view={view}>
-      <Rack tiles={displayedTiles} selectedIndex={sel} onSelect={setSel} />
+      <Rack
+        tiles={displayedTiles}
+        selectedIndex={sel}
+        onSelect={setSel}
+        colorblind={settings.colorblind}
+        repValue={settings.repValue}
+      />
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
           <>
@@ -115,7 +133,86 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         {isMyTurn && (
           <button onClick={handleArrange}>↺ Sırala</button>
         )}
+        <button
+          aria-label="Ayarlar"
+          onClick={() => setShowSettings(v => !v)}
+          style={{ fontSize: 18, padding: '6px 12px' }}
+        >
+          ⚙
+        </button>
       </div>
+
+      {showSettings && (
+        <div
+          className="settings-panel"
+          style={{
+            background: 'rgba(0,0,0,.85)',
+            color: '#fff',
+            borderRadius: 10,
+            padding: '16px 20px',
+            position: 'fixed',
+            top: 60,
+            right: 16,
+            zIndex: 200,
+            minWidth: 220,
+            fontFamily: 'system-ui',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}
+        >
+          <strong style={{ fontSize: 15 }}>Ayarlar</strong>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            Tema:
+            <select
+              value={settings.theme}
+              onChange={e => updateSettings({ theme: e.target.value as 'klasik' | 'gece' })}
+              style={{ flex: 1 }}
+            >
+              <option value="klasik">Klasik</option>
+              <option value="gece">Gece</option>
+            </select>
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={settings.colorblind}
+              onChange={e => updateSettings({ colorblind: e.target.checked })}
+            />
+            Renk körü desteği
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={settings.repValue}
+              onChange={e => updateSettings({ repValue: e.target.checked })}
+            />
+            Rep değeri göster
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={settings.sound}
+              onChange={e => updateSettings({ sound: e.target.checked })}
+            />
+            Ses
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            Zorluk:
+            <select
+              value={settings.difficulty}
+              onChange={e => updateSettings({ difficulty: e.target.value as 'easy' | 'medium' | 'hard' })}
+              style={{ flex: 1 }}
+            >
+              <option value="easy">Kolay</option>
+              <option value="medium">Orta</option>
+              <option value="hard">Zor</option>
+            </select>
+          </label>
+          <button onClick={() => setShowSettings(false)} style={{ marginTop: 4 }}>Kapat</button>
+        </div>
+      )}
+
       {view.status === 'ENDED' && (
         <div
           className="overlay"

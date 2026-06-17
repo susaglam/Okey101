@@ -1,0 +1,14 @@
+body[data-theme="gece"] {
+  --felt: linear-gradient(160deg, #10131f, #1b2236);
+}
+
+body[data-theme="gece"] .felt,
+body[data-theme="gece"] .menu {
+  background: linear-gradient(160deg, #10131f, #1b2236);
+  color: #e8e8e8;
+}
+
+body[data-theme="gece"] .menu h1 {
+  color: #c8d4f0;
+  text-shadow: 0 0 12px rgba(100, 140, 255, 0.4);
+}
