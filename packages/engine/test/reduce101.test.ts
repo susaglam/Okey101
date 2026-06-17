@@ -399,3 +399,102 @@ describe('DrawFromDiscard — sets tookFromLeft', () => {
     expect((s2.turn as { tookFromLeft?: boolean }).tookFromLeft).toBeFalsy()
   })
 })
+
+// ── çift-declarer deferred işlek penalty ─────────────────────────────────────
+
+describe('çift-declarer deferred işlek penalty', () => {
+  const bigRackTiles = [
+    ...h('11R', '12R', '13R', '11K', '12K', '13K', '11M', '12M', '13M'),
+    ...h('1R', '2R', '3R'),
+  ]
+  const bigMelds = [
+    h('11R', '12R', '13R'),
+    h('11K', '12K', '13K'),
+    h('11M', '12M', '13M'),
+  ]
+
+  it('applies işlek penalty to left neighbour when çift-declarer opens on a later turn (pendingIslekFromSeat path)', () => {
+    // Construct a state where seat 1 is a çift-declarer who already took from
+    // left (seat 0) on a previous turn (pendingIslekFromSeat=0 set),
+    // and it is now seat 1's DISCARD phase on a subsequent turn
+    // (tookFromLeft is absent — the turn has advanced past the DrawFromDiscard).
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      turn: { seat: 1, phase: 'DISCARD' }, // tookFromLeft intentionally absent (deferred case)
+      players: base.players.map((p) => {
+        if (p.seat === 1) {
+          return {
+            ...p,
+            rack: bigRackTiles,
+            declaredCift: true,
+            pendingIslekFromSeat: 0, // left neighbour of seat 1 = seat 0
+          }
+        }
+        return p
+      }),
+    }
+
+    const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
+
+    // Penalty must be recorded against seat 0 (the discarder / left of seat 1)
+    const penalty = s2.penaltiesApplied!.find(
+      (pe) => pe.seat === 0 && pe.type === 'islek-floor-open'
+    )
+    expect(penalty).toBeDefined()
+
+    // pendingIslekFromSeat must be cleared on the opening player
+    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBeUndefined()
+  })
+
+  it('sets pendingIslekFromSeat on the çift-declarer when they DrawFromDiscard', () => {
+    let s = start101()
+    // seat 0 discards so seat 1 has a tile to draw from left
+    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
+    // Mark seat 1 as çift-declarer
+    s = {
+      ...s,
+      players: s.players.map((p) =>
+        p.seat === 1 ? { ...p, declaredCift: true } : p
+      ),
+    }
+    // seat 1 draws from the left (seat 0) discard pile
+    const s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
+    // pendingIslekFromSeat should be set to seat 0 (left of seat 1)
+    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBe(0)
+  })
+
+  it('does NOT set pendingIslekFromSeat for non-çift player who DrawFromDiscard', () => {
+    let s = start101()
+    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
+    // seat 1 is NOT a çift-declarer (default declaredCift=false)
+    const s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
+    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBeUndefined()
+  })
+
+  it('deduplicates işlek penalty even when using pendingIslekFromSeat path', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      turn: { seat: 1, phase: 'DISCARD' },
+      players: base.players.map((p) => {
+        if (p.seat === 1) {
+          return {
+            ...p,
+            rack: bigRackTiles,
+            declaredCift: true,
+            pendingIslekFromSeat: 0,
+          }
+        }
+        return p
+      }),
+      // Pre-populate the penalty so it already exists
+      penaltiesApplied: [{ seat: 0, type: 'islek-floor-open' }],
+    }
+    const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
+    const count = s2.penaltiesApplied!.filter(
+      (pe) => pe.seat === 0 && pe.type === 'islek-floor-open'
+    ).length
+    expect(count).toBe(1)
+  })
+})

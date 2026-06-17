@@ -160,6 +160,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       players = replacePlayer(players, event.seat, (p) => ({ ...p, rack: [...p.rack, taken] }))
       // Record that this player took from the left discard pile
       const turn: TurnState = { seat: event.seat, phase: 'DISCARD', tookFromLeft: true }
+      // For çift-declarers: also set pendingIslekFromSeat so the penalty survives across turns
+      // (non-çift players must open the same turn, so they rely on the same-turn tookFromLeft path)
+      const drawingPlayer = players.find((p) => p.seat === event.seat)!
+      if (drawingPlayer.declaredCift === true) {
+        players = replacePlayer(players, event.seat, (p) => ({ ...p, pendingIslekFromSeat: leftIdx }))
+      }
       return { ...state, players, turn }
     }
 
@@ -251,20 +257,30 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         openedValue: value,
       }))
 
-      // İşlek penalty: if the player took from left discard this turn, penalize left neighbour
+      // İşlek penalty: penalise the left neighbour if the player took from their discard pile.
+      // Same-turn path (non-çift or çift opening immediately): tookFromLeft flag on the turn.
+      // Deferred path (çift-declarer opening on a later turn): pendingIslekFromSeat on the player.
       let penaltiesApplied = state.penaltiesApplied ?? []
-      if ((state.turn as TurnState & { tookFromLeft?: boolean }).tookFromLeft === true) {
-        const leftIdx = leftSeat(event.seat, cfg.players)
+      const openingPlayer = state.players.find((p) => p.seat === event.seat)!
+      const seatTopenalise: number | null =
+        (state.turn as TurnState & { tookFromLeft?: boolean }).tookFromLeft === true
+          ? leftSeat(event.seat, cfg.players)
+          : openingPlayer.pendingIslekFromSeat != null
+            ? openingPlayer.pendingIslekFromSeat
+            : null
+      if (seatTopenalise !== null) {
         const penaltyType = 'islek-floor-open'
         const alreadyApplied = penaltiesApplied.some(
-          (pe) => pe.seat === leftIdx && pe.type === penaltyType
+          (pe) => pe.seat === seatTopenalise && pe.type === penaltyType
         )
         if (!alreadyApplied) {
-          penaltiesApplied = [...penaltiesApplied, { seat: leftIdx, type: penaltyType }]
+          penaltiesApplied = [...penaltiesApplied, { seat: seatTopenalise, type: penaltyType }]
         }
       }
+      // Clear the deferred pending flag regardless (it has been consumed or was absent)
+      const playersWithPendingCleared = replacePlayer(players, event.seat, (p) => ({ ...p, pendingIslekFromSeat: undefined }))
 
-      return { ...state, players, tableMelds, penaltiesApplied }
+      return { ...state, players: playersWithPendingCleared, tableMelds, penaltiesApplied }
     }
 
     case 'LayOff': {
