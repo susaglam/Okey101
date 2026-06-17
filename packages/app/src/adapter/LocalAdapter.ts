@@ -1,7 +1,7 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves, makeRng, deriveSeed, KLASIK, scoreHand,
-  type GameState, type GameEvent, type PlayerView,
+  reduce, RuleError, redactFor, legalMoves, legalMoves101, makeRng, deriveSeed, KLASIK, scoreHand, scoreHand101,
+  type GameState, type GameEvent, type PlayerView, type VariantConfig,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
@@ -15,15 +15,17 @@ export class LocalAdapter implements Adapter {
   private readonly humanSeat: number
   private readonly seed: number
   private readonly totalHands: number
+  private readonly variant: VariantConfig
   private standings: number[]
   private scoredHandNo: number | null = null
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
     this.seed = opts.seed
-    this.totalHands = opts.matchHands ?? 5
+    this.variant = opts.variant ?? KLASIK
+    this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
     this.standings = [0, 0, 0, 0]
-    let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: KLASIK })
+    let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
     s = reduce(s, { type: 'StartHand' })
     this.state = s
     // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
@@ -75,18 +77,23 @@ export class LocalAdapter implements Adapter {
 
   private settleIfEnded(): void {
     if (this.state.status === 'ENDED' && this.state.handNo !== this.scoredHandNo) {
-      const deltas = scoreHand(this.state)
+      const deltas = this.variant.scoringModel === 'yuzbir-penalty'
+        ? scoreHand101(this.state)
+        : scoreHand(this.state)
       this.standings = applyHandScore(this.standings, deltas)
       this.scoredHandNo = this.state.handNo
     }
   }
 
   private runBots(): void {
+    const getLegal = this.variant.requiresOpening
+      ? (s: GameState, seat: number) => legalMoves101(s, seat)
+      : (s: GameState, seat: number) => legalMoves(s, seat)
     let guard = 0
     while (this.state.status === 'PLAYING' && this.state.turn.seat !== this.humanSeat && guard++ < 500) {
       const seat = this.state.turn.seat
       const view = redactFor(this.state, seat, this.version)
-      const legal = legalMoves(this.state, seat)
+      const legal = getLegal(this.state, seat)
       if (legal.length === 0) break
       const rng = makeRng(deriveSeed(this.seed, `bot:${seat}:${this.state.handNo}:${this.version}`))
       const ev = decide(view, legal, rng)
