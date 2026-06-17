@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 
-export default function Menu({ onStart, onHelp }: { onStart: () => void; onHelp: () => void }) {
+type Variant = 'klasik' | 'yuzbir'
+
+export default function Menu({ onStart, onHelp }: { onStart: (variant: Variant) => void; onHelp: () => void }) {
   const [theme, setTheme] = useState(() => loadSettings().theme)
+  const [variant, setVariant] = useState<Variant>('klasik')
 
   const toggleTheme = () => {
     const next = theme === 'klasik' ? 'gece' : 'klasik'
@@ -16,7 +19,21 @@ export default function Menu({ onStart, onHelp }: { onStart: () => void; onHelp:
   return (
     <div className="menu">
       <h1>♣ CS OKEY</h1>
-      <button onClick={onStart}>OYNA ▸</button>
+      <div className="variant-select" role="group" aria-label="Oyun çeşidi">
+        <button
+          onClick={() => setVariant('klasik')}
+          aria-pressed={variant === 'klasik'}
+        >
+          Klasik
+        </button>
+        <button
+          onClick={() => setVariant('yuzbir')}
+          aria-pressed={variant === 'yuzbir'}
+        >
+          101
+        </button>
+      </div>
+      <button onClick={() => onStart(variant)}>OYNA ▸</button>
       <button onClick={onHelp}>Nasıl Oynanır?</button>
       <button
         onClick={toggleTheme}
