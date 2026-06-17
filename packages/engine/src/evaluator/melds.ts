@@ -5,19 +5,15 @@ import type { VariantConfig } from '../config'
 // into melds (group: same number, distinct colors, size 3-4; run: same color
 // consecutive, size>=3, optional 13->1 wrap)?
 //
-// "maxOrphans" tiles may remain uncovered (they act as the discard tile(s) the
-// player would set aside, mirroring the Kotlin oracle's 1-discard semantics but
-// generalised to floor(n%3) orphans for any rack size).  All wilds MUST be
-// placed inside melds (no leftover wilds).
+// ZERO tiles may remain uncovered — every tile must be consumed into a meld.
+// All wilds MUST be placed inside melds (no leftover wilds).
 export function canCoverInMelds(nonWild: Tile[], wilds: number, config: VariantConfig): boolean {
-  const total = nonWild.length + wilds
-  const maxOrphans = total % 3   // 0 for multiples of 3, 1 or 2 otherwise
   const counts = new Map<string, number>()
   for (const t of nonWild) {
     const k = `${t.color}|${t.number}`
     counts.set(k, (counts.get(k) ?? 0) + 1)
   }
-  return solve(counts, wilds, config, maxOrphans)
+  return solve(counts, wilds, config)
 }
 
 function totalCount(counts: Map<string, number>): number {
@@ -55,18 +51,14 @@ function solve(
   counts: Map<string, number>,
   wilds: number,
   config: VariantConfig,
-  orphanBudget: number,
 ): boolean {
   const remaining = totalCount(counts)
 
   // Base case: no more real tiles and no leftover wilds → success.
   if (remaining === 0) return wilds === 0
 
-  // Can't even start a meld?
-  if (remaining + wilds < 3) {
-    // Accept if remaining real tiles fit within orphan budget and no wilds are wasted.
-    return remaining <= orphanBudget && wilds === 0
-  }
+  // Can't even start a meld — failure (no orphan allowance).
+  if (remaining + wilds < 3) return false
 
   const anchor = firstTile(counts)
   if (anchor === null) return false
@@ -76,7 +68,7 @@ function solve(
   // Option A: GROUP using this tile (same number, distinct colors), size 3 or 4.
   for (const size of [3, 4]) {
     const otherColors = COLORS.filter((c) => c !== color)
-    if (tryGroup(counts, wilds, color, number, size, otherColors, config, orphanBudget)) return true
+    if (tryGroup(counts, wilds, color, number, size, otherColors, config)) return true
   }
 
   // Option B: RUN containing this tile (same color, consecutive), length 3–13.
@@ -93,16 +85,8 @@ function solve(
       const key = `${len}:${start}`
       if (triedRunStarts.has(key)) continue
       triedRunStarts.add(key)
-      if (tryRun(counts, wilds, color, start, len, config, orphanBudget)) return true
+      if (tryRun(counts, wilds, color, start, len, config)) return true
     }
-  }
-
-  // Option C: Skip this tile (treat as orphan) if budget allows.
-  if (orphanBudget > 0) {
-    take(counts, color, number)
-    const ok = solve(counts, wilds, config, orphanBudget - 1)
-    give(counts, color, number)
-    if (ok) return true
   }
 
   return false
@@ -110,33 +94,33 @@ function solve(
 
 function tryGroup(
   counts: Map<string, number>, wilds: number, color: string, number: number,
-  size: number, otherColors: string[], config: VariantConfig, orphanBudget: number,
+  size: number, otherColors: string[], config: VariantConfig,
 ): boolean {
   if (!take(counts, color, number)) return false
-  const result = pickGroupMembers(counts, wilds, otherColors, number, size - 1, config, orphanBudget)
+  const result = pickGroupMembers(counts, wilds, otherColors, number, size - 1, config)
   give(counts, color, number)
   return result
 }
 
 function pickGroupMembers(
   counts: Map<string, number>, wilds: number, pool: string[], number: number,
-  need: number, config: VariantConfig, orphanBudget: number,
+  need: number, config: VariantConfig,
 ): boolean {
   if (need === 0) {
-    return solve(counts, wilds, config, orphanBudget)
+    return solve(counts, wilds, config)
   }
   for (let i = 0; i < pool.length; i++) {
     const c = pool[i]!
     const rest = pool.slice(i + 1)
     // Try a real tile of this color.
     if (take(counts, c, number)) {
-      const ok = pickGroupMembers(counts, wilds, rest, number, need - 1, config, orphanBudget)
+      const ok = pickGroupMembers(counts, wilds, rest, number, need - 1, config)
       give(counts, c, number)
       if (ok) return true
     }
     // Try a wild standing in for this color slot.
     if (wilds > 0) {
-      const ok = pickGroupMembers(counts, wilds - 1, rest, number, need - 1, config, orphanBudget)
+      const ok = pickGroupMembers(counts, wilds - 1, rest, number, need - 1, config)
       if (ok) return true
     }
   }
@@ -145,7 +129,7 @@ function pickGroupMembers(
 
 function tryRun(
   counts: Map<string, number>, wilds: number, color: string, start: number, len: number,
-  config: VariantConfig, orphanBudget: number,
+  config: VariantConfig,
 ): boolean {
   const seq: number[] = []
   for (let i = 0; i < len; i++) {
@@ -171,7 +155,7 @@ function tryRun(
     }
   }
 
-  const ok = solve(counts, wilds - usedWilds, config, orphanBudget)
+  const ok = solve(counts, wilds - usedWilds, config)
   for (const cn of consumed) give(counts, color, cn)
   return ok
 }
