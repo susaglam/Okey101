@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import Menu from '../src/screens/Menu'
+import App from '../src/App'
 
 afterEach(() => cleanup())
 
@@ -14,7 +15,7 @@ describe('Menu variant select', () => {
   })
 
   it('default (no selection change) → clicking OYNA calls onStart with "klasik"', () => {
-    const onStart = vi.fn<[variant: 'klasik' | 'yuzbir'], void>()
+    const onStart = vi.fn<(variant: 'klasik' | 'yuzbir') => void>()
     render(<Menu onStart={onStart} onHelp={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /^oyna/i }))
     expect(onStart).toHaveBeenCalledOnce()
@@ -22,7 +23,7 @@ describe('Menu variant select', () => {
   })
 
   it('clicking "101" then OYNA calls onStart with "yuzbir"', () => {
-    const onStart = vi.fn<[variant: 'klasik' | 'yuzbir'], void>()
+    const onStart = vi.fn<(variant: 'klasik' | 'yuzbir') => void>()
     render(<Menu onStart={onStart} onHelp={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /101/i }))
     fireEvent.click(screen.getByRole('button', { name: /^oyna/i }))
@@ -31,12 +32,26 @@ describe('Menu variant select', () => {
   })
 
   it('clicking "Klasik" after "101" then OYNA calls onStart with "klasik"', () => {
-    const onStart = vi.fn<[variant: 'klasik' | 'yuzbir'], void>()
+    const onStart = vi.fn<(variant: 'klasik' | 'yuzbir') => void>()
     render(<Menu onStart={onStart} onHelp={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /101/i }))
     fireEvent.click(screen.getByRole('button', { name: /klasik/i }))
     fireEvent.click(screen.getByRole('button', { name: /^oyna/i }))
     expect(onStart).toHaveBeenCalledOnce()
     expect(onStart).toHaveBeenCalledWith('klasik')
+  })
+})
+
+describe('App integration', () => {
+  it('starting 101 yields a GameScreen whose human rack has 22 tiles', async () => {
+    render(<App />)
+    // Select 101 variant and start game
+    fireEvent.click(screen.getByRole('button', { name: /101/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^oyna/i }))
+    // Wait for GameScreen to render tiles
+    await waitFor(() => {
+      const tiles = screen.getAllByTestId('tile')
+      expect(tiles).toHaveLength(22)
+    })
   })
 })
