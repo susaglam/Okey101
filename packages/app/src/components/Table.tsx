@@ -19,12 +19,12 @@ export function Table({ view, children }: { view: PlayerView; children?: ReactNo
         </div>
         {view.indicator && (
           <div data-testid="gosterge" style={{ textAlign:'center' }}>
-            <TileView tile={view.indicator} />
+            <TileView tile={view.indicator} testId="gosterge-tile" />
             <div style={{ fontSize:11,opacity:.8 }}>okey: {view.okey ? tileToString(view.okey) : '-'}</div>
           </div>
         )}
         {view.opponents.map((o) => o.discardTop ? (
-          <div key={`d${o.seat}`} style={{ opacity:.85 }}><TileView tile={o.discardTop} /></div>
+          <div key={`d${o.seat}`} style={{ opacity:.85 }}><TileView tile={o.discardTop} testId="discard-tile" /></div>
         ) : null)}
       </div>
       <div>{children}</div>
