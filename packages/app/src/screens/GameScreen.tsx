@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
+import { arrange, suggestDiscard, tilesEqual } from '@cs-okey/engine'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
@@ -11,6 +12,7 @@ const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
 export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [view, setView] = useState<PlayerView | null>(null)
   const [sel, setSel] = useState<number | null>(null)
+  const [order, setOrder] = useState<number[] | null>(null)
   const [match, setMatch] = useState<MatchState>(() => adapter.getMatch())
 
   useEffect(() =>
@@ -18,6 +20,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       (v) => {
         setView(v)
         setSel(null)
+        setOrder(null)
         setMatch(adapter.getMatch())
       },
       () => {}
@@ -27,8 +30,45 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   if (!view) return null
 
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
+
+  // Displayed tiles: either raw rack or a visual reordering
+  const displayedTiles = order !== null
+    ? order.map(i => view.you.rack[i]!)
+    : view.you.rack
+
   const send = (intent: GameEvent) => {
     void adapter.dispatch({ ...intent, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
+  }
+
+  const handleArrange = () => {
+    if (!view.okey) return
+    const result = arrange(view.you.rack, view.okey, view.config)
+    const arranged = [...result.melds.flat(), ...result.leftovers]
+    // Map each arranged tile back to an unused index in view.you.rack
+    const usedIndices = new Set<number>()
+    const newOrder: number[] = []
+    for (const tile of arranged) {
+      for (let i = 0; i < view.you.rack.length; i++) {
+        if (!usedIndices.has(i) && tilesEqual(view.you.rack[i]!, tile)) {
+          newOrder.push(i)
+          usedIndices.add(i)
+          break
+        }
+      }
+    }
+    // If any rack tiles weren't matched (shouldn't happen), append them
+    for (let i = 0; i < view.you.rack.length; i++) {
+      if (!usedIndices.has(i)) newOrder.push(i)
+    }
+    setOrder(newOrder)
+  }
+
+  const handleHint = () => {
+    if (!view.okey) return
+    const suggested = suggestDiscard(view.you.rack, view.okey, view.config)
+    // Find in displayed order
+    const idx = displayedTiles.findIndex(t => tilesEqual(t, suggested))
+    if (idx !== -1) setSel(idx)
   }
 
   const handleNextHand = () => {
@@ -55,7 +95,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   return (
     <Table view={view}>
-      <Rack tiles={view.you.rack} selectedIndex={sel} onSelect={setSel} />
+      <Rack tiles={displayedTiles} selectedIndex={sel} onSelect={setSel} />
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
           <>
@@ -67,9 +107,13 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         )}
         {isMyTurn && view.turn.phase === 'DISCARD' && (
           <>
-            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'Discard', seat: view.seat, tile: view.you.rack[sel]! })}>Taş At</button>
-            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: view.you.rack[sel]! })}>Elimi Aç / Bitir</button>
+            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'Discard', seat: view.seat, tile: displayedTiles[sel]! })}>Taş At</button>
+            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: displayedTiles[sel]! })}>Elimi Aç / Bitir</button>
+            <button onClick={handleHint}>💡 İpucu</button>
           </>
+        )}
+        {isMyTurn && (
+          <button onClick={handleArrange}>↺ Sırala</button>
         )}
       </div>
       {view.status === 'ENDED' && (
