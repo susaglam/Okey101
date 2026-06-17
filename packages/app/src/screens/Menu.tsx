@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
+import { hasSavedGame } from '../persistence'
 
 type Variant = 'klasik' | 'yuzbir'
 
-export default function Menu({ onStart, onHelp }: { onStart: (variant: Variant) => void; onHelp: () => void }) {
+export default function Menu({
+  onStart,
+  onHelp,
+  onResume,
+}: {
+  onStart: (variant: Variant) => void
+  onHelp: () => void
+  onResume: () => void
+}) {
   const [theme, setTheme] = useState(() => loadSettings().theme)
   const [variant, setVariant] = useState<Variant>('klasik')
+  const savedGame = hasSavedGame()
 
   const toggleTheme = () => {
     const next = theme === 'klasik' ? 'gece' : 'klasik'
@@ -33,6 +43,9 @@ export default function Menu({ onStart, onHelp }: { onStart: (variant: Variant) 
           101
         </button>
       </div>
+      {savedGame && (
+        <button onClick={onResume}>Devam Et ▸</button>
+      )}
       <button onClick={() => onStart(variant)}>OYNA ▸</button>
       <button onClick={onHelp}>Nasıl Oynanır?</button>
       <button
