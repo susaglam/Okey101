@@ -1,0 +1,6 @@
+{ "name": "@cs-okey/app", "private": true, "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview" },
+  "dependencies": { "@cs-okey/engine": "*", "@cs-okey/bot": "*", "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "devDependencies": { "@vitejs/plugin-react": "^4.3.0", "vite": "^5.4.0",
+    "@testing-library/react": "^16.0.0", "@testing-library/jest-dom": "^6.4.0", "jsdom": "^25.0.0",
+    "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0" } }
