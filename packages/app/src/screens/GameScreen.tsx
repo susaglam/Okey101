@@ -119,8 +119,12 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const matchWinnerSeat = match.standings.indexOf(maxStanding)
   const matchWinnerName = NAMES[matchWinnerSeat] ?? `Oyuncu ${matchWinnerSeat}`
 
+  const handleTakeDiscard = () => {
+    send({ type: 'DrawFromDiscard', seat: view.seat })
+  }
+
   return (
-    <Table view={view}>
+    <Table view={view} onTakeDiscard={handleTakeDiscard}>
       {is101 && <TableMelds melds={view.tableMelds} />}
       <SlotRack
         layout={currentLayout}
