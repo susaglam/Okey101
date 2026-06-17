@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { arrange, suggestDiscard, tilesEqual, findOpening, isValidMeldSet } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, findOpening, isValidMeldSet } from '@cs-okey/engine'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
-import { Rack } from '../components/Rack'
+import { SlotRack } from '../components/SlotRack'
 import { Scoreboard } from '../components/Scoreboard'
 import { TableMelds } from '../components/TableMelds'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
+import type { SlotLayout } from '../rack/slots'
+import { initLayout, reconcile, moveTile, autoArrange } from '../rack/slots'
 
 const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
+const COLS = 14
 
 export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [view, setView] = useState<PlayerView | null>(null)
-  const [sel, setSel] = useState<number | null>(null)
-  const [order, setOrder] = useState<number[] | null>(null)
+  const [layout, setLayout] = useState<SlotLayout | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
   const [match, setMatch] = useState<MatchState>(() => adapter.getMatch())
   const [settings, setSettings] = useState(() => loadSettings())
   const [showSettings, setShowSettings] = useState(false)
@@ -24,8 +27,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     adapter.subscribe(
       (v) => {
         setView(v)
-        setSel(null)
-        setOrder(null)
+        setLayout(prev => prev ? reconcile(prev, v.you.rack) : initLayout(v.you.rack, COLS))
+        setSelectedSlot(null)
         setMatch(adapter.getMatch())
       },
       () => {}
@@ -37,10 +40,11 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
 
-  // Displayed tiles: either raw rack or a visual reordering
-  const displayedTiles = order !== null
-    ? order.map(i => view.you.rack[i]!)
-    : view.you.rack
+  // The current layout (fall back to fresh initLayout if state hasn't been set yet)
+  const currentLayout: SlotLayout = layout ?? initLayout(view.you.rack, COLS)
+
+  // The tile in the selected slot (null if slot is empty or no selection)
+  const selectedTile = selectedSlot !== null ? currentLayout[selectedSlot] ?? null : null
 
   const send = (intent: GameEvent) => {
     void adapter.dispatch({ ...intent, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
@@ -48,33 +52,15 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   const handleArrange = () => {
     if (!view.okey) return
-    const result = arrange(view.you.rack, view.okey, view.config)
-    const arranged = [...result.melds.flat(), ...result.leftovers]
-    // Map each arranged tile back to an unused index in view.you.rack
-    const usedIndices = new Set<number>()
-    const newOrder: number[] = []
-    for (const tile of arranged) {
-      for (let i = 0; i < view.you.rack.length; i++) {
-        if (!usedIndices.has(i) && tilesEqual(view.you.rack[i]!, tile)) {
-          newOrder.push(i)
-          usedIndices.add(i)
-          break
-        }
-      }
-    }
-    // If any rack tiles weren't matched (shouldn't happen), append them
-    for (let i = 0; i < view.you.rack.length; i++) {
-      if (!usedIndices.has(i)) newOrder.push(i)
-    }
-    setOrder(newOrder)
+    setLayout(autoArrange(view.you.rack, view.okey, view.config, COLS))
   }
 
   const handleHint = () => {
     if (!view.okey) return
     const suggested = suggestDiscard(view.you.rack, view.okey, view.config)
-    // Find in displayed order
-    const idx = displayedTiles.findIndex(t => tilesEqual(t, suggested))
-    if (idx !== -1) setSel(idx)
+    // Find the slot index in the current layout that contains this tile
+    const slotIdx = currentLayout.findIndex(t => t !== null && tilesEqual(t, suggested))
+    if (slotIdx !== -1) setSelectedSlot(slotIdx)
   }
 
   const handleNextHand = () => {
@@ -136,13 +122,14 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   return (
     <Table view={view}>
       {is101 && <TableMelds melds={view.tableMelds} />}
-      <Rack
-        tiles={displayedTiles}
-        selectedIndex={sel}
-        onSelect={setSel}
+      <SlotRack
+        layout={currentLayout}
+        okey={view.okey}
         colorblind={settings.colorblind}
         repValue={settings.repValue}
-        okeyNumber={view.okey?.number}
+        selectedSlot={selectedSlot}
+        onSelectSlot={setSelectedSlot}
+        onMove={(from, to) => setLayout(l => moveTile(l!, from, to))}
       />
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
@@ -155,8 +142,18 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         )}
         {isMyTurn && view.turn.phase === 'DISCARD' && (
           <>
-            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'Discard', seat: view.seat, tile: displayedTiles[sel]! })}>Taş At</button>
-            <button disabled={sel === null} onClick={() => sel !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: displayedTiles[sel]! })}>Elimi Aç / Bitir</button>
+            <button
+              disabled={selectedTile === null}
+              onClick={() => selectedTile !== null && send({ type: 'Discard', seat: view.seat, tile: selectedTile })}
+            >
+              Taş At
+            </button>
+            <button
+              disabled={selectedTile === null}
+              onClick={() => selectedTile !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: selectedTile })}
+            >
+              Elimi Aç / Bitir
+            </button>
             <button onClick={handleHint}>💡 İpucu</button>
             {is101 && (
               <>

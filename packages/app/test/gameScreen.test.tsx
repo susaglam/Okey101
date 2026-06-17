@@ -21,4 +21,22 @@ describe('GameScreen', () => {
       ).toBeTruthy()
     })
   })
+
+  it('renders SlotRack (slot-rack testid) instead of old rack', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      const racks = screen.getAllByTestId('slot-rack')
+      expect(racks.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('has at least 15 tiles in slot rack for Klasik starter', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      const tiles = screen.getAllByTestId('tile')
+      expect(tiles.length).toBeGreaterThanOrEqual(15)
+    })
+  })
 })
