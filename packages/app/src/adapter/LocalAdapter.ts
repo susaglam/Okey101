@@ -57,7 +57,10 @@ export class LocalAdapter implements Adapter {
       const rng = makeRng(deriveSeed(this.seed, `bot:${seat}:${this.state.handNo}:${this.version}`))
       const ev = decide(view, legal, rng)
       try { this.state = reduce(this.state, ev); this.version++ }
-      catch { break } // defensive: a bad bot move ends its turn rather than crashing
+      catch (e) {
+        if (!(e instanceof RuleError)) console.error('Bot move error (non-rule):', e)
+        break // a bad bot move ends its turn rather than crashing the game
+      }
     }
   }
 
