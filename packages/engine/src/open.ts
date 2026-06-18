@@ -161,7 +161,6 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
     .filter((t) => !isWild(t, okey))
     .map((t) => effectiveValue(t, okey))
     .filter((v): v is { number: number; color: TileColor } => v !== null)
-  const wildCount = meld.filter((t) => isWild(t, okey)).length
 
   if (nonWildEv.length === 0) return false // all wilds — not a valid run (no color info)
 
@@ -199,8 +198,6 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
     const slots = new Set(nums)
     if (slots.size !== nonWildEv.length) continue
 
-    // Suppress unused variable warning
-    void wildCount
     return true
   }
 

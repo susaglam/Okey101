@@ -163,21 +163,28 @@ export function layoutToTiles(layout: SlotLayout): Tile[] {
 /**
  * For an already-ordered meld (output of orderMeldForDisplay), return the number
  * each tile REPRESENTS:
+ * - FALSE_JOKER → always okey.number (its fixed concrete value; never a gap-derived number)
+ * - real NUMBER tile matching okey (gap-filling wild) in a RUN → compute slot position
+ *   from the first non-wild tile's number + index offset
+ * - real NUMBER tile matching okey (gap-filling wild) in a GROUP → the group's shared number
  * - non-wild tile → its own `number`
- * - wild in a RUN (real tiles share colour, differ in number): compute slot
- *   position from the first real tile's number + index offset
- * - wild in a GROUP (real tiles share number): the group's shared number
  * - Returns null if indeterminate (e.g. all-wild meld)
  */
 export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number | null)[] {
-  // Resolve FALSE_JOKERs to their concrete okey-valued tile for analysis.
-  // The original orderedMeld tiles are kept for indexing back to return values.
+  // Resolve each tile to its concrete value for shape analysis:
+  // - FALSE_JOKER → {kind:'NUMBER', number:okey.number, color:okey.color}
+  // - real NUMBER tiles → unchanged
   const resolvedMeld = orderedMeld.map((t) => concreteTile(t, okey))
 
-  const reals = resolvedMeld.filter((t) => !isWildTile(t, okey))
+  // A "display wild" (gap-filler) is ONLY a real NUMBER tile matching okey.
+  // FALSE_JOKERs are NOT display wilds — they are fixed concrete tiles.
+  const isDisplayWild = orderedMeld.map((t) => isWildTile(t, okey))
+
+  // Non-wild tiles: real tiles (including FALSE_JOKERs with their concrete value)
+  const reals = resolvedMeld.filter((_, i) => !isDisplayWild[i])
 
   if (reals.length === 0) {
-    // All wilds — cannot determine represented value
+    // All gap-filling wilds — cannot determine represented value
     return orderedMeld.map(() => null)
   }
 
@@ -187,22 +194,24 @@ export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number 
   const sameNumber = reals.every((t) => t.number === firstNum)
 
   if (sameColor && !sameNumber) {
-    // RUN: find first real tile to anchor position
+    // RUN: find first non-wild tile to anchor position
     // Walk the resolved meld; each position j represents firstRealNumber - firstRealIndex + j
-    const firstRealIndex = resolvedMeld.findIndex((t) => !isWildTile(t, okey))
+    const firstRealIndex = isDisplayWild.findIndex((w) => !w)
     const firstRealNumber = resolvedMeld[firstRealIndex]!.number ?? 1
     return resolvedMeld.map((t, j) => {
-      if (!isWildTile(t, okey)) {
+      if (!isDisplayWild[j]) {
+        // FALSE_JOKER or real tile: return its concrete number
         return t.number ?? null
       }
+      // Gap-filling wild: slot number derived from run position
       return firstRealNumber - firstRealIndex + j
     })
   }
 
   // GROUP (same number) or fallback: every tile represents the group's number
   const groupNumber = firstNum ?? null
-  return resolvedMeld.map((t) => {
-    if (!isWildTile(t, okey)) return t.number ?? null
+  return resolvedMeld.map((t, j) => {
+    if (!isDisplayWild[j]) return t.number ?? null
     return groupNumber
   })
 }
@@ -232,24 +241,27 @@ const COLOR_ORDER: Record<string, number> = { RED: 0, YELLOW: 1, BLUE: 2, BLACK:
 /**
  * Order a meld's tiles for READABLE display:
  * - RUN (real tiles share a colour, differ in number): tiles ascending by number,
- *   with wild tiles placed in their gap positions (so "7 ♣ 9 10" reads as 7-8-9-10);
- *   any extra wilds extend the run at the end.
+ *   with gap-filling wilds placed in their gap positions (so "7 ♣ 9 10" reads as 7-8-9-10);
+ *   any extra gap-filling wilds extend the run at the end.
  * - GROUP (real tiles share a number): real tiles by a fixed colour order, wilds last.
  * The engine's `arrange()` appends wilds at the end of a meld; this fixes that for display.
  * (Wrap-around 12-13-1 runs are left in best-effort order — rare, Klasik-only.)
  *
- * FALSE_JOKER tiles are resolved to their concrete okey-valued NUMBER tile for ordering
- * purposes, but the original FALSE_JOKER tile object is preserved in the output so that
- * the display layer can still render the joker graphic.
+ * FALSE_JOKER tiles are treated as CONCRETE tiles with a fixed value equal to okey's
+ * number+color. They are placed at their fixed value position in the run (like any
+ * normal tile of that value). Only real NUMBER tiles matching okey are gap-filling wilds.
+ * The original tile objects are always preserved in the output.
  */
 export function orderMeldForDisplay(meld: Tile[], okey: Tile): Tile[] {
   // Pair each original tile with its resolved (concrete) tile for ordering logic.
-  // FALSE_JOKERs resolve to okey's NUMBER tile; since that number+color IS the okey tile,
-  // the resolved tile passes isWildTile, so FALSE_JOKERs are placed as run-extenders in display.
+  // FALSE_JOKERs resolve to okey's NUMBER tile but are NOT display wilds —
+  // they are fixed concrete tiles placed at their value position.
+  // Only real NUMBER tiles matching okey (checked on orig) are gap-filling wilds.
   const pairs = meld.map((t) => ({ orig: t, resolved: concreteTile(t, okey) }))
 
-  const wildPairs = pairs.filter((p) => isWildTile(p.resolved, okey))
-  const realPairs = pairs.filter((p) => !isWildTile(p.resolved, okey))
+  // isWildTile checks orig: FALSE_JOKER (kind !== 'NUMBER') → false, real okey tile → true
+  const wildPairs = pairs.filter((p) => isWildTile(p.orig, okey))
+  const realPairs = pairs.filter((p) => !isWildTile(p.orig, okey))
 
   if (realPairs.length === 0) return [...meld]
 
