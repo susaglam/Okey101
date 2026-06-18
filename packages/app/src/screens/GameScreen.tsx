@@ -133,7 +133,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     const { active, over } = event
     if (!over) return
 
-    const fromSlot = active.id as number
+    const fromSlot = Number(active.id as string)
 
     if (over.id === 'discard') {
       // Drag to discard zone — only when it's the human's DISCARD turn
@@ -143,7 +143,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       send({ type: 'Discard', seat: view.seat, tile })
     } else {
       // Drag to another slot — rearrange
-      const toSlot = over.id as number
+      const toSlot = Number(over.id as string)
       if (fromSlot !== toSlot) {
         setLayout(l => moveTile(l!, fromSlot, toSlot))
       }

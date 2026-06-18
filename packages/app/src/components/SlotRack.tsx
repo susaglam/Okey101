@@ -15,7 +15,7 @@ function DroppableSlot({
   slotIndex: number
   children?: React.ReactNode
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: slotIndex })
+  const { setNodeRef, isOver } = useDroppable({ id: String(slotIndex) })
   return (
     <div
       ref={setNodeRef}
@@ -68,7 +68,7 @@ function DraggableTile({
   onSelectSlot: (slot: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: slotIndex,
+    id: String(slotIndex),
   })
 
   const style: React.CSSProperties = {
