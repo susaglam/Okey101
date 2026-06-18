@@ -23,7 +23,7 @@ export interface PlayerView {
   scores: number[]
   status: GameState['status']
   terminal?: Terminal
-  tableMelds: { owner: number; kind: 'run' | 'group'; tiles: Tile[] }[]
+  tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
   rizikoActive: boolean
   version: number
 }

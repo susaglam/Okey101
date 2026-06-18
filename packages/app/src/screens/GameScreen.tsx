@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, findOpening, findLayableMeld, isValidMeldSet } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isValidMeldSet } from '@cs-okey/engine'
 import { DndContext } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
@@ -82,14 +82,27 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // ── 101-specific pre-computed values ──────────────────────────────────────
   const is101 = !!view.config.requiresOpening
 
-  // findOpening result (null if can't open or already opened)
+  // findOpening result (null if can't open or already opened) — seri route
   const opening101 = is101 && view.okey && !view.you.hasOpened
     ? findOpening(view.you.rack, view.okey, view.config)
     : null
 
-  // findLayableMeld result: post-opening meld laying (only shown when already opened)
-  const layableMeld101 = is101 && view.okey && view.you.hasOpened
+  // findPairOpening result — çift route initial open (5 pairs)
+  const pairOpening101 = is101 && view.okey && !view.you.hasOpened
+    ? findPairOpening(view.you.rack, view.okey, view.config)
+    : null
+
+  // Determine the player's open route (after first open)
+  const openRoute = view.you.openRoute as 'seri' | 'cift' | undefined
+
+  // findLayableMeld result: post-opening meld laying (only for seri-route players)
+  const layableMeld101 = is101 && view.okey && view.you.hasOpened && openRoute !== 'cift'
     ? findLayableMeld(view.you.rack, view.okey, view.config)
+    : null
+
+  // findLayablePairs result: post-opening pair laying (only for çift-route players)
+  const layablePairs101 = is101 && view.okey && view.you.hasOpened && openRoute === 'cift'
+    ? findLayablePairs(view.you.rack, view.okey, view.config)
     : null
 
   // Find first rack tile + meld index that produces a legal LayOff
@@ -211,16 +224,26 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             {is101 && (
               <>
                 {!view.you.hasOpened && (
-                  <button
-                    disabled={opening101 === null}
-                    onClick={() => {
-                      if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
-                    }}
-                  >
-                    Aç (≥101)
-                  </button>
+                  <>
+                    <button
+                      disabled={opening101 === null}
+                      onClick={() => {
+                        if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
+                      }}
+                    >
+                      Aç (≥101)
+                    </button>
+                    <button
+                      disabled={pairOpening101 === null}
+                      onClick={() => {
+                        if (pairOpening101) send({ type: 'OpenMeld', seat: view.seat, melds: pairOpening101 })
+                      }}
+                    >
+                      Çift Aç
+                    </button>
+                  </>
                 )}
-                {view.you.hasOpened && (
+                {view.you.hasOpened && openRoute !== 'cift' && (
                   <button
                     disabled={layableMeld101 === null}
                     onClick={() => {
@@ -228,6 +251,16 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
                     }}
                   >
                     Seri Aç
+                  </button>
+                )}
+                {view.you.hasOpened && openRoute === 'cift' && (
+                  <button
+                    disabled={layablePairs101 === null}
+                    onClick={() => {
+                      if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 })
+                    }}
+                  >
+                    Çift Aç
                   </button>
                 )}
                 <button

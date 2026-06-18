@@ -6,7 +6,7 @@ import { tilesEqual } from './tile'
 import { buildDeck } from './deck'
 import { makeRng, shuffle, deriveSeed } from './rng'
 import { evaluateHand } from './evaluator'
-import { canOpen, openingValue, isValidMeldSet } from './open'
+import { canOpen, openingValue, isValidMeldSet, isValidPairSet } from './open'
 
 export class RuleError extends Error {}
 
@@ -244,15 +244,48 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const cfg = state.config
       const okey = state.okey!
 
+      // Determine if this is a çift-route open: all melds are valid pairs and
+      // the count matches the configured pairs-open count.
+      const pairsCount = cfg.pairsOpenCount ?? 5
+      const isCiftOpen = event.melds.length === pairsCount && event.melds.every((m) => {
+        if (m.length !== 2) return false
+        const [a, b] = m
+        if (!a || !b) return false
+        // Neither tile should be wild
+        if (a.kind === 'NUMBER' && tilesEqual(a, okey)) return false
+        if (b.kind === 'NUMBER' && tilesEqual(b, okey)) return false
+        // Effective values must match
+        const evA = a.kind === 'FALSE_JOKER'
+          ? (okey.number != null && okey.color != null ? { number: okey.number, color: okey.color } : null)
+          : (a.number != null && a.color != null ? { number: a.number, color: a.color } : null)
+        const evB = b.kind === 'FALSE_JOKER'
+          ? (okey.number != null && okey.color != null ? { number: okey.number, color: okey.color } : null)
+          : (b.number != null && b.color != null ? { number: b.number, color: b.color } : null)
+        return evA !== null && evB !== null && evA.number === evB.number && evA.color === evB.color
+      })
+
       if (!player.hasOpened) {
         // First open: validate via canOpen (≥101 or 5 pairs)
         if (!canOpen(event.melds, okey, cfg)) {
           throw new RuleError('cannot open: melds do not satisfy the opening requirement')
         }
       } else {
-        // Already opened — validate that every meld is still valid
-        if (!isValidMeldSet(event.melds, okey, cfg)) {
-          throw new RuleError('cannot open: invalid meld set')
+        // Already opened — validate based on the route taken at first open
+        const route = player.openRoute
+        if (route === 'cift') {
+          // ÇİFT route: only additional pairs are allowed; runs/groups are rejected
+          if (!isValidPairSet(event.melds, okey)) {
+            throw new RuleError('cannot open: çift-route player may only lay additional pairs')
+          }
+        } else {
+          // SERI route (or unset — treat as seri for backward compat): runs/groups only
+          // Reject if the submitted melds look like pairs (all 2-tile identical pairs)
+          if (isValidPairSet(event.melds, okey)) {
+            throw new RuleError('cannot open: seri-route player may only lay runs/groups')
+          }
+          if (!isValidMeldSet(event.melds, okey, cfg)) {
+            throw new RuleError('cannot open: invalid meld set')
+          }
         }
       }
 
@@ -262,12 +295,21 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // Remove tiles from rack
       const newRack = removeTilesFromRack(player.rack, allLaidTiles)
 
-      // Compute opening value
+      // Compute opening value (pairs route: value is 0 — no threshold)
       const value = openingValue(event.melds, okey)
 
-      // Build new table meld entries: detect shape for each meld.
-      // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
+      // Determine the route for this open (only relevant on first open, but derived from meld shape)
+      const openedRoute: 'seri' | 'cift' = !player.hasOpened
+        ? (isCiftOpen ? 'cift' : 'seri')
+        : (player.openRoute ?? 'seri')
+
+      // Build new table meld entries
+      // For çift-route melds: kind = 'pair'
+      // For seri-route melds: detect run vs group
       const newTableMelds = event.melds.map((meld) => {
+        if (openedRoute === 'cift') {
+          return { owner: event.seat, kind: 'pair' as const, tiles: meld }
+        }
         // Use effective values for non-wild tiles to determine meld shape.
         // FALSE_JOKER contributes okey's number+color as its concrete value.
         const nonWildEffective = meld
@@ -290,6 +332,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         rack: newRack,
         hasOpened: true,
         openedValue: value,
+        openRoute: openedRoute,
       }))
 
       // İşlek penalty: penalise the left neighbour if the player took from their discard pile.

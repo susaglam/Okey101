@@ -273,7 +273,88 @@ function isValidPair(meld: Tile[], okey: Tile): boolean {
   return evA.number === evB.number && evA.color === evB.color
 }
 
+// ─── Public: isValidPairSet ───────────────────────────────────────────────────
+
+/**
+ * Returns true if every meld in the set is a valid pair (for post-opening
+ * çift-route meld laying).
+ */
+export function isValidPairSet(melds: Tile[][], okey: Tile): boolean {
+  if (melds.length === 0) return false
+  return melds.every((m) => isValidPair(m, okey))
+}
+
 // ─── Public: canOpen ──────────────────────────────────────────────────────────
+
+// ─── Public: findPairOpening ──────────────────────────────────────────────────
+
+/**
+ * Attempt to find exactly `config.pairsOpenCount` (default 5) identical pairs
+ * in the given rack for the initial çift-route opening.
+ *
+ * A pair = 2 tiles with the same effective number and color; neither may be wild
+ * (a real NUMBER tile equal to okey). FALSE_JOKERs use okey's concrete value.
+ *
+ * Returns the array of pairs (each a 2-element Tile[]) if found, else null.
+ */
+export function findPairOpening(rack: Tile[], okey: Tile, config: VariantConfig): Tile[][] | null {
+  const pairsCount = config.pairsOpenCount ?? 5
+  const all = _collectPairs(rack, okey, pairsCount)
+  if (!all) return null
+  // Return exactly pairsCount pairs
+  return all.length >= pairsCount ? all.slice(0, pairsCount) : null
+}
+
+/**
+ * Helper: collect identical pairs from the rack.
+ * Uses a frequency map keyed by "number:color" to find pairs.
+ * If `minPairs` is provided and fewer pairs are found, returns null.
+ * If `minPairs` is 0, returns all found pairs (or null if none).
+ */
+function _collectPairs(rack: Tile[], okey: Tile, minPairs: number): Tile[][] | null {
+  // Group non-wild tiles by their effective "number:color" key
+  type Entry = { tile: Tile; key: string }
+  const entries: Entry[] = []
+  for (const t of rack) {
+    if (isWild(t, okey)) continue
+    const ev = effectiveValue(t, okey)
+    if (!ev) continue
+    entries.push({ tile: t, key: `${ev.number}:${ev.color}` })
+  }
+
+  // Count occurrences per key and track tile instances
+  const groups = new Map<string, Tile[]>()
+  for (const { tile, key } of entries) {
+    const arr = groups.get(key)
+    if (arr) { arr.push(tile) }
+    else { groups.set(key, [tile]) }
+  }
+
+  // Extract pairs — each group with ≥2 tiles contributes ⌊count/2⌋ pairs
+  const pairs: Tile[][] = []
+  for (const [, tiles] of groups) {
+    for (let i = 0; i + 1 < tiles.length; i += 2) {
+      pairs.push([tiles[i]!, tiles[i + 1]!])
+    }
+  }
+
+  if (pairs.length === 0) return null
+  if (minPairs > 0 && pairs.length < minPairs) return null
+  return pairs
+}
+
+// ─── Public: findLayablePairs ─────────────────────────────────────────────────
+
+/**
+ * Find all additional identical pairs in the rack for a çift-route player who
+ * has already opened (post-opening pair laying: "Çift Aç").
+ *
+ * Returns an array of 2-element Tile[] arrays (one per additional pair found),
+ * or null if no pairs are available.
+ */
+export function findLayablePairs(rack: Tile[], okey: Tile, _config: VariantConfig): Tile[][] | null {
+  return _collectPairs(rack, okey, 0)
+}
 
 // ─── Public: findOpening ──────────────────────────────────────────────────────
 

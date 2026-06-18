@@ -19,6 +19,11 @@ export interface PlayerState {
   isOut: boolean
   declaredCift?: boolean
   openedValue?: number
+  /** Tracks which opening route the player used. Set on first OpenMeld.
+   *  'seri' = opened via runs/groups (≥101 total value route).
+   *  'cift' = opened via 5 identical pairs route.
+   *  Governs which subsequent meld-laying is allowed. */
+  openRoute?: 'seri' | 'cift'
   /** Set when a çift-declarer takes a floor tile and may defer opening to a later turn.
    *  Holds the seat number of the left neighbour (discarder) who should be penalised
    *  when this player eventually calls OpenMeld. Cleared once the penalty is applied. */
@@ -45,7 +50,7 @@ export interface GameState {
   scores: number[]
   status: 'CREATED' | 'DEALT' | 'PLAYING' | 'ENDED'
   terminal?: Terminal
-  tableMelds?: { owner: number; kind: 'run' | 'group'; tiles: Tile[] }[]
+  tableMelds?: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
   rizikoActive?: boolean
   penaltiesApplied?: { seat: number; type: string }[]
 }
