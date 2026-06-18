@@ -1,5 +1,3 @@
-import { DndContext } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { Tile } from '@cs-okey/engine'
@@ -125,16 +123,6 @@ export function SlotRack({
   // mirroring the existing Rack.tsx wiring.
   const okeyNumber = okey?.number
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over) return
-    const fromSlot = active.id as number
-    const toSlot = over.id as number
-    if (fromSlot !== toSlot) {
-      onMove(fromSlot, toSlot)
-    }
-  }
-
   function renderSlot(tile: Tile | null, slotIndex: number) {
     if (tile === null) {
       return (
@@ -163,29 +151,27 @@ export function SlotRack({
   }
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      <div
-        data-testid="slot-rack"
-        style={{
-          display: 'inline-flex',
-          flexDirection: 'column',
-          gap: 6,
-          padding: '10px 12px',
-          background: 'linear-gradient(180deg, #b5783a 0%, #8b5e2a 100%)',
-          borderRadius: 10,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
-          border: '2px solid #6b4420',
-        }}
-      >
-        {/* Back row (top): slots 0 .. cols-1 */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {backRow.map((tile, i) => renderSlot(tile, i))}
-        </div>
-        {/* Front row (bottom): slots cols .. 2*cols-1 */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {frontRow.map((tile, i) => renderSlot(tile, cols + i))}
-        </div>
+    <div
+      data-testid="slot-rack"
+      style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: '10px 12px',
+        background: 'linear-gradient(180deg, #b5783a 0%, #8b5e2a 100%)',
+        borderRadius: 10,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+        border: '2px solid #6b4420',
+      }}
+    >
+      {/* Back row (top): slots 0 .. cols-1 */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        {backRow.map((tile, i) => renderSlot(tile, i))}
       </div>
-    </DndContext>
+      {/* Front row (bottom): slots cols .. 2*cols-1 */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        {frontRow.map((tile, i) => renderSlot(tile, cols + i))}
+      </div>
+    </div>
   )
 }

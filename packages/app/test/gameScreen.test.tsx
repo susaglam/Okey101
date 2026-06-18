@@ -1,27 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 
 describe('GameScreen', () => {
-  it('lets the human discard a selected tile and bots respond', async () => {
-    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
-    render(<GameScreen adapter={adapter} />)
-    // starter is in DISCARD phase with 15 tiles
-    const tiles = screen.getAllByTestId('tile')
-    expect(tiles.length).toBeGreaterThanOrEqual(15)
-    fireEvent.click(tiles[0]!) // select first rack tile
-    fireEvent.click(screen.getByRole('button', { name: /taş at/i }))
-    // after dispatch, either it's the human's draw turn again or the hand ended
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('button', { name: /stoktan çek/i }) ||
-        screen.queryByText(/bitti|berabere/i)
-      ).toBeTruthy()
-    })
-  })
-
   it('renders SlotRack (slot-rack testid) instead of old rack', async () => {
     const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
     render(<GameScreen adapter={adapter} />)
@@ -37,6 +20,42 @@ describe('GameScreen', () => {
     await waitFor(() => {
       const tiles = screen.getAllByTestId('tile')
       expect(tiles.length).toBeGreaterThanOrEqual(15)
+    })
+  })
+
+  it('does NOT render a "Taş At" button', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      expect(screen.queryAllByRole('button', { name: /taş at/i })).toHaveLength(0)
+    })
+  })
+
+  it('does NOT render an "Elimi Aç" / "Bitir" button', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      expect(screen.queryAllByRole('button', { name: /elimi aç/i })).toHaveLength(0)
+      expect(screen.queryAllByRole('button', { name: /bitir/i })).toHaveLength(0)
+    })
+  })
+
+  it('renders a discard drop-zone (data-testid="discard-zone")', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      const zones = screen.getAllByTestId('discard-zone')
+      expect(zones.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('still renders Sırala (arrange) button during human turn', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    // seed 9 starts human in DISCARD phase — Sırala should always be visible during isMyTurn
+    await waitFor(() => {
+      const buttons = screen.getAllByRole('button', { name: /sırala/i })
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
     })
   })
 })

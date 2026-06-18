@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
 import { suggestDiscard, tilesEqual, findOpening, isValidMeldSet } from '@cs-okey/engine'
+import { DndContext } from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
+import { DiscardZone } from '../components/DiscardZone'
 import { Scoreboard } from '../components/Scoreboard'
 import { TableMelds } from '../components/TableMelds'
 import { loadSettings, saveSettings } from '../settings'
@@ -123,18 +126,55 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     send({ type: 'DrawFromDiscard', seat: view.seat })
   }
 
+  // Guard: only allow discard when human is in DISCARD phase
+  const isDiscardPhase = isMyTurn && view.turn.phase === 'DISCARD'
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over) return
+
+    const fromSlot = active.id as number
+
+    if (over.id === 'discard') {
+      // Drag to discard zone — only when it's the human's DISCARD turn
+      if (!isDiscardPhase) return
+      const tile = currentLayout[fromSlot]
+      if (tile == null) return
+      send({ type: 'Discard', seat: view.seat, tile })
+    } else {
+      // Drag to another slot — rearrange
+      const toSlot = over.id as number
+      if (fromSlot !== toSlot) {
+        setLayout(l => moveTile(l!, fromSlot, toSlot))
+      }
+    }
+  }
+
   return (
+    <DndContext onDragEnd={handleDragEnd}>
     <Table view={view} onTakeDiscard={handleTakeDiscard}>
       {is101 && <TableMelds melds={view.tableMelds} />}
-      <SlotRack
-        layout={currentLayout}
-        okey={view.okey}
-        colorblind={settings.colorblind}
-        repValue={settings.repValue}
-        selectedSlot={selectedSlot}
-        onSelectSlot={setSelectedSlot}
-        onMove={(from, to) => setLayout(l => moveTile(l!, from, to))}
-      />
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
+        <SlotRack
+          layout={currentLayout}
+          okey={view.okey}
+          colorblind={settings.colorblind}
+          repValue={settings.repValue}
+          selectedSlot={selectedSlot}
+          onSelectSlot={setSelectedSlot}
+          onMove={(from, to) => setLayout(l => moveTile(l!, from, to))}
+        />
+        <DiscardZone
+          onDropTile={() => {
+            if (!isDiscardPhase) return
+            const tile = selectedSlot !== null ? currentLayout[selectedSlot] : null
+            if (tile != null) {
+              send({ type: 'Discard', seat: view.seat, tile })
+            }
+          }}
+          highlight={isDiscardPhase}
+        />
+      </div>
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
           <>
@@ -146,18 +186,6 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         )}
         {isMyTurn && view.turn.phase === 'DISCARD' && (
           <>
-            <button
-              disabled={selectedTile === null}
-              onClick={() => selectedTile !== null && send({ type: 'Discard', seat: view.seat, tile: selectedTile })}
-            >
-              Taş At
-            </button>
-            <button
-              disabled={selectedTile === null}
-              onClick={() => selectedTile !== null && send({ type: 'DeclareWin', seat: view.seat, discardTile: selectedTile })}
-            >
-              Elimi Aç / Bitir
-            </button>
             <button onClick={handleHint}>💡 İpucu</button>
             {is101 && (
               <>
@@ -308,5 +336,6 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         </div>
       )}
     </Table>
+    </DndContext>
   )
 }
