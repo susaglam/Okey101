@@ -43,9 +43,7 @@ function EmptySlotGap() {
         width: 44,
         height: 58,
         borderRadius: 5,
-        background: 'rgba(0,0,0,0.18)',
-        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.35)',
-        border: '1px solid rgba(0,0,0,0.25)',
+        background: 'transparent',
         boxSizing: 'border-box',
       }}
     />

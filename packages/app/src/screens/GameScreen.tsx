@@ -16,7 +16,7 @@ import type { SlotLayout } from '../rack/slots'
 import { initLayout, reconcile, moveTile, autoArrange } from '../rack/slots'
 
 const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
-const COLS = 14
+const COLS = 16
 
 export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [view, setView] = useState<PlayerView | null>(null)

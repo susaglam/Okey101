@@ -89,6 +89,7 @@ export function Table({
               count={topOpponent.rackCount}
               isTurn={view.turn.seat === topOpponent.seat}
               position="top"
+              score={view.scores?.[topOpponent.seat]}
             />
             {/* seat 2's discard pile sits between top and left */}
             <DiscardPile
@@ -110,6 +111,7 @@ export function Table({
               count={leftOpponent.rackCount}
               isTurn={view.turn.seat === leftOpponent.seat}
               position="left"
+              score={view.scores?.[leftOpponent.seat]}
             />
           )}
           {/* Seat 3's discard = human's takeable pile */}
@@ -127,17 +129,46 @@ export function Table({
         <div style={centerStyle}>
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
           <div style={centerRowStyle}>
+            {/* Stock indicator: tile-shaped face-down element with count */}
             <div
               data-testid="stock-count"
-              style={{
-                background: 'rgba(0,0,0,.35)',
-                borderRadius: 8,
-                padding: '10px 14px',
-                fontWeight: 800,
-                fontSize: 13,
-              }}
+              data-stockcount={view.stockCount}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
             >
-              STOK {view.stockCount}
+              <div
+                data-testid="stock-tile"
+                style={{
+                  width: 40,
+                  height: 56,
+                  borderRadius: 6,
+                  background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  border: '1px solid #5a4020',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* subtle back pattern */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 4,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 3,
+                }} />
+                <span style={{
+                  color: '#e8c87a',
+                  fontWeight: 900,
+                  fontSize: 15,
+                  zIndex: 1,
+                  textShadow: '0 1px 2px rgba(0,0,0,.6)',
+                }}>
+                  {view.stockCount}
+                </span>
+              </div>
             </div>
             {view.indicator && (
               <div data-testid="gosterge" style={{ textAlign: 'center' }}>
@@ -158,6 +189,7 @@ export function Table({
               count={rightOpponent.rackCount}
               isTurn={view.turn.seat === rightOpponent.seat}
               position="right"
+              score={view.scores?.[rightOpponent.seat]}
             />
           )}
           {/* Seat 1's discard sits between right and top */}
@@ -171,7 +203,7 @@ export function Table({
         </div>
       </div>
 
-      {/* BOTTOM ROW: human's discard + children */}
+      {/* BOTTOM ROW: human nameplate + discard + children */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
         {/* Human's discard pile (between human and right) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', paddingRight: 60 }}>
@@ -182,6 +214,51 @@ export function Table({
           />
         </div>
         <div>{children}</div>
+        {/* Human nameplate */}
+        <div
+          data-testid="human-nameplate"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 12px',
+            borderRadius: 10,
+            background: 'linear-gradient(180deg,#c08a44,#7a4a1c)',
+            color: '#fff',
+            boxShadow: view.turn.seat === view.seat ? '0 0 12px #5ad1c4' : '0 2px 4px rgba(0,0,0,.4)',
+          }}
+        >
+          <div style={{
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            background: '#3a4570',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 800,
+            fontSize: 14,
+          }}>S</div>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Sen</span>
+          <span style={{
+            background: 'rgba(0,0,0,.3)',
+            borderRadius: 8,
+            padding: '2px 7px',
+            fontSize: 12,
+          }}>
+            {view.you.rack.length}
+          </span>
+          <span style={{
+            background: 'rgba(0,0,0,.45)',
+            borderRadius: 6,
+            padding: '2px 6px',
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#ffd27a',
+          }}>
+            {(view.scores?.[view.seat] ?? 0)}
+          </span>
+        </div>
       </div>
     </div>
   )

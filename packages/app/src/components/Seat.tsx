@@ -3,11 +3,15 @@ export function Seat({
   count,
   isTurn,
   position,
+  score,
+  chips,
 }: {
   name: string
   count: number
   isTurn: boolean
-  position?: 'top' | 'left' | 'right'
+  position?: 'top' | 'left' | 'right' | 'bottom'
+  score?: number
+  chips?: number | string
 }) {
   const isVertical = position === 'left' || position === 'right'
 
@@ -52,6 +56,15 @@ export function Seat({
     fontSize: isVertical ? 10 : 12,
   }
 
+  const scoreStyle: React.CSSProperties = {
+    background: 'rgba(0,0,0,.45)',
+    borderRadius: 6,
+    padding: isVertical ? '1px 4px' : '2px 6px',
+    fontSize: isVertical ? 9 : 11,
+    fontWeight: 700,
+    color: '#ffd27a',
+  }
+
   return (
     <div
       className={`seat${isTurn ? ' turn' : ''}`}
@@ -61,6 +74,14 @@ export function Seat({
       <div style={avatarStyle}>{name[0]}</div>
       <span style={nameStyle}>{name}</span>
       <span style={badgeStyle}>{count}</span>
+      {chips !== undefined && (
+        <span style={{ ...badgeStyle, background: 'rgba(60,180,60,.35)', fontSize: isVertical ? 9 : 11 }}>
+          {chips}
+        </span>
+      )}
+      {score !== undefined && (
+        <span style={scoreStyle}>{score}</span>
+      )}
     </div>
   )
 }
