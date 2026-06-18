@@ -1,4 +1,4 @@
-import { evaluateHand, findOpening, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
+import { evaluateHand, findOpening, findLayableMeld, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
 
 export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => number): GameEvent {
   const seat = view.seat
@@ -40,7 +40,15 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
       }
     }
 
-    // 3. LayOff: if already opened, try to extend a table meld with one rack tile.
+    // 3. OpenMeld (post-opening): if already opened, try to lay a new meld from rack.
+    if (view.you.hasOpened && legal.includes('OpenMeld')) {
+      const layable = findLayableMeld(rack, view.okey!, view.config)
+      if (layable !== null) {
+        return { type: 'OpenMeld', seat, melds: [layable] }
+      }
+    }
+
+    // 4. LayOff: if already opened, try to extend a table meld with one rack tile.
     if (view.you.hasOpened && legal.includes('LayOff')) {
       const layOff = findLayOff(rack, view.tableMelds, view.okey!)
       if (layOff !== null) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, findOpening, isValidMeldSet } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, findOpening, findLayableMeld, isValidMeldSet } from '@cs-okey/engine'
 import { DndContext } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
@@ -84,6 +84,11 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // findOpening result (null if can't open or already opened)
   const opening101 = is101 && view.okey && !view.you.hasOpened
     ? findOpening(view.you.rack, view.okey, view.config)
+    : null
+
+  // findLayableMeld result: post-opening meld laying (only shown when already opened)
+  const layableMeld101 = is101 && view.okey && view.you.hasOpened
+    ? findLayableMeld(view.you.rack, view.okey, view.config)
     : null
 
   // Find first rack tile + meld index that produces a legal LayOff
@@ -189,14 +194,26 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             <button onClick={handleHint}>💡 İpucu</button>
             {is101 && (
               <>
-                <button
-                  disabled={opening101 === null}
-                  onClick={() => {
-                    if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
-                  }}
-                >
-                  Aç (≥101)
-                </button>
+                {!view.you.hasOpened && (
+                  <button
+                    disabled={opening101 === null}
+                    onClick={() => {
+                      if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
+                    }}
+                  >
+                    Aç (≥101)
+                  </button>
+                )}
+                {view.you.hasOpened && (
+                  <button
+                    disabled={layableMeld101 === null}
+                    onClick={() => {
+                      if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] })
+                    }}
+                  >
+                    Seri Aç
+                  </button>
+                )}
                 <button
                   disabled={layOffTarget === null}
                   onClick={() => {

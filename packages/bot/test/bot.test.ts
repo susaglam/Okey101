@@ -153,4 +153,27 @@ describe('bot.decide 101', () => {
     const evDraw = decide(viewWith(['1R','2R'], 'DRAW', []), ['DrawFromStock'], makeRng(4))
     expect(evDraw.type).toBe('DrawFromStock')
   })
+
+  it('lays a new meld (OpenMeld) when hasOpened and rack has a layable meld + OpenMeld is legal', () => {
+    // Rack with a clear run (7R,8R,9R) that can be laid as a new meld post-opening
+    const rack = ['7R', '8R', '9R', '1K', '3M', '5S']
+    const view = view101(rack, 'DISCARD', true /* hasOpened */)
+    const ev = decide(view, ['Discard', 'OpenMeld', 'LayOff'], makeRng(1))
+    expect(ev.type).toBe('OpenMeld')
+    if (ev.type === 'OpenMeld') {
+      expect(ev.seat).toBe(0)
+      expect(ev.melds).toBeDefined()
+      expect(ev.melds.length).toBe(1)
+      expect(ev.melds[0]!.length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('does NOT lay a new meld when OpenMeld is not in the legal list', () => {
+    // Even if rack has a layable meld, OpenMeld must be guarded by legal
+    const rack = ['7R', '8R', '9R', '1K', '3M', '5S']
+    const view = view101(rack, 'DISCARD', true /* hasOpened */)
+    const ev = decide(view, ['Discard', 'LayOff'], makeRng(1))
+    // Without OpenMeld in legal list, should not return OpenMeld
+    expect(ev.type).not.toBe('OpenMeld')
+  })
 })

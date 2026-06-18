@@ -264,6 +264,24 @@ export function findOpening(rack: Tile[], okey: Tile, config: VariantConfig): Ti
   return null
 }
 
+// ─── Public: findLayableMeld ──────────────────────────────────────────────────
+
+/**
+ * Find ONE valid meld (run or group, length ≥3, wilds allowed) in the given
+ * rack WITHOUT requiring the ≥101 opening threshold.
+ *
+ * Used for post-opening meld laying ("Seri Aç"): a player who has already
+ * satisfied the opening requirement can lay additional valid melds without
+ * needing to re-check the ≥101 total.
+ *
+ * Returns the first meld from arrange(), or null if no meld is found.
+ */
+export function findLayableMeld(rack: Tile[], okey: Tile, config: VariantConfig): Tile[] | null {
+  const { melds } = arrange(rack, okey, config)
+  if (melds.length === 0) return null
+  return melds[0]!
+}
+
 /**
  * Returns true if the player can open with the given melds under the config:
  *
