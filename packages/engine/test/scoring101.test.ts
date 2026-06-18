@@ -123,9 +123,13 @@ describe('normal finish — no multipliers', () => {
     expect(deltas[1]).toBe(106) // 5 + 101
   })
 
-  it('opened non-finisher holding false-joker counts it as 101', () => {
-    // seat 1: opened, rack = 3K + X(false_joker). Sum = 3 + 101 = 104
+  it('opened non-finisher holding false-joker counts it as okey face value (not 101)', () => {
+    // okey = 7M (number=7); seat 1: opened, rack = 3K + X(false_joker).
+    // False joker is a plain tile fixed to okey's face value: 7.
+    // Sum = 3 + 7 = 10
+    const okey = tileFromString('7M')
     const s = endedState({
+      okey,
       terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
       players: [
         { rack: [] },
@@ -135,7 +139,27 @@ describe('normal finish — no multipliers', () => {
       ],
     })
     const deltas = scoreHand101(s)
-    expect(deltas[1]).toBe(104) // 3 + 101
+    expect(deltas[1]).toBe(10) // 3 + 7 (okey face value)
+  })
+
+  it('opened non-finisher holding false-joker when okey=8K: contributes 8 (not 101)', () => {
+    // okey = 8K (number=8); false joker face value = 8
+    // seat 1: opened, rack = 5R + X(false_joker). Sum = 5 + 8 = 13
+    const okey = tileFromString('8K')
+    const indicator = tileFromString('7K')
+    const s = endedState({
+      okey,
+      indicator,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: [tileFromString('5R'), tileFromString('X')], hasOpened: true },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[1]).toBe(13) // 5 + 8 (okey face value)
   })
 })
 

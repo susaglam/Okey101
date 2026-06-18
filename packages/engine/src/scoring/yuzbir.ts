@@ -3,12 +3,14 @@ import type { Tile } from '../tile'
 import { tilesEqual } from '../tile'
 
 /**
- * Face value of a tile in the 101 scoring context.
- * - NUMBER tile: its number.
- * - FALSE_JOKER or the okey tile (held in rack): 101.
+ * Face value of a tile in the 101 scoring context (leftover-sum penalty).
+ * - Real okey tile (kind NUMBER, equals okey): flat 101 (it is the precious wild).
+ * - FALSE_JOKER (♣): plain tile fixed to okey's face value (e.g. 8 when okey=8K).
+ *   If okey is somehow undefined, fall back to 0.
+ * - Normal NUMBER tile: its number.
  */
 function tileValue(tile: Tile, okey: Tile | undefined): number {
-  if (tile.kind === 'FALSE_JOKER') return 101
+  if (tile.kind === 'FALSE_JOKER') return okey?.number ?? 0
   if (okey != null && tilesEqual(tile, okey)) return 101
   return tile.number ?? 0
 }
