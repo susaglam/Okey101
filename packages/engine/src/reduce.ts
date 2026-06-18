@@ -102,6 +102,8 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
           isOut: false,
           declaredCift: false,
           openedValue: 0,
+          openRoute: undefined,
+          pendingIslekFromSeat: undefined,
         }))
         for (const p of players) {
           const count = p.seat === 0 ? cfg.tilesInRack + cfg.starterExtra : cfg.tilesInRack
