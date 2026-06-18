@@ -177,6 +177,33 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (idx < 0) throw new RuleError('Tile not in rack')
       const rack = p.rack.slice(); const [tile] = rack.splice(idx, 1)
       const players = replacePlayer(state.players, event.seat, (pp) => ({ ...pp, rack, discard: [...pp.discard, tile!] }))
+
+      // Auto-finish check: after removing the discarded tile, see if the player has won.
+      const seat = event.seat
+      const cfg = state.config
+
+      if (!cfg.requiresOpening) {
+        // Klasik: check if the updated rack is a winning hand
+        const result = evaluateHand(rack, state.okey!, cfg)
+        if (result.isWinning) {
+          const winnersPlayers = replacePlayer(players, seat, (pp) => ({ ...pp, isOut: true }))
+          return {
+            ...state, players: winnersPlayers, status: 'ENDED',
+            terminal: { reason: 'win', winnerSeat: seat, winType: result.winKind, finishingTile: tile },
+          }
+        }
+      } else {
+        // 101: win if rack is now empty and player has already opened
+        const player = players.find((x) => x.seat === seat)!
+        if (rack.length === 0 && player.hasOpened) {
+          const winnersPlayers = replacePlayer(players, seat, (pp) => ({ ...pp, isOut: true }))
+          return {
+            ...state, players: winnersPlayers, status: 'ENDED',
+            terminal: { reason: 'win', winnerSeat: seat, winType: 'perOnly', finishingTile: tile },
+          }
+        }
+      }
+
       // tookFromLeft resets on turn advance
       const turn: TurnState = { seat: nextSeat(event.seat, state.config.players), phase: 'DRAW' }
       return { ...state, players, turn }
