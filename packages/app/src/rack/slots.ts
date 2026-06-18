@@ -132,7 +132,7 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
     if (mi > 0 && pos < 2 * cols) {
       pos++ // ONE empty slot between consecutive melds
     }
-    for (const tile of meld) {
+    for (const tile of orderMeldForDisplay(meld, okey)) {
       if (pos < 2 * cols) {
         layout[pos++] = tile
       }
@@ -158,4 +158,54 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
  */
 export function layoutToTiles(layout: SlotLayout): Tile[] {
   return layout.filter((s): s is Tile => s !== null)
+}
+
+function isWildTile(t: Tile, okey: Tile): boolean {
+  return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
+}
+
+const COLOR_ORDER: Record<string, number> = { RED: 0, YELLOW: 1, BLUE: 2, BLACK: 3 }
+
+/**
+ * Order a meld's tiles for READABLE display:
+ * - RUN (real tiles share a colour, differ in number): tiles ascending by number,
+ *   with wild tiles placed in their gap positions (so "7 ♣ 9 10" reads as 7-8-9-10);
+ *   any extra wilds extend the run at the end.
+ * - GROUP (real tiles share a number): real tiles by a fixed colour order, wilds last.
+ * The engine's `arrange()` appends wilds at the end of a meld; this fixes that for display.
+ * (Wrap-around 12-13-1 runs are left in best-effort order — rare, Klasik-only.)
+ */
+export function orderMeldForDisplay(meld: Tile[], okey: Tile): Tile[] {
+  const wilds = meld.filter((t) => isWildTile(t, okey))
+  const reals = meld.filter((t) => !isWildTile(t, okey))
+  if (reals.length === 0) return [...meld]
+
+  const firstColor = reals[0]!.color
+  const sameColor = reals.every((t) => t.color === firstColor)
+  const firstNum = reals[0]!.number
+  const sameNumber = reals.every((t) => t.number === firstNum)
+
+  if (sameColor && !sameNumber) {
+    // RUN: place reals at their number, wilds fill the gaps ascending
+    const sorted = [...reals].sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    const byNum = new Map<number, Tile>()
+    for (const t of sorted) if (t.number != null) byNum.set(t.number, t)
+    const min = sorted[0]!.number ?? 1
+    const max = sorted[sorted.length - 1]!.number ?? min
+    const out: Tile[] = []
+    let wi = 0
+    for (let n = min; n <= max; n++) {
+      const real = byNum.get(n)
+      if (real) out.push(real)
+      else if (wi < wilds.length) out.push(wilds[wi++]!)
+    }
+    while (wi < wilds.length) out.push(wilds[wi++]!) // extra wilds extend the run
+    return out
+  }
+
+  // GROUP (same number) or fallback: reals by colour order, wilds last
+  const sorted = [...reals].sort(
+    (a, b) => (COLOR_ORDER[a.color ?? ''] ?? 9) - (COLOR_ORDER[b.color ?? ''] ?? 9),
+  )
+  return [...sorted, ...wilds]
 }
