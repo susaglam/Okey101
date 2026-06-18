@@ -105,8 +105,9 @@ describe('Stock indicator', () => {
     expect(stockEl.textContent).toContain('37')
   })
 
-  it('stock indicator is a tile-shaped element (data-testid="stock-tile")', () => {
-    const view = makeView({ stockCount: 22 })
+  it('stock indicator is a tile-shaped element (data-testid="stock-tile" when not DRAW turn)', () => {
+    // When NOT on a DRAW turn, the non-draggable stock-tile is shown
+    const view = makeView({ stockCount: 22, turn: { seat: 0, phase: 'DISCARD' } })
     render(<Table view={view} />)
     const stockTile = screen.getByTestId('stock-tile')
     expect(stockTile).toBeInTheDocument()

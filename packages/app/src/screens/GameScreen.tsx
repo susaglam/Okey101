@@ -14,6 +14,7 @@ import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 import type { SlotLayout } from '../rack/slots'
 import { initLayout, reconcile, moveTile, autoArrange } from '../rack/slots'
+import { interpretDragEnd } from '../utils/dragEnd'
 
 const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
 const COLS = 16
@@ -136,22 +137,37 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    if (!over) return
+    const activeId = String(active.id)
+    const overId = over ? String(over.id) : null
 
-    const fromSlot = Number(active.id as string)
+    const result = interpretDragEnd(activeId, overId)
 
-    if (over.id === 'discard') {
-      // Drag to discard zone — only when it's the human's DISCARD turn
-      if (!isDiscardPhase) return
-      const tile = currentLayout[fromSlot]
-      if (tile == null) return
-      send({ type: 'Discard', seat: view.seat, tile })
-    } else {
-      // Drag to another slot — rearrange
-      const toSlot = Number(over.id as string)
-      if (fromSlot !== toSlot) {
-        setLayout(l => moveTile(l!, fromSlot, toSlot))
+    switch (result.action) {
+      case 'draw-stock':
+        send({ type: 'DrawFromStock', seat: view.seat })
+        break
+
+      case 'draw-floor':
+        send({ type: 'DrawFromDiscard', seat: view.seat })
+        break
+
+      case 'discard': {
+        // Only when it's the human's DISCARD turn
+        if (!isDiscardPhase) return
+        const tile = currentLayout[result.from]
+        if (tile == null) return
+        send({ type: 'Discard', seat: view.seat, tile })
+        break
       }
+
+      case 'move':
+        setLayout(l => moveTile(l!, result.from, result.to))
+        break
+
+      case 'none':
+      default:
+        // no-op
+        break
     }
   }
 

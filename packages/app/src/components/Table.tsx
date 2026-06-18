@@ -1,9 +1,107 @@
 import type { ReactNode } from 'react'
 import type { PlayerView } from '@cs-okey/engine'
 import { tileToString } from '@cs-okey/engine'
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import { Seat } from './Seat'
 import { TileView } from './Tile'
 import { DiscardPile } from './DiscardPile'
+
+// ── DraggableStockTile ───────────────────────────────────────────────────────
+// Renders the face-down stock pile as a dnd-kit draggable element.
+// Only enabled when it's the human's DRAW phase and stock is non-empty.
+function DraggableStockTile({ stockCount }: { stockCount: number }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: 'draw-stock',
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid="draw-stock"
+      style={{
+        width: 40,
+        height: 56,
+        borderRadius: 6,
+        background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
+        boxShadow: isDragging
+          ? '0 6px 20px rgba(0,0,0,.8), 0 0 0 2px #e8c87a'
+          : '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+        border: '1px solid #5a4020',
+        boxSizing: 'border-box' as const,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        touchAction: 'none',
+        opacity: isDragging ? 0.75 : 1,
+        transform: CSS.Translate.toString(transform),
+        zIndex: isDragging ? 100 : 1,
+      }}
+      {...listeners}
+      {...attributes}
+    >
+      {/* subtle back pattern */}
+      <div style={{
+        position: 'absolute',
+        inset: 4,
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 3,
+      }} />
+      <span style={{
+        color: '#e8c87a',
+        fontWeight: 900,
+        fontSize: 15,
+        zIndex: 1,
+        textShadow: '0 1px 2px rgba(0,0,0,.6)',
+      }}>
+        {stockCount}
+      </span>
+    </div>
+  )
+}
+
+// ── DraggableFloorPile ───────────────────────────────────────────────────────
+// Wraps the takeable floor pile (DiscardPile) with a dnd-kit draggable.
+// Only rendered when takeablePile is true.
+function DraggableFloorPile({
+  topTile,
+  count,
+  onTake,
+}: {
+  topTile: Parameters<typeof DiscardPile>[0]['topTile']
+  count: number
+  onTake?: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: 'draw-floor',
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid="draw-floor"
+      style={{
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.75 : 1,
+        zIndex: isDragging ? 100 : 1,
+        cursor: isDragging ? 'grabbing' : 'grab',
+        touchAction: 'none',
+      }}
+      {...listeners}
+      {...attributes}
+    >
+      <DiscardPile
+        topTile={topTile}
+        count={count}
+        takeable={true}
+        onTake={onTake}
+      />
+    </div>
+  )
+}
 
 const BOT_NAMES = ['Ayşe', 'Mert', 'Can', 'Arda', 'Elif']
 
@@ -116,12 +214,19 @@ export function Table({
           )}
           {/* Seat 3's discard = human's takeable pile */}
           {leftOpponent && (
-            <DiscardPile
-              topTile={leftOpponent.discardTop}
-              count={leftOpponent.discardCount}
-              takeable={takeablePile}
-              onTake={takeablePile ? onTakeDiscard : undefined}
-            />
+            takeablePile ? (
+              <DraggableFloorPile
+                topTile={leftOpponent.discardTop}
+                count={leftOpponent.discardCount}
+                onTake={onTakeDiscard}
+              />
+            ) : (
+              <DiscardPile
+                topTile={leftOpponent.discardTop}
+                count={leftOpponent.discardCount}
+                takeable={false}
+              />
+            )
           )}
         </div>
 
@@ -135,40 +240,44 @@ export function Table({
               data-stockcount={view.stockCount}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
             >
-              <div
-                data-testid="stock-tile"
-                style={{
-                  width: 40,
-                  height: 56,
-                  borderRadius: 6,
-                  background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
-                  boxShadow: '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  border: '1px solid #5a4020',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* subtle back pattern */}
-                <div style={{
-                  position: 'absolute',
-                  inset: 4,
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 3,
-                }} />
-                <span style={{
-                  color: '#e8c87a',
-                  fontWeight: 900,
-                  fontSize: 15,
-                  zIndex: 1,
-                  textShadow: '0 1px 2px rgba(0,0,0,.6)',
-                }}>
-                  {view.stockCount}
-                </span>
-              </div>
+              {isMyDrawTurn && view.stockCount > 0 ? (
+                <DraggableStockTile stockCount={view.stockCount} />
+              ) : (
+                <div
+                  data-testid="stock-tile"
+                  style={{
+                    width: 40,
+                    height: 56,
+                    borderRadius: 6,
+                    background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    border: '1px solid #5a4020',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* subtle back pattern */}
+                  <div style={{
+                    position: 'absolute',
+                    inset: 4,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 3,
+                  }} />
+                  <span style={{
+                    color: '#e8c87a',
+                    fontWeight: 900,
+                    fontSize: 15,
+                    zIndex: 1,
+                    textShadow: '0 1px 2px rgba(0,0,0,.6)',
+                  }}>
+                    {view.stockCount}
+                  </span>
+                </div>
+              )}
             </div>
             {view.indicator && (
               <div data-testid="gosterge" style={{ textAlign: 'center' }}>

@@ -148,27 +148,35 @@ export function SlotRack({
     )
   }
 
+  const { setNodeRef: setRackRef } = useDroppable({ id: 'rack' })
+
   return (
     <div
-      data-testid="slot-rack"
-      style={{
-        display: 'inline-flex',
-        flexDirection: 'column',
-        gap: 6,
-        padding: '10px 12px',
-        background: 'linear-gradient(180deg, #b5783a 0%, #8b5e2a 100%)',
-        borderRadius: 10,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
-        border: '2px solid #6b4420',
-      }}
+      ref={setRackRef}
+      data-testid="rack-droppable"
+      style={{ display: 'inline-block' }}
     >
-      {/* Back row (top): slots 0 .. cols-1 */}
-      <div style={{ display: 'flex', gap: 4 }}>
-        {backRow.map((tile, i) => renderSlot(tile, i))}
-      </div>
-      {/* Front row (bottom): slots cols .. 2*cols-1 */}
-      <div style={{ display: 'flex', gap: 4 }}>
-        {frontRow.map((tile, i) => renderSlot(tile, cols + i))}
+      <div
+        data-testid="slot-rack"
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          gap: 6,
+          padding: '10px 12px',
+          background: 'linear-gradient(180deg, #b5783a 0%, #8b5e2a 100%)',
+          borderRadius: 10,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+          border: '2px solid #6b4420',
+        }}
+      >
+        {/* Back row (top): slots 0 .. cols-1 */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {backRow.map((tile, i) => renderSlot(tile, i))}
+        </div>
+        {/* Front row (bottom): slots cols .. 2*cols-1 */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {frontRow.map((tile, i) => renderSlot(tile, cols + i))}
+        </div>
       </div>
     </div>
   )
