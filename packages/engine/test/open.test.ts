@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { tileFromString } from '../src/tile'
 import type { Tile } from '../src/tile'
-import { KLASIK_101 } from '../src/config'
+import { KLASIK_101, KLASIK } from '../src/config'
 import { openingValue, isValidMeldSet, canOpen } from '../src/open'
 
 // Helper: build a meld from tile strings
@@ -10,6 +10,7 @@ function h(...strs: string[]): Tile[] {
 }
 
 const OKEY = tileFromString('7M') // 7 Blue = okey
+const OKEY_8K = tileFromString('8K') // 8 Black = okey for false-joker rule tests
 
 describe('openingValue', () => {
   it('sums plain tiles in a run', () => {
@@ -18,10 +19,17 @@ describe('openingValue', () => {
     expect(openingValue(melds, OKEY)).toBe(33)
   })
 
-  it('values a wild in a run as the gap number', () => {
-    // 10R, X, 12R → X fills slot 11 → 10+11+12 = 33
-    const melds = [h('10R', 'X', '12R')]
+  it('values a real okey tile (wild) in a run as the gap number', () => {
+    // 10R, 7M(wild), 12R → 7M is wild (real okey NUMBER tile), fills slot 11 → 10+11+12 = 33
+    const melds = [h('10R', '7M', '12R')]
     expect(openingValue(melds, OKEY)).toBe(33)
+  })
+  it('values a false joker (X) in a run as its concrete okey value slot', () => {
+    // 10R, X, 12R → X is plain 7M (BLUE), meld is actually 10R-7M-12R = different colors
+    // The detectShape sees multiple colors → treated as group; group number = 10 (first non-wild)
+    // groupValue = 10 * 3 = 30
+    const melds = [h('10R', 'X', '12R')]
+    expect(openingValue(melds, OKEY)).toBe(30)
   })
 
   it('values an okey-tile (wild) in a run as the gap number', () => {
@@ -30,8 +38,16 @@ describe('openingValue', () => {
     expect(openingValue(melds, OKEY)).toBe(18)
   })
 
-  it('values a wild in a group as the group number', () => {
-    // 9R, 9K, X → X fills group value 9 → 9+9+9 = 27
+  it('values a real okey tile (wild) in a group as the group number', () => {
+    // 9R, 9K, 7M(wild) → 7M is wild (real okey tile), fills group value 9 → 9+9+9 = 27
+    const melds = [h('9R', '9K', '7M')]
+    expect(openingValue(melds, OKEY)).toBe(27)
+  })
+  it('false joker (X) in a pseudo-group: openingValue uses first non-wild effective value', () => {
+    // 9R, 9K, X → X is plain 7M (number=7). nonWild effective values: [(9,RED),(9,BLACK),(7,BLUE)].
+    // detectShape: multiple colors → 'group'. groupValue: first non-wild = 9R → 9 * 3 = 27.
+    // (Note: this meld is structurally INVALID as a real group — different numbers — but
+    //  openingValue computes a value for it anyway; isValidMeldSet would reject it.)
     const melds = [h('9R', '9K', 'X')]
     expect(openingValue(melds, OKEY)).toBe(27)
   })
@@ -54,15 +70,15 @@ describe('openingValue', () => {
     expect(openingValue(melds, OKEY)).toBe(69)
   })
 
-  it('wild at start of run valued as leading slot', () => {
-    // X, 11R, 12R → X fills slot 10 → 10+11+12 = 33
-    const melds = [h('X', '11R', '12R')]
+  it('real okey tile (wild) at start of run valued as leading slot', () => {
+    // 7M(wild), 11R, 12R → 7M is wild (real okey tile), fills slot 10 → 10+11+12 = 33
+    const melds = [h('7M', '11R', '12R')]
     expect(openingValue(melds, OKEY)).toBe(33)
   })
 
-  it('wild at end of run valued as trailing slot', () => {
-    // 10R, 11R, X → X fills slot 12 → 10+11+12 = 33
-    const melds = [h('10R', '11R', 'X')]
+  it('real okey tile (wild) at end of run valued as trailing slot', () => {
+    // 10R, 11R, 7M(wild) → 7M is wild (real okey tile), fills slot 12 → 10+11+12 = 33
+    const melds = [h('10R', '11R', '7M')]
     expect(openingValue(melds, OKEY)).toBe(33)
   })
 })
@@ -76,12 +92,24 @@ describe('isValidMeldSet', () => {
     expect(isValidMeldSet([h('8R', '8K', '8M')], OKEY, KLASIK_101)).toBe(true)
   })
 
-  it('accepts a run with wild filling a gap', () => {
-    expect(isValidMeldSet([h('10R', 'X', '12R')], OKEY, KLASIK_101)).toBe(true)
+  it('accepts a run with real okey tile (wild) filling a gap', () => {
+    // 10R, 7M(wild=real okey), 12R → 7M is wild (real NUMBER tile matching okey) → fills slot 11
+    expect(isValidMeldSet([h('10R', '7M', '12R')], OKEY, KLASIK_101)).toBe(true)
   })
 
-  it('accepts a group with a wild', () => {
-    expect(isValidMeldSet([h('9R', '9K', 'X')], OKEY, KLASIK_101)).toBe(true)
+  it('rejects a run where X (false joker) is misused as universal wild', () => {
+    // 10R, X, 12R → X is plain 7M (BLUE, 7), not RED → different colors → invalid run
+    expect(isValidMeldSet([h('10R', 'X', '12R')], OKEY, KLASIK_101)).toBe(false)
+  })
+
+  it('accepts a group with a real okey tile (wild)', () => {
+    // 9R, 9K, 7M(wild=real okey) → 7M is wild → fills missing color slot → valid group
+    expect(isValidMeldSet([h('9R', '9K', '7M')], OKEY, KLASIK_101)).toBe(true)
+  })
+
+  it('rejects a group where X (false joker) cannot act as universal wild', () => {
+    // 9R, 9K, X → X is plain 7M (number=7 ≠ 9) → 3 tiles with numbers 9,9,7 → invalid group
+    expect(isValidMeldSet([h('9R', '9K', 'X')], OKEY, KLASIK_101)).toBe(false)
   })
 
   it('accepts a 4-tile group', () => {
@@ -119,6 +147,25 @@ describe('isValidMeldSet', () => {
   it('rejects if any meld in the set is invalid', () => {
     const melds = [h('5R', '6R', '7R'), h('12R', '13R', '1R')] // second is wrap
     expect(isValidMeldSet(melds, OKEY, KLASIK_101)).toBe(false)
+  })
+
+  // ─── FALSE_JOKER rule tests (okey=8K) ───────────────────────────────────────
+
+  it('RULE: [5R,5Y,X] is NOT valid when okey=8K — X is plain 8K, not a wild 5', () => {
+    // X resolves to 8K (plain). Group of 5s needs tiles with number=5.
+    // 8K has number=8 ≠ 5, so it cannot join a group of 5s.
+    expect(isValidMeldSet([h('5R', '5S', 'X')], OKEY_8K, KLASIK_101)).toBe(false)
+  })
+
+  it('RULE: [6K,7K,X] IS a valid black run when okey=8K — X is plain 8K', () => {
+    // X resolves to 8K (plain). Run 6K-7K-8K is valid (consecutive blacks).
+    expect(isValidMeldSet([h('6K', '7K', 'X')], OKEY_8K, KLASIK_101)).toBe(true)
+  })
+
+  it('RULE: real 8K tile IS a wild in a red run when okey=8K', () => {
+    // Real 8K NUMBER tile is wild (it IS the okey tile).
+    // Run: 1R, 8K(wild), 3R → wild fills slot 2R → valid red run 1R-2R-3R.
+    expect(isValidMeldSet([h('1R', '8K', '3R')], OKEY_8K, KLASIK)).toBe(true)
   })
 })
 

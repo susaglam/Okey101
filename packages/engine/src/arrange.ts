@@ -13,16 +13,43 @@ export interface Arrangement {
 const COLORS: TileColor[] = ['BLACK', 'BLUE', 'RED', 'YELLOW']
 
 /**
- * Canonical tile sort key: wild tiles sort last (after all NUMBER tiles).
+ * Canonical tile sort key: wild NUMBER tiles (real okey-valued tiles) sort last.
+ * For sorting, a FALSE_JOKER is treated as a NUMBER tile at okey's position.
  * Among NUMBER tiles: sort by color then number.
  */
-function tileKey(t: Tile): string {
+function tileKey(t: Tile, okey: Tile): string {
+  if (t.kind === 'FALSE_JOKER') {
+    // Sort FALSE_JOKER same as its concrete value (okey's color+number)
+    if (okey.color == null || okey.number == null) return '~wild'
+    return `${okey.color}|${String(okey.number).padStart(2, '0')}`
+  }
   if (t.kind !== 'NUMBER' || t.color == null || t.number == null) return '~wild'
   return `${t.color}|${String(t.number).padStart(2, '0')}`
 }
 
+/**
+ * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
+ * FALSE_JOKER is NOT wild — it is a plain tile fixed to okey's value.
+ */
 function isWild(t: Tile, okey: Tile): boolean {
-  return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
+  return t.kind === 'NUMBER' && t.number === okey.number && t.color === okey.color
+}
+
+/**
+ * Return the effective number and color of a tile for meld-building purposes.
+ * FALSE_JOKER resolves to okey's number and color.
+ * NUMBER tiles return their own number and color.
+ * Returns null if the tile has no effective number/color.
+ */
+function effectiveNumberColor(t: Tile, okey: Tile): { number: number; color: TileColor } | null {
+  if (t.kind === 'FALSE_JOKER') {
+    if (okey.number == null || okey.color == null) return null
+    return { number: okey.number, color: okey.color }
+  }
+  if (t.kind === 'NUMBER' && t.number != null && t.color != null) {
+    return { number: t.number, color: t.color }
+  }
+  return null
 }
 
 // ─── Backtracking ─────────────────────────────────────────────────────────────
@@ -74,13 +101,14 @@ function undecidedWilds(state: BtState): number {
 /**
  * Find the index of the first undecided non-wild tile (lexicographic by tileKey).
  * Returns -1 if none.
+ * FALSE_JOKER tiles are non-wild (they have a fixed concrete value).
  */
 function firstUndecidedNonWild(state: BtState): number {
   let best = -1
   for (let i = 0; i < state.tiles.length; i++) {
     if (!isUndecided(state, i)) continue
     if (idxIsWild(state, i)) continue
-    if (best === -1 || tileKey(state.tiles[i]!) < tileKey(state.tiles[best]!)) {
+    if (best === -1 || tileKey(state.tiles[i]!, state.okey) < tileKey(state.tiles[best]!, state.okey)) {
       best = i
     }
   }
@@ -93,23 +121,27 @@ function firstUndecidedNonWild(state: BtState): number {
  * Enumerate valid GROUP melds anchored at anchorIdx.
  * A group: same number, distinct colors, size 3 or 4.
  * Wilds fill missing color slots.
+ * FALSE_JOKER tiles participate as concrete tiles with okey's number+color.
  */
 function groupCandidates(
   state: BtState,
   anchorIdx: number,
 ): Array<{ realIndices: number[]; wildsUsed: number }> {
   const anchor = state.tiles[anchorIdx]!
-  if (anchor.kind !== 'NUMBER' || anchor.number == null || anchor.color == null) return []
-  const num = anchor.number
-  const anchorColor = anchor.color
+  const anchorNC = effectiveNumberColor(anchor, state.okey)
+  if (anchorNC === null) return []
+  const num = anchorNC.number
+  const anchorColor = anchorNC.color
 
   // Map color → first undecided index with same number and that color
   const byColor = new Map<TileColor, number>()
   for (let i = 0; i < state.tiles.length; i++) {
     if (i === anchorIdx || !isUndecided(state, i)) continue
+    if (idxIsWild(state, i)) continue // wilds are handled separately
     const t = state.tiles[i]!
-    if (t.kind === 'NUMBER' && t.number === num && t.color != null && t.color !== anchorColor) {
-      if (!byColor.has(t.color)) byColor.set(t.color, i)
+    const nc = effectiveNumberColor(t, state.okey)
+    if (nc !== null && nc.number === num && nc.color !== anchorColor) {
+      if (!byColor.has(nc.color)) byColor.set(nc.color, i)
     }
   }
 
@@ -144,23 +176,27 @@ function groupCandidates(
  * Enumerate valid RUN melds anchored at anchorIdx.
  * A run: same color, consecutive numbers, length >= 3, optional 13->1 wrap.
  * Wilds fill gaps.
+ * FALSE_JOKER tiles participate as concrete tiles with okey's number+color.
  */
 function runCandidates(
   state: BtState,
   anchorIdx: number,
 ): Array<{ realIndices: number[]; wildsUsed: number }> {
   const anchor = state.tiles[anchorIdx]!
-  if (anchor.kind !== 'NUMBER' || anchor.number == null || anchor.color == null) return []
-  const color = anchor.color
-  const anchorNum = anchor.number
+  const anchorNC = effectiveNumberColor(anchor, state.okey)
+  if (anchorNC === null) return []
+  const color = anchorNC.color
+  const anchorNum = anchorNC.number
 
-  // Map number -> first undecided index with this color and number (excluding anchor)
+  // Map number -> first undecided non-wild index with this color and number (excluding anchor)
   const byNum = new Map<number, number>()
   for (let i = 0; i < state.tiles.length; i++) {
     if (i === anchorIdx || !isUndecided(state, i)) continue
+    if (idxIsWild(state, i)) continue // wilds are handled separately
     const t = state.tiles[i]!
-    if (t.kind === 'NUMBER' && t.color === color && t.number != null) {
-      if (!byNum.has(t.number)) byNum.set(t.number, i)
+    const nc = effectiveNumberColor(t, state.okey)
+    if (nc !== null && nc.color === color) {
+      if (!byNum.has(nc.number)) byNum.set(nc.number, i)
     }
   }
 
@@ -322,8 +358,9 @@ function backtrack(state: BtState, currentMelds: Tile[][]): void {
 export function arrange(rack: Tile[], okey: Tile, config: VariantConfig): Arrangement {
   if (rack.length === 0) return { melds: [], leftovers: [], meldedCount: 0 }
 
-  // Sort rack for determinism: non-wilds by color+number, wilds last
-  const sorted = [...rack].sort((a, b) => tileKey(a).localeCompare(tileKey(b)))
+  // Sort rack for determinism: non-wilds (including FALSE_JOKER) by color+number, wilds last.
+  // FALSE_JOKER tiles sort at okey's position (they are plain tiles, not wilds).
+  const sorted = [...rack].sort((a, b) => tileKey(a, okey).localeCompare(tileKey(b, okey)))
 
   const state: BtState = {
     tiles: sorted,

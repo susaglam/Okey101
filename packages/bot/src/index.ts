@@ -116,18 +116,44 @@ function canExtendMeld(
   }
 }
 
+/**
+ * Return the effective {number, color} of a tile:
+ * - FALSE_JOKER → okey's {number, color} (plain tile fixed to okey's value)
+ * - NUMBER tile → its own {number, color}
+ * Returns null if the tile lacks number/color.
+ */
+function tileEffectiveValue(t: Tile, okey: Tile): { number: number; color: string } | null {
+  if (t.kind === 'FALSE_JOKER') {
+    if (okey.number == null || okey.color == null) return null
+    return { number: okey.number, color: okey.color }
+  }
+  if (t.number == null || t.color == null) return null
+  return { number: t.number, color: t.color }
+}
+
+/**
+ * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
+ */
+function isTileWild(t: Tile, okey: Tile): boolean {
+  return t.kind === 'NUMBER' && tilesEqual(t, okey)
+}
+
 function canExtendRun(tile: Tile, meldTiles: Tile[], okey: Tile): boolean {
   if (tile.kind !== 'NUMBER' || tile.number == null || tile.color == null) return false
 
-  // Find the run's color and number range (ignoring wilds)
-  const nonWild = meldTiles.filter((t) => !tilesEqual(t, okey) && t.kind !== 'FALSE_JOKER')
-  if (nonWild.length === 0) return false
+  // Find the run's color and number range (ignoring wilds, using effective values for FALSE_JOKER)
+  // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
+  const nonWildEvs = meldTiles
+    .filter((t) => !isTileWild(t, okey))
+    .map((t) => tileEffectiveValue(t, okey))
+    .filter((v): v is { number: number; color: string } => v !== null)
+  if (nonWildEvs.length === 0) return false
 
   // All non-wild tiles in a run must be same color
-  const runColor = nonWild[0]!.color
+  const runColor = nonWildEvs[0]!.color
   if (tile.color !== runColor) return false
 
-  const nums = nonWild.map((t) => t.number!).sort((a, b) => a - b)
+  const nums = nonWildEvs.map((v) => v.number).sort((a, b) => a - b)
   const minNum = nums[0]!
   const maxNum = nums[nums.length - 1]!
 
@@ -142,14 +168,18 @@ function canExtendGroup(tile: Tile, meldTiles: Tile[], okey: Tile): boolean {
   // Group: same number, distinct colors, max 4 tiles
   if (meldTiles.length >= 4) return false // already full group
 
-  const nonWild = meldTiles.filter((t) => !tilesEqual(t, okey) && t.kind !== 'FALSE_JOKER')
-  if (nonWild.length === 0) return false
+  // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
+  const nonWildEvs = meldTiles
+    .filter((t) => !isTileWild(t, okey))
+    .map((t) => tileEffectiveValue(t, okey))
+    .filter((v): v is { number: number; color: string } => v !== null)
+  if (nonWildEvs.length === 0) return false
 
-  const groupNumber = nonWild[0]!.number
+  const groupNumber = nonWildEvs[0]!.number
   if (tile.number !== groupNumber) return false
 
   // Tile color must not already appear in the group
-  const existingColors = new Set(nonWild.map((t) => t.color))
+  const existingColors = new Set(nonWildEvs.map((v) => v.color))
   return !existingColors.has(tile.color)
 }
 

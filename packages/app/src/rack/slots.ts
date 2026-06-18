@@ -170,7 +170,11 @@ export function layoutToTiles(layout: SlotLayout): Tile[] {
  * - Returns null if indeterminate (e.g. all-wild meld)
  */
 export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number | null)[] {
-  const reals = orderedMeld.filter((t) => !isWildTile(t, okey))
+  // Resolve FALSE_JOKERs to their concrete okey-valued tile for analysis.
+  // The original orderedMeld tiles are kept for indexing back to return values.
+  const resolvedMeld = orderedMeld.map((t) => concreteTile(t, okey))
+
+  const reals = resolvedMeld.filter((t) => !isWildTile(t, okey))
 
   if (reals.length === 0) {
     // All wilds — cannot determine represented value
@@ -184,10 +188,10 @@ export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number 
 
   if (sameColor && !sameNumber) {
     // RUN: find first real tile to anchor position
-    // Walk the ordered meld; each position j represents firstRealNumber - firstRealIndex + j
-    const firstRealIndex = orderedMeld.findIndex((t) => !isWildTile(t, okey))
-    const firstRealNumber = orderedMeld[firstRealIndex]!.number ?? 1
-    return orderedMeld.map((t, j) => {
+    // Walk the resolved meld; each position j represents firstRealNumber - firstRealIndex + j
+    const firstRealIndex = resolvedMeld.findIndex((t) => !isWildTile(t, okey))
+    const firstRealNumber = resolvedMeld[firstRealIndex]!.number ?? 1
+    return resolvedMeld.map((t, j) => {
       if (!isWildTile(t, okey)) {
         return t.number ?? null
       }
@@ -197,14 +201,30 @@ export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number 
 
   // GROUP (same number) or fallback: every tile represents the group's number
   const groupNumber = firstNum ?? null
-  return orderedMeld.map((t) => {
+  return resolvedMeld.map((t) => {
     if (!isWildTile(t, okey)) return t.number ?? null
     return groupNumber
   })
 }
 
+/**
+ * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
+ * FALSE_JOKER is NOT wild — it is a plain tile fixed to okey's value.
+ * Used for display ordering and represented-value computation.
+ */
 function isWildTile(t: Tile, okey: Tile): boolean {
-  return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
+  return t.kind === 'NUMBER' && tilesEqual(t, okey)
+}
+
+/**
+ * Resolve a FALSE_JOKER to its concrete tile (okey's number+color as a NUMBER tile).
+ * Real NUMBER tiles are returned unchanged.
+ */
+function concreteTile(t: Tile, okey: Tile): Tile {
+  if (t.kind === 'FALSE_JOKER') {
+    return { kind: 'NUMBER', number: okey.number, color: okey.color }
+  }
+  return t
 }
 
 const COLOR_ORDER: Record<string, number> = { RED: 0, YELLOW: 1, BLUE: 2, BLACK: 3 }
@@ -217,38 +237,48 @@ const COLOR_ORDER: Record<string, number> = { RED: 0, YELLOW: 1, BLUE: 2, BLACK:
  * - GROUP (real tiles share a number): real tiles by a fixed colour order, wilds last.
  * The engine's `arrange()` appends wilds at the end of a meld; this fixes that for display.
  * (Wrap-around 12-13-1 runs are left in best-effort order — rare, Klasik-only.)
+ *
+ * FALSE_JOKER tiles are resolved to their concrete okey-valued NUMBER tile for ordering
+ * purposes, but the original FALSE_JOKER tile object is preserved in the output so that
+ * the display layer can still render the joker graphic.
  */
 export function orderMeldForDisplay(meld: Tile[], okey: Tile): Tile[] {
-  const wilds = meld.filter((t) => isWildTile(t, okey))
-  const reals = meld.filter((t) => !isWildTile(t, okey))
-  if (reals.length === 0) return [...meld]
+  // Pair each original tile with its resolved (concrete) tile for ordering logic.
+  // FALSE_JOKERs resolve to okey's NUMBER tile; since that number+color IS the okey tile,
+  // the resolved tile passes isWildTile, so FALSE_JOKERs are placed as run-extenders in display.
+  const pairs = meld.map((t) => ({ orig: t, resolved: concreteTile(t, okey) }))
 
-  const firstColor = reals[0]!.color
-  const sameColor = reals.every((t) => t.color === firstColor)
-  const firstNum = reals[0]!.number
-  const sameNumber = reals.every((t) => t.number === firstNum)
+  const wildPairs = pairs.filter((p) => isWildTile(p.resolved, okey))
+  const realPairs = pairs.filter((p) => !isWildTile(p.resolved, okey))
+
+  if (realPairs.length === 0) return [...meld]
+
+  const firstColor = realPairs[0]!.resolved.color
+  const sameColor = realPairs.every((p) => p.resolved.color === firstColor)
+  const firstNum = realPairs[0]!.resolved.number
+  const sameNumber = realPairs.every((p) => p.resolved.number === firstNum)
 
   if (sameColor && !sameNumber) {
     // RUN: place reals at their number, wilds fill the gaps ascending
-    const sorted = [...reals].sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    const sorted = [...realPairs].sort((a, b) => (a.resolved.number ?? 0) - (b.resolved.number ?? 0))
     const byNum = new Map<number, Tile>()
-    for (const t of sorted) if (t.number != null) byNum.set(t.number, t)
-    const min = sorted[0]!.number ?? 1
-    const max = sorted[sorted.length - 1]!.number ?? min
+    for (const p of sorted) if (p.resolved.number != null) byNum.set(p.resolved.number, p.orig)
+    const min = sorted[0]!.resolved.number ?? 1
+    const max = sorted[sorted.length - 1]!.resolved.number ?? min
     const out: Tile[] = []
     let wi = 0
     for (let n = min; n <= max; n++) {
       const real = byNum.get(n)
       if (real) out.push(real)
-      else if (wi < wilds.length) out.push(wilds[wi++]!)
+      else if (wi < wildPairs.length) out.push(wildPairs[wi++]!.orig)
     }
-    while (wi < wilds.length) out.push(wilds[wi++]!) // extra wilds extend the run
+    while (wi < wildPairs.length) out.push(wildPairs[wi++]!.orig) // extra wilds extend the run
     return out
   }
 
   // GROUP (same number) or fallback: reals by colour order, wilds last
-  const sorted = [...reals].sort(
-    (a, b) => (COLOR_ORDER[a.color ?? ''] ?? 9) - (COLOR_ORDER[b.color ?? ''] ?? 9),
+  const sortedReals = [...realPairs].sort(
+    (a, b) => (COLOR_ORDER[a.resolved.color ?? ''] ?? 9) - (COLOR_ORDER[b.resolved.color ?? ''] ?? 9),
   )
-  return [...sorted, ...wilds]
+  return [...sortedReals.map((p) => p.orig), ...wildPairs.map((p) => p.orig)]
 }

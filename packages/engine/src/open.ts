@@ -1,12 +1,31 @@
-import type { Tile } from './tile'
+import type { Tile, TileColor } from './tile'
 import { tilesEqual } from './tile'
 import type { VariantConfig } from './config'
 import { arrange } from './arrange'
 
 // ─── Wild detection ───────────────────────────────────────────────────────────
 
+/**
+ * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
+ * FALSE_JOKER is NOT wild — it is a plain tile fixed to okey's value.
+ */
 function isWild(tile: Tile, okey: Tile): boolean {
-  return tile.kind === 'FALSE_JOKER' || tilesEqual(tile, okey)
+  return tile.kind === 'NUMBER' && tilesEqual(tile, okey)
+}
+
+/**
+ * Return the effective {number, color} of a tile for meld analysis:
+ * - FALSE_JOKER → okey's {number, color} (it is a plain tile fixed to this value)
+ * - NUMBER tile → its own {number, color}
+ * - Returns null if the tile lacks number/color (should not happen in practice).
+ */
+function effectiveValue(t: Tile, okey: Tile): { number: number; color: TileColor } | null {
+  if (t.kind === 'FALSE_JOKER') {
+    if (okey.number == null || okey.color == null) return null
+    return { number: okey.number, color: okey.color }
+  }
+  if (t.number == null || t.color == null) return null
+  return { number: t.number, color: t.color }
 }
 
 // ─── Meld shape detection ─────────────────────────────────────────────────────
@@ -15,16 +34,22 @@ function isWild(tile: Tile, okey: Tile): boolean {
  * Detect whether a meld (already known to be structurally valid) is a RUN or
  * a GROUP by inspecting the non-wild tiles.
  *
+ * FALSE_JOKERs are treated as their concrete value (okey's number+color) but are
+ * NOT wild. Only real NUMBER tiles equal to okey are wild.
  * Returns 'run' | 'group' | 'ambiguous' (all wilds → treat as group, value 0).
  */
 function detectShape(meld: Tile[], okey: Tile): 'run' | 'group' | 'ambiguous' {
-  const nonWild = meld.filter((t) => !isWild(t, okey))
-  if (nonWild.length === 0) return 'ambiguous'
+  // Collect non-wild effective values (wild = real NUMBER tile matching okey)
+  const nonWildVals = meld
+    .filter((t) => !isWild(t, okey))
+    .map((t) => effectiveValue(t, okey))
+    .filter((v): v is { number: number; color: TileColor } => v !== null)
+
+  if (nonWildVals.length === 0) return 'ambiguous'
 
   // Check if all same color → run candidate
-  const colors = new Set(nonWild.map((t) => t.color))
+  const colors = new Set(nonWildVals.map((v) => v.color))
   if (colors.size === 1) {
-    // Same color — it's a run (consecutive sequence)
     return 'run'
   }
   // Multiple colors → group (same number, distinct colors)
@@ -49,13 +74,17 @@ function detectShape(meld: Tile[], okey: Tile): 'run' | 'group' | 'ambiguous' {
 function runValue(meld: Tile[], okey: Tile): number {
   const len = meld.length
 
-  // Find the inferred start from the first non-wild tile's position
+  // Find the inferred start from the first non-wild tile's position.
+  // FALSE_JOKER contributes its concrete okey value; real okey-NUMBER tiles are wild.
   let inferredStart: number | null = null
   for (let i = 0; i < len; i++) {
     const tile = meld[i]!
     if (!isWild(tile, okey)) {
-      inferredStart = tile.number! - i
-      break
+      const ev = effectiveValue(tile, okey)
+      if (ev !== null) {
+        inferredStart = ev.number - i
+        break
+      }
     }
   }
 
@@ -79,10 +108,17 @@ function runValue(meld: Tile[], okey: Tile): number {
  * Every tile (incl. wilds) counts as the group's number.
  */
 function groupValue(meld: Tile[], okey: Tile): number {
-  const nonWild = meld.filter((t) => !isWild(t, okey))
-  if (nonWild.length === 0) return 0
-  const groupNumber = nonWild[0]!.number!
-  return groupNumber * meld.length
+  // Find the group number from the first non-wild tile's effective value.
+  // FALSE_JOKER contributes its concrete okey value; real okey-NUMBER tiles are wild.
+  for (const t of meld) {
+    if (!isWild(t, okey)) {
+      const ev = effectiveValue(t, okey)
+      if (ev !== null) {
+        return ev.number * meld.length
+      }
+    }
+  }
+  return 0 // all wilds — no group number
 }
 
 // ─── Public: openingValue ─────────────────────────────────────────────────────
@@ -112,27 +148,34 @@ export function openingValue(melds: Tile[][], okey: Tile): number {
  * Validate a single meld as a RUN.
  * Rules: same color, consecutive ≥3 tiles, wilds fill at most one contiguous
  * gap region, no 13→1 wrap if config.runWrap13to1 is false.
+ *
+ * FALSE_JOKERs contribute their concrete okey value as a PLAIN tile (not wild).
+ * Only real NUMBER tiles equal to okey are treated as wild (universal substitutes).
  */
 function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
   if (meld.length < 3) return false
 
-  const nonWild = meld.filter((t) => !isWild(t, okey))
-  const wildCount = meld.length - nonWild.length
+  // Build effective-value list for non-wild tiles. Wild = real NUMBER tile matching okey.
+  // FALSE_JOKER is non-wild; its effective value is okey's number+color.
+  const nonWildEv = meld
+    .filter((t) => !isWild(t, okey))
+    .map((t) => effectiveValue(t, okey))
+    .filter((v): v is { number: number; color: TileColor } => v !== null)
+  const wildCount = meld.filter((t) => isWild(t, okey)).length
 
-  if (nonWild.length === 0) return false // all wilds — not a valid run (no color info)
+  if (nonWildEv.length === 0) return false // all wilds — not a valid run (no color info)
 
   // All non-wild must be same color
-  const colors = new Set(nonWild.map((t) => t.color))
+  const colors = new Set(nonWildEv.map((v) => v.color))
   if (colors.size !== 1) return false
 
-  const nums = nonWild.map((t) => t.number!).sort((a, b) => a - b)
+  const nums = nonWildEv.map((v) => v.number).sort((a, b) => a - b)
   const min = nums[0]!
   const max = nums[nums.length - 1]!
   const len = meld.length
 
   // Check no 13→1 wrap: if config disallows it, the sequence must not span across 13→1
   if (!config.runWrap13to1) {
-    // No number should be 1 while another is 13 in the same run
     if (min === 1 && max === 13) return false
   }
 
@@ -148,18 +191,16 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
 
   for (let s = startMin; s <= startMax; s++) {
     if (s < 1 && !config.runWrap13to1) continue
-    // Check that the range [s, s+len-1] stays within 1..13 (no wrap for 101)
     if (!config.runWrap13to1 && s + len - 1 > 13) continue
 
-    // Count how many real numbers fall in this range
     const inRange = nums.filter((n) => n >= s && n <= s + len - 1)
-    if (inRange.length !== nonWild.length) continue
+    if (inRange.length !== nonWildEv.length) continue
 
-    // Verify no duplicate numbers in range (each slot exactly once)
     const slots = new Set(nums)
-    if (slots.size !== nonWild.length) continue
+    if (slots.size !== nonWildEv.length) continue
 
-    // The number of wilds needed is len - nonWild.length = wildCount — must match
+    // Suppress unused variable warning
+    void wildCount
     return true
   }
 
@@ -169,21 +210,28 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
 /**
  * Validate a single meld as a GROUP.
  * Rules: same number, distinct colors, 3–4 tiles, wilds fill remaining slots.
+ *
+ * FALSE_JOKERs contribute their concrete okey value as a PLAIN tile (not wild).
+ * Only real NUMBER tiles equal to okey are treated as wild (universal substitutes).
  */
 function isValidGroup(meld: Tile[], okey: Tile, _config: VariantConfig): boolean {
   if (meld.length < 3 || meld.length > 4) return false
 
-  const nonWild = meld.filter((t) => !isWild(t, okey))
+  // Build effective-value list for non-wild tiles.
+  const nonWildEv = meld
+    .filter((t) => !isWild(t, okey))
+    .map((t) => effectiveValue(t, okey))
+    .filter((v): v is { number: number; color: TileColor } => v !== null)
 
-  if (nonWild.length === 0) return false // all wilds — no group number
+  if (nonWildEv.length === 0) return false // all wilds — no group number
 
   // All non-wild must share the same number
-  const numbers = new Set(nonWild.map((t) => t.number))
+  const numbers = new Set(nonWildEv.map((v) => v.number))
   if (numbers.size !== 1) return false
 
   // All non-wild must have distinct colors
-  const colors = nonWild.map((t) => t.color)
-  if (new Set(colors).size !== colors.length) return false
+  const cols = nonWildEv.map((v) => v.color)
+  if (new Set(cols).size !== cols.length) return false
 
   // Wilds fill remaining slots (up to 4 total); already enforced by meld.length ≤ 4
   return true
@@ -212,6 +260,8 @@ export function isValidMeldSet(melds: Tile[][], okey: Tile, config: VariantConfi
 /**
  * Validate a single meld as a "pair" for the pairs-opening route.
  * A pair is exactly 2 tiles of the same number and same color (identical tiles).
+ * Neither tile may be a wild (real NUMBER tile equal to okey).
+ * FALSE_JOKERs are treated as their concrete okey value (plain, not wild).
  */
 function isValidPair(meld: Tile[], okey: Tile): boolean {
   if (meld.length !== 2) return false
@@ -219,7 +269,11 @@ function isValidPair(meld: Tile[], okey: Tile): boolean {
   if (!a || !b) return false
   // Neither tile should be a wild (pairs must be real identical tiles)
   if (isWild(a, okey) || isWild(b, okey)) return false
-  return a.number === b.number && a.color === b.color
+  // Use effective values for comparison (handles FALSE_JOKER)
+  const evA = effectiveValue(a, okey)
+  const evB = effectiveValue(b, okey)
+  if (!evA || !evB) return false
+  return evA.number === evB.number && evA.color === evB.color
 }
 
 // ─── Public: canOpen ──────────────────────────────────────────────────────────

@@ -265,11 +265,19 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // Compute opening value
       const value = openingValue(event.melds, okey)
 
-      // Build new table meld entries: detect shape for each meld
+      // Build new table meld entries: detect shape for each meld.
+      // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
       const newTableMelds = event.melds.map((meld) => {
-        // Detect shape (run or group) by inspecting non-wild tiles
-        const nonWild = meld.filter((t) => t.kind !== 'FALSE_JOKER' && !tilesEqual(t, okey))
-        const kind: 'run' | 'group' = nonWild.length > 0 && new Set(nonWild.map((t) => t.color)).size === 1
+        // Use effective values for non-wild tiles to determine meld shape.
+        // FALSE_JOKER contributes okey's number+color as its concrete value.
+        const nonWildEffective = meld
+          .filter((t) => !(t.kind === 'NUMBER' && tilesEqual(t, okey)))
+          .map((t) => t.kind === 'FALSE_JOKER'
+            ? { color: okey.color, number: okey.number }
+            : { color: t.color, number: t.number })
+          .filter((v): v is { color: NonNullable<typeof okey.color>; number: number } =>
+            v.color != null && v.number != null)
+        const kind: 'run' | 'group' = nonWildEffective.length > 0 && new Set(nonWildEffective.map((v) => v.color)).size === 1
           ? 'run'
           : 'group'
         return { owner: event.seat, kind, tiles: meld }
