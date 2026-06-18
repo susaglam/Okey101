@@ -153,7 +153,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   return (
     <DndContext onDragEnd={handleDragEnd}>
     <Table view={view} onTakeDiscard={handleTakeDiscard}>
-      {is101 && <TableMelds melds={view.tableMelds} />}
+      {is101 && <TableMelds melds={view.tableMelds} okey={view.okey} />}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}

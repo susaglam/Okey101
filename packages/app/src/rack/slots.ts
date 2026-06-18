@@ -160,6 +160,49 @@ export function layoutToTiles(layout: SlotLayout): Tile[] {
   return layout.filter((s): s is Tile => s !== null)
 }
 
+/**
+ * For an already-ordered meld (output of orderMeldForDisplay), return the number
+ * each tile REPRESENTS:
+ * - non-wild tile → its own `number`
+ * - wild in a RUN (real tiles share colour, differ in number): compute slot
+ *   position from the first real tile's number + index offset
+ * - wild in a GROUP (real tiles share number): the group's shared number
+ * - Returns null if indeterminate (e.g. all-wild meld)
+ */
+export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number | null)[] {
+  const reals = orderedMeld.filter((t) => !isWildTile(t, okey))
+
+  if (reals.length === 0) {
+    // All wilds — cannot determine represented value
+    return orderedMeld.map(() => null)
+  }
+
+  const firstColor = reals[0]!.color
+  const sameColor = reals.every((t) => t.color === firstColor)
+  const firstNum = reals[0]!.number
+  const sameNumber = reals.every((t) => t.number === firstNum)
+
+  if (sameColor && !sameNumber) {
+    // RUN: find first real tile to anchor position
+    // Walk the ordered meld; each position j represents firstRealNumber - firstRealIndex + j
+    const firstRealIndex = orderedMeld.findIndex((t) => !isWildTile(t, okey))
+    const firstRealNumber = orderedMeld[firstRealIndex]!.number ?? 1
+    return orderedMeld.map((t, j) => {
+      if (!isWildTile(t, okey)) {
+        return t.number ?? null
+      }
+      return firstRealNumber - firstRealIndex + j
+    })
+  }
+
+  // GROUP (same number) or fallback: every tile represents the group's number
+  const groupNumber = firstNum ?? null
+  return orderedMeld.map((t) => {
+    if (!isWildTile(t, okey)) return t.number ?? null
+    return groupNumber
+  })
+}
+
 function isWildTile(t: Tile, okey: Tile): boolean {
   return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
 }

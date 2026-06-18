@@ -29,7 +29,7 @@ export function TileView({
   const label = isJoker ? 'sahte okey' : tileToString(tile)
   const color = tile.color ? COLOR_CLASS[tile.color] : '#7a4a1c'
   const glyph = colorblind && tile.color ? COLORBLIND_GLYPH[tile.color] : null
-  const showRepValue = repValue !== undefined && isJoker
+  const showRepValue = repValue !== undefined
 
   return (
     <button

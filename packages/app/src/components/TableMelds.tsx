@@ -1,5 +1,7 @@
-import type { PlayerView } from '@cs-okey/engine'
+import type { PlayerView, Tile } from '@cs-okey/engine'
+import { tilesEqual } from '@cs-okey/engine'
 import { TileView } from './Tile'
+import { orderMeldForDisplay, meldRepresentedValues } from '../rack/slots'
 
 const OWNER_LABELS: Record<number, string> = {
   0: 'Sen',
@@ -12,7 +14,11 @@ function ownerLabel(owner: number): string {
   return OWNER_LABELS[owner] ?? `O${owner}`
 }
 
-export function TableMelds({ melds }: { melds: PlayerView['tableMelds'] }) {
+function isWild(t: Tile, okey: Tile): boolean {
+  return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
+}
+
+export function TableMelds({ melds, okey }: { melds: PlayerView['tableMelds']; okey: Tile }) {
   return (
     <div
       data-testid="table-melds"
@@ -24,28 +30,37 @@ export function TableMelds({ melds }: { melds: PlayerView['tableMelds'] }) {
         marginBottom: 8,
       }}
     >
-      {melds.map((meld, idx) => (
-        <div
-          key={idx}
-          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-        >
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              opacity: 0.75,
-              minWidth: 22,
-              textAlign: 'right',
-              color: '#fff',
-            }}
+      {melds.map((meld, idx) => {
+        const ordered = orderMeldForDisplay(meld.tiles, okey)
+        const reps = meldRepresentedValues(ordered, okey)
+        return (
+          <div
+            key={idx}
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
           >
-            {ownerLabel(meld.owner)}
-          </span>
-          {meld.tiles.map((tile, ti) => (
-            <TileView key={ti} tile={tile} testId="table-meld-tile" />
-          ))}
-        </div>
-      ))}
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                opacity: 0.75,
+                minWidth: 22,
+                textAlign: 'right',
+                color: '#fff',
+              }}
+            >
+              {ownerLabel(meld.owner)}
+            </span>
+            {ordered.map((tile, ti) => (
+              <TileView
+                key={ti}
+                tile={tile}
+                testId="table-meld-tile"
+                repValue={isWild(tile, okey) ? (reps[ti] ?? undefined) : undefined}
+              />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
