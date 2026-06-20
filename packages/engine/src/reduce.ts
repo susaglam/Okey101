@@ -508,27 +508,23 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       }
       const p = state.players.find((x) => x.seat === event.seat)!
       if (p.hasOpened) throw new RuleError('cannot return the floor tile after opening')
-      if (state.stock.length === 0) throw new RuleError('cannot return the floor tile: stock is empty')
 
       const floorTile = turn0.floorTileTaken
       const ridx = p.rack.findIndex((t) => tilesEqual(t, floorTile))
       if (ridx < 0) throw new RuleError('floor tile not in rack')
 
-      // Remove the floor tile from the rack, draw from stock instead.
+      // Remove the floor tile from the rack and put it back on TOP of the left
+      // neighbour's discard pile (where they discarded it).
       const newRack = p.rack.slice()
       newRack.splice(ridx, 1)
-      const stock = state.stock.slice()
-      const drawn = stock.pop()!
-      newRack.push(drawn)
-
-      // Put the floor tile back on top of the left neighbour's discard pile.
       const leftIdx = leftSeat(event.seat, state.config.players)
       let players = replacePlayer(state.players, leftIdx, (lp) => ({ ...lp, discard: [...lp.discard, floorTile] }))
       players = replacePlayer(players, event.seat, (pp) => ({ ...pp, rack: newRack, pendingIslekFromSeat: undefined }))
 
-      // tookFromLeft / floorTileTaken cleared → no işlek penalty (treated as a stock draw).
-      const turn: TurnState = { seat: event.seat, phase: 'DISCARD' }
-      return { ...state, stock, players, turn }
+      // Undo the take entirely: return to the DRAW phase so the player may draw
+      // again — re-take the same floor tile to retry, or draw from the stock.
+      const turn: TurnState = { seat: event.seat, phase: 'DRAW' }
+      return { ...state, players, turn }
     }
   }
 }

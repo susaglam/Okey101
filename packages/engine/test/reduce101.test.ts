@@ -495,7 +495,7 @@ describe('Kural 11 (Q1) — floor-take must open or return', () => {
     expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('5K') })).toThrow(RuleError)
   })
 
-  it('ReturnFloorTile puts the tile back, draws from stock, and clears tookFromLeft', () => {
+  it('ReturnFloorTile puts the tile back on the left pile and returns to DRAW (no auto stock draw)', () => {
     const base = start101()
     const floor = tileFromString('9R')
     const leftIdx = 3 // leftSeat(0, 4)
@@ -510,14 +510,16 @@ describe('Kural 11 (Q1) — floor-take must open or return', () => {
     }
     const stockBefore = s.stock.length
     const s2 = reduce(s, { type: 'ReturnFloorTile', seat: 0 })
-    // floor tile returned to the left pile; gone from the rack; replaced from stock
-    expect(s2.players[leftIdx]!.discard.some((t) => tilesEqual(t, floor))).toBe(true)
+    // Floor tile back on top of the left neighbour's pile; gone from the rack.
+    expect(s2.players[leftIdx]!.discard[s2.players[leftIdx]!.discard.length - 1]).toEqual(floor)
     expect(s2.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(false)
-    expect(s2.players[0]!.rack).toHaveLength(3)
-    expect(s2.stock.length).toBe(stockBefore - 1)
+    expect(s2.players[0]!.rack).toHaveLength(2) // the take is undone — no replacement drawn
+    expect(s2.stock.length).toBe(stockBefore) // stock untouched
+    expect(s2.turn.phase).toBe('DRAW') // back to DRAW — may draw again
     expect((s2.turn as { tookFromLeft?: boolean }).tookFromLeft).toBeFalsy()
-    // discarding is now allowed (no longer a floor-take)
-    expect(() => reduce(s2, { type: 'Discard', seat: 0, tile: s2.players[0]!.rack[0]! })).not.toThrow()
+    // The player may now re-take the same floor tile to retry.
+    const s3 = reduce(s2, { type: 'DrawFromDiscard', seat: 0 })
+    expect(s3.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(true)
   })
 })
 
