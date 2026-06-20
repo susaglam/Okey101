@@ -67,6 +67,20 @@ describe('orderMeldForDisplay', () => {
     expect(out.map(tileToString)).toEqual(['6K', '8K', 'X'])
   })
 
+  // ── 13→1 WRAP runs (Klasik) ──────────────────────────────────────────────────
+
+  it('orders a 13→1 wrap run as 11,12,13,1 with the okey filling the 12 slot', () => {
+    // okey is 5K (wild). Yellow wrap run 11-12-13-1 with 5K used as 12.
+    // Engine/arrange may hand tiles in any order; display must read 11,12,13,1.
+    const out = orderMeldForDisplay(h('1S', '5K', '11S', '13S'), OKEY)
+    expect(out.map(tileToString)).toEqual(['11S', '5K', '13S', '1S'])
+  })
+
+  it('orders a wrap run 12,13,1 (no wild) correctly', () => {
+    const out = orderMeldForDisplay(h('1S', '12S', '13S'), OKEY)
+    expect(out.map(tileToString)).toEqual(['12S', '13S', '1S'])
+  })
+
   it('false joker (okey=8K) in group sits at fixed slot (group of 8s)', () => {
     // group: [8R, 8M, X(=8K concrete)] → X is 8K, a normal group member
     // reals: 8R, 8M, X(=8K) — same number=8, distinct colors RED/BLUE/BLACK

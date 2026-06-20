@@ -246,8 +246,10 @@ export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number 
         // FALSE_JOKER or real tile: return its concrete number
         return t.number ?? null
       }
-      // Gap-filling wild: slot number derived from run position
-      return firstRealNumber - firstRealIndex + j
+      // Gap-filling wild: slot number derived from run position, wrapped into 1..13
+      // so a wild that fills the 13→1 wrap slot shows its real face value (e.g. =1).
+      const raw = firstRealNumber - firstRealIndex + j
+      return ((raw - 1) % 13 + 13) % 13 + 1
     })
   }
 
@@ -314,16 +316,33 @@ export function orderMeldForDisplay(meld: Tile[], okey: Tile): Tile[] {
   const sameNumber = realPairs.every((p) => p.resolved.number === firstNum)
 
   if (sameColor && !sameNumber) {
-    // RUN: place reals at their number, wilds fill the gaps ascending
-    const sorted = [...realPairs].sort((a, b) => (a.resolved.number ?? 0) - (b.resolved.number ?? 0))
+    // RUN: place reals at their slot, wilds fill the gaps in run order.
     const byNum = new Map<number, Tile>()
-    for (const p of sorted) if (p.resolved.number != null) byNum.set(p.resolved.number, p.orig)
-    const min = sorted[0]!.resolved.number ?? 1
-    const max = sorted[sorted.length - 1]!.resolved.number ?? min
+    for (const p of realPairs) if (p.resolved.number != null) byNum.set(p.resolved.number, p.orig)
+    const nums = [...byNum.keys()]
+    const min = Math.min(...nums)
+    const max = Math.max(...nums)
+    const len = meld.length
+
+    // Determine the run's starting slot. Linear runs anchor at the min real (wilds
+    // extend upward). When the reals can't fit a linear window of `len` slots
+    // (max-min+1 > len), the run must wrap 13→1: find the start whose `len`
+    // consecutive slots (wrapping) cover every real number (e.g. 11,12,13,1).
+    let startNum = min
+    if (max - min + 1 > len) {
+      for (let s = 1; s <= 13; s++) {
+        const window = new Set<number>()
+        for (let k = 0; k < len; k++) window.add(((s - 1 + k) % 13) + 1)
+        if (window.size !== len) continue
+        if (nums.every((n) => window.has(n))) { startNum = s; break }
+      }
+    }
+
     const out: Tile[] = []
     let wi = 0
-    for (let n = min; n <= max; n++) {
-      const real = byNum.get(n)
+    for (let k = 0; k < len; k++) {
+      const face = ((startNum - 1 + k) % 13) + 1 // wrap into 1..13
+      const real = byNum.get(face)
       if (real) out.push(real)
       else if (wi < wildPairs.length) out.push(wildPairs[wi++]!.orig)
     }
