@@ -61,6 +61,7 @@ export default function App() {
       adapter={adapter}
       onExitToMenu={() => setView('menu')}
       onRestart={() => handleStart(variantId)}
+      isResumed={!!pendingResume}
     />
   )
   if (view === 'help') return <Help onBack={() => setView('menu')} />

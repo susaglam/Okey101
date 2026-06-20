@@ -38,12 +38,15 @@ const REJECT_MSG: Record<RejectionCode, string> = {
   'unknown': 'Hamle reddedildi',
 }
 
-export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
+export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed }: {
   adapter: LocalAdapter
   /** Return to the main menu (from the match-over screen). */
   onExitToMenu?: () => void
   /** Start a fresh match of the same variant (from the match-over screen). */
   onRestart?: () => void
+  /** True when this game was RESUMED from a save (so the deal flourish is skipped
+   *  on the restored mid-hand view; a fresh game still animates its first deal). */
+  isResumed?: boolean
 }) {
   const [view, setView] = useState<PlayerView | null>(null)
   const [layout, setLayout] = useState<SlotLayout | null>(null)
@@ -121,15 +124,23 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
   // two views, fly a ghost of the discarded tile from that seat to its pile. Bots
   // are paced (one view per move) so each discard animates cleanly.
   const prevViewRef = useRef<PlayerView | null>(null)
+  const didMountRef = useRef(false)
+  // NOTE: every DOM query in this effect MUST stay synchronous — flyTile is
+  // fire-and-forget and reads no effect-local closures, so there's no stale-closure
+  // risk. Moving a querySelector into an async/awaited callback would break that.
   useEffect(() => {
     const prev = prevViewRef.current
     prevViewRef.current = view
+    const isFirstRun = !didMountRef.current
+    didMountRef.current = true
     if (!view || !animationsEnabled()) return
 
     // NEW HAND → deal flourish: face-down tiles fly from the table centre to each
-    // player (a representative round-robin), then play begins. (Skip discard/open
-    // detection on this view.)
-    const newHand = !prev || prev.handNo !== view.handNo
+    // player, then play begins. (Skip discard/open detection on this view.)
+    // A genuine new hand is a handNo transition; the FIRST effect run counts as a
+    // fresh deal ONLY for a brand-new game — never on resume (a restored mid-hand
+    // save would otherwise replay the deal over a hand already in progress).
+    const newHand = (!isFirstRun && !!prev && prev.handNo !== view.handNo) || (isFirstRun && !isResumed)
     if (newHand) {
       if (view.status === 'PLAYING' && typeof DOMRect !== 'undefined') {
         const felt = document.querySelector('.felt')
