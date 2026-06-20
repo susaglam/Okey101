@@ -518,6 +518,9 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             count={myDiscardCount}
             active={isMyTurn && isDiscardPhase}
             onDropTile={() => { if (selectedSlot !== null) discardFromSlot(selectedSlot) }}
+            okey={view.okey}
+            colorblind={settings.colorblind}
+            repValue={settings.repValue}
           />
         </div>
       </div>

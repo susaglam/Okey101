@@ -58,7 +58,7 @@ export function MyDiscardTarget({
       }}
     >
       {topTile ? (
-        <TileView tile={topTile} testId="my-discard-top" />
+        <TileView tile={topTile} testId="my-discard-top" colorblind={colorblind} repValue={tileRepValue} />
       ) : (
         <div
           style={{
