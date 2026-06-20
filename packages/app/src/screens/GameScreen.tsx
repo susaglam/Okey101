@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isValidMeldSet } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
 import { DndContext } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
@@ -14,7 +14,7 @@ import { TableMelds } from '../components/TableMelds'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 import type { SlotLayout } from '../rack/slots'
-import { initLayout, reconcile, moveTile, autoArrange } from '../rack/slots'
+import { initLayout, reconcile, moveTile, autoArrange, parseMeldSegments } from '../rack/slots'
 import { interpretDragEnd } from '../utils/dragEnd'
 import { captureRackFlip, runRackFlip } from '../anim/flip'
 
@@ -125,15 +125,30 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // ── 101-specific pre-computed values ──────────────────────────────────────
   const is101 = !!view.config.requiresOpening
 
-  // findOpening result (null if can't open or already opened) — seri route
-  const opening101 = is101 && view.okey && !view.you.hasOpened
-    ? findOpening(view.you.rack, view.okey, view.config)
-    : null
+  // LAYOUT-DRIVEN opening (the player's rack arrangement is the source of truth):
+  // parse the rack into the player's intended meld segments and value THOSE — the
+  // engine's auto-arrangement never overrides how the player grouped their tiles.
+  const meldSegments = view.okey ? parseMeldSegments(currentLayout) : []
+  const openingThreshold = view.config.openingThreshold ?? 101
+  const pairsNeeded = view.config.pairsOpenCount ?? 5
 
-  // findPairOpening result — çift route initial open (5 pairs)
-  const pairOpening101 = is101 && view.okey && !view.you.hasOpened
-    ? findPairOpening(view.you.rack, view.okey, view.config)
-    : null
+  // Seri-route valid melds (runs/groups ≥3) the player has arranged, and their
+  // combined opening value — this is the live hand total shown above the rack.
+  const validSeriMelds = view.okey
+    ? meldSegments.filter((s) => s.length >= 3 && isValidMeldSet([s], view.okey!, view.config))
+    : []
+  const handMeldValue = view.okey ? openingValue(validSeriMelds, view.okey) : 0
+
+  // Çift-route valid pairs the player has arranged.
+  const pairSegments = view.okey
+    ? meldSegments.filter((s) => s.length === 2 && isValidPairSet([s], view.okey!))
+    : []
+
+  // Can the player open right now, FROM THEIR ARRANGEMENT?
+  const canOpenSeri = is101 && !view.you.hasOpened && validSeriMelds.length > 0 && handMeldValue >= openingThreshold
+  const canOpenCift = is101 && !view.you.hasOpened && pairSegments.length >= pairsNeeded
+  const openSeriMelds = validSeriMelds
+  const openCiftMelds = pairSegments.slice(0, pairsNeeded)
 
   // Determine the player's open route (after first open)
   const openRoute = view.you.openRoute as 'seri' | 'cift' | undefined
@@ -247,6 +262,24 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     )}
     <Table view={view} onTakeDiscard={handleTakeDiscard} standings={match.standings}>
       {is101 && view.okey && <TableMelds melds={view.tableMelds} okey={view.okey} />}
+      {is101 && !view.you.hasOpened && (
+        <div
+          data-testid="hand-total"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+            padding: '3px 12px', borderRadius: 999, fontFamily: 'system-ui', fontSize: 13,
+            background: 'rgba(0,0,0,.35)',
+            color: handMeldValue >= openingThreshold ? '#7BE38B' : '#ffe9b0',
+            border: handMeldValue >= openingThreshold ? '1px solid rgba(123,227,139,.6)' : '1px solid rgba(255,233,176,.3)',
+            fontWeight: 700,
+          }}
+        >
+          El toplamı: {handMeldValue}
+          <span style={{ opacity: 0.7, fontWeight: 500 }}>
+            {handMeldValue >= openingThreshold ? `✓ açabilirsin` : `/ ${openingThreshold}`}
+          </span>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}
@@ -287,20 +320,22 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
                 {!view.you.hasOpened && (
                   <>
                     <button
-                      disabled={opening101 === null}
+                      disabled={!canOpenSeri}
+                      title="İstakadaki perlerinle aç (toplam ≥101)"
                       onClick={() => {
-                        if (opening101) send({ type: 'OpenMeld', seat: view.seat, melds: opening101 })
+                        if (canOpenSeri) send({ type: 'OpenMeld', seat: view.seat, melds: openSeriMelds })
                       }}
                     >
                       Aç (≥101)
                     </button>
                     <button
-                      disabled={pairOpening101 === null}
+                      disabled={!canOpenCift}
+                      title="5 çift ile aç"
                       onClick={() => {
-                        if (pairOpening101) send({ type: 'OpenMeld', seat: view.seat, melds: pairOpening101 })
+                        if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds })
                       }}
                     >
-                      Çift Aç
+                      Çift Aç (5)
                     </button>
                   </>
                 )}

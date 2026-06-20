@@ -161,6 +161,30 @@ export function layoutToTiles(layout: SlotLayout): Tile[] {
 }
 
 /**
+ * Parse the rack layout into the player's intended meld segments: maximal runs
+ * of contiguous non-empty slots, in slot order. A segment is broken by ANY empty
+ * slot AND by the row boundary (a meld never spans the back row into the front
+ * row). This is the player's spatial meld declaration — the source of truth for
+ * opening value and "can open", NOT the engine's auto-arrangement.
+ */
+export function parseMeldSegments(layout: SlotLayout): Tile[][] {
+  const rowStart = Math.floor(layout.length / 2) // index where the front row begins
+  const segments: Tile[][] = []
+  let current: Tile[] = []
+  const flush = () => {
+    if (current.length > 0) { segments.push(current); current = [] }
+  }
+  for (let i = 0; i < layout.length; i++) {
+    if (i === rowStart) flush() // row boundary always breaks a segment
+    const t = layout[i]
+    if (t == null) flush()
+    else current.push(t)
+  }
+  flush()
+  return segments
+}
+
+/**
  * For an already-ordered meld (output of orderMeldForDisplay), return the number
  * each tile REPRESENTS:
  * - FALSE_JOKER → always okey.number (its fixed concrete value; never a gap-derived number)
