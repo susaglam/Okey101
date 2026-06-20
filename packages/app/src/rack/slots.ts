@@ -90,15 +90,16 @@ export function reconcile(prev: SlotLayout, tiles: Tile[], preferredSlotForNew?:
   }
 
   let ui = 0
-  // Place the first newly-added tile at the player's chosen drop slot, if empty.
+  // Place the first newly-added tile at the player's chosen drop slot. If that
+  // slot is occupied, INSERT there and shift neighbours (so a drawn tile lands
+  // where the player dropped it, not in the first empty slot).
   if (
     preferredSlotForNew != null &&
     preferredSlotForNew >= 0 &&
     preferredSlotForNew < next.length &&
-    next[preferredSlotForNew] === null &&
     ui < unclaimed.length
   ) {
-    next[preferredSlotForNew] = unclaimed[ui]!
+    shiftInsert(next, preferredSlotForNew, unclaimed[ui]!)
     ui++
   }
   for (let i = 0; i < next.length && ui < unclaimed.length; i++) {
@@ -111,20 +112,44 @@ export function reconcile(prev: SlotLayout, tiles: Tile[], preferredSlotForNew?:
   return next
 }
 
+/** Insert `tile` at slot `to`, shifting the run of tiles at `to` toward the
+ *  NEAREST empty slot to make room (never overwrites, never swaps). Mutates and
+ *  returns `next`. `to` is assumed occupied; if empty, the caller places directly. */
+function shiftInsert(next: SlotLayout, to: number, tile: Tile): void {
+  if (next[to] === null) { next[to] = tile; return }
+  // Find the nearest empty slot to `to`.
+  let gap = -1
+  let best = Infinity
+  for (let i = 0; i < next.length; i++) {
+    if (next[i] === null) {
+      const d = Math.abs(i - to)
+      if (d < best) { best = d; gap = i }
+    }
+  }
+  if (gap === -1) { next[to] = tile; return } // no room (shouldn't happen)
+  if (gap > to) {
+    for (let i = gap; i > to; i--) next[i] = next[i - 1]! // shift the block right
+  } else {
+    for (let i = gap; i < to; i++) next[i] = next[i + 1]! // shift the block left
+  }
+  next[to] = tile
+}
+
 /**
  * Return a new layout with the tile at `from` moved to `to`.
  * - If from === to or from slot is empty, returns a copy unchanged.
- * - If to slot is occupied, the two tiles are swapped.
- * - If to slot is empty, tile moves and from becomes null.
+ * - If `to` is empty, the tile moves there and `from` becomes null.
+ * - If `to` is occupied, the tile is INSERTED at `to` and the neighbouring tiles
+ *   shift toward the nearest gap to make room (no swap) — natural rack editing.
  */
 export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayout {
   const next = [...layout]
   if (from === to || next[from] === null) {
     return next
   }
-  const temp = next[to]!
-  next[to] = next[from]!
-  next[from] = temp !== undefined ? temp : null
+  const tile = next[from]!
+  next[from] = null // freeing this slot may itself be the nearest gap
+  shiftInsert(next, to, tile)
   return next
 }
 

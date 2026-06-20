@@ -147,13 +147,15 @@ describe('reconcile', () => {
     expect(next[3]).toBeNull()
   })
 
-  it('falls back to first empty slot when the preferred slot is occupied', () => {
+  it('inserts the drawn tile at an occupied preferred slot, shifting neighbours', () => {
     const initial = h('1R', '2R', '3R')
     const layout = initLayout(initial, cols)
-    // Prefer slot 1 (occupied by 2R) → must fall back to first empty (slot 3)
+    // Prefer slot 1 (occupied by 2R) → insert 5R at slot 1; 2R,3R shift right.
     const next = reconcile(layout, h('1R', '2R', '3R', '5R'), 1)
-    expect(tilesEqual(next[1]!, tileFromString('2R'))).toBe(true)
-    expect(tilesEqual(next[3]!, tileFromString('5R'))).toBe(true)
+    expect(tilesEqual(next[0]!, tileFromString('1R'))).toBe(true)
+    expect(tilesEqual(next[1]!, tileFromString('5R'))).toBe(true)
+    expect(tilesEqual(next[2]!, tileFromString('2R'))).toBe(true)
+    expect(tilesEqual(next[3]!, tileFromString('3R'))).toBe(true)
   })
 
   it('exact-discard: emptying the dragged duplicate slot keeps the OTHER copy in its meld slot', () => {
@@ -190,15 +192,29 @@ describe('moveTile', () => {
     expect(tilesEqual(moved[2]!, tileFromString('3R'))).toBe(true)
   })
 
-  it('swaps when target is occupied', () => {
-    const tiles = h('1R', '2R', '3R')
+  it('inserts at an occupied target and shifts neighbours toward the nearest gap (no swap)', () => {
+    const tiles = h('1R', '2R', '3R') // slots 0,1,2; slot 3 is the nearest gap
     const layout = initLayout(tiles, cols)
-    const swapped = moveTile(layout, 0, 2)
-    // slot 0 should now have '3R', slot 2 should have '1R'
-    expect(tilesEqual(swapped[0]!, tileFromString('3R'))).toBe(true)
-    expect(tilesEqual(swapped[2]!, tileFromString('1R'))).toBe(true)
-    // slot 1 unchanged
-    expect(tilesEqual(swapped[1]!, tileFromString('2R'))).toBe(true)
+    const out = moveTile(layout, 0, 2)
+    // 1R inserted at slot 2; 3R shifts right into slot 3; slot 0 is freed.
+    expect(out[0]).toBeNull()
+    expect(tilesEqual(out[1]!, tileFromString('2R'))).toBe(true)
+    expect(tilesEqual(out[2]!, tileFromString('1R'))).toBe(true)
+    expect(tilesEqual(out[3]!, tileFromString('3R'))).toBe(true)
+  })
+
+  it('inserts before an occupied target, shifting toward the gap freed by `from`', () => {
+    // [_, 1R, 2R, 3R] (slot 0 empty). Move slot 3 (3R) to slot 1: 1R,2R shift left
+    // into slot 0, 3R lands at slot 1.
+    const layout = initLayout([], cols)
+    layout[1] = tileFromString('1R')
+    layout[2] = tileFromString('2R')
+    layout[3] = tileFromString('3R')
+    const out = moveTile(layout, 3, 1)
+    expect(tilesEqual(out[0]!, tileFromString('1R'))).toBe(true)
+    expect(tilesEqual(out[1]!, tileFromString('3R'))).toBe(true)
+    expect(tilesEqual(out[2]!, tileFromString('2R'))).toBe(true)
+    expect(out[3]).toBeNull()
   })
 
   it('returns a copy unchanged when from===to', () => {
