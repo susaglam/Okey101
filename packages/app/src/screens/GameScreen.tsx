@@ -10,7 +10,9 @@ import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
 import { DiscardZone } from '../components/DiscardZone'
 import { Scoreboard } from '../components/Scoreboard'
+import { ScoreTable } from '../components/ScoreTable'
 import { TableMelds } from '../components/TableMelds'
+import type { HandRecord } from '../match'
 import { HelpContent } from './HelpContent'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
@@ -41,6 +43,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [settings, setSettings] = useState(() => loadSettings())
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showScores, setShowScores] = useState(false)
+  const [history, setHistory] = useState<HandRecord[]>(() => adapter.getHistory())
   const [toast, setToast] = useState<string | null>(null)
 
   // Reddetme bildirimi (toast) — engine bir hamleyi reddederse kullanıcı sebebini görür.
@@ -82,6 +86,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         })
         setSelectedSlot(null)
         setMatch(adapter.getMatch())
+        setHistory(adapter.getHistory())
       },
       () => {}
     ),
@@ -490,7 +495,14 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         />
       </div>
 
-      {/* Help + Settings buttons — fixed top-right of the screen */}
+      {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
+      <button
+        aria-label="Skor Tabelası"
+        onClick={() => setShowScores(true)}
+        style={{ position: 'fixed', top: 12, right: 96, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+      >
+        📊
+      </button>
       <button
         aria-label="Nasıl Oynanır?"
         onClick={() => setShowHelp(true)}
@@ -530,6 +542,34 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               <button onClick={() => setShowHelp(false)} aria-label="Kapat">Kapat</button>
             </div>
             <HelpContent variant={is101 ? 'yuzbir' : 'klasik'} />
+          </div>
+        </div>
+      )}
+
+      {showScores && (
+        <div
+          data-testid="score-modal"
+          role="dialog"
+          aria-label="Skor Tabelası"
+          onClick={() => setShowScores(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 320, background: 'rgba(0,0,0,.75)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px 12px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#13361f', color: '#fff', borderRadius: 12, padding: '18px 22px',
+              maxWidth: 620, width: '100%', fontFamily: 'system-ui',
+              boxShadow: '0 10px 40px rgba(0,0,0,.6)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>📊 Skor Tabelası</h2>
+              <button onClick={() => setShowScores(false)} aria-label="Kapat">Kapat</button>
+            </div>
+            <ScoreTable history={history} standings={match.standings} names={[...SEAT_NAMES]} />
           </div>
         </div>
       )}

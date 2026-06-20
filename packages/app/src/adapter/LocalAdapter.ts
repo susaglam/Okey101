@@ -5,7 +5,7 @@ import {
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
-import { applyHandScore, type MatchState } from '../match'
+import { applyHandScore, type MatchState, type HandRecord } from '../match'
 import { saveGame, clearGame, type SaveData, type VariantId } from '../persistence'
 
 export class LocalAdapter implements Adapter {
@@ -19,6 +19,7 @@ export class LocalAdapter implements Adapter {
   private variant: VariantConfig
   private standings: number[]
   private scoredHandNo: number | null = null
+  private history: HandRecord[] = []
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
@@ -35,6 +36,7 @@ export class LocalAdapter implements Adapter {
       this.version = rf.version
       this.standings = [...rf.standings]
       this.scoredHandNo = rf.scoredHandNo
+      this.history = rf.history ? rf.history.map((h) => ({ ...h })) : []
       // Restore the master seed so bot RNG continues deterministically. Older
       // saves lack `seed`, but CreateGame stored it as state.rngSeed — use that.
       this.seed = rf.seed ?? this.state.rngSeed ?? opts.seed
@@ -73,6 +75,7 @@ export class LocalAdapter implements Adapter {
       scoredHandNo: this.scoredHandNo ?? 0,
       savedAt: 0,
       seed: this.seed,
+      history: this.history.map((h) => ({ ...h, deltas: [...h.deltas], penalties: [...h.penalties] })),
     }
   }
 
@@ -128,6 +131,8 @@ export class LocalAdapter implements Adapter {
     return { accepted: true }
   }
 
+  getHistory(): HandRecord[] { return this.history.map((h) => ({ ...h, deltas: [...h.deltas], penalties: [...h.penalties] })) }
+
   private settleIfEnded(): void {
     if (this.state.status === 'ENDED' && this.state.handNo !== this.scoredHandNo) {
       const deltas = this.variant.scoringModel === 'yuzbir-penalty'
@@ -135,6 +140,15 @@ export class LocalAdapter implements Adapter {
         : scoreHand(this.state)
       this.standings = applyHandScore(this.standings, deltas)
       this.scoredHandNo = this.state.handNo
+      // Record this hand for the score table.
+      this.history.push({
+        handNo: this.state.handNo,
+        deltas: [...deltas],
+        penalties: (this.state.penaltiesApplied ?? []).map((p) => ({ ...p })),
+        winnerSeat: this.state.terminal?.winnerSeat,
+        winType: this.state.terminal?.winType,
+        reason: this.state.terminal?.reason,
+      })
     }
   }
 

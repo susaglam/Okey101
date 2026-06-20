@@ -22,6 +22,7 @@ function makeRejectingAdapter(view: PlayerView, reason: 'not-your-turn' | 'illeg
     currentVersion: () => view.version,
     getMatch: () => ({ handNo: 1, totalHands: 11, standings: [0, 0, 0, 0], over: false }),
     nextHand: vi.fn(),
+    getHistory: () => [],
     // 101 DISCARD phase, not yet declared çift → DeclareCift is legal (button enabled)
     legalMoves: (): GameEvent['type'][] => ['Discard', 'OpenMeld', 'DeclareWin', 'DeclareCift'],
   } as unknown as Adapter

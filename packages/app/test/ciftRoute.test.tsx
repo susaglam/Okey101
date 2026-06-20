@@ -21,6 +21,7 @@ function makeMockAdapter(view: PlayerView): Adapter {
     currentVersion: () => view.version,
     getMatch: () => ({ handNo: 1, totalHands: 11, standings: [0, 0, 0, 0], over: false }),
     nextHand: vi.fn(),
+    getHistory: () => [],
     legalMoves: () => mockLegalMoves(view),
   } as unknown as Adapter
 }

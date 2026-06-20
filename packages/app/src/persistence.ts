@@ -1,4 +1,5 @@
 // packages/app/src/persistence.ts
+import type { HandRecord } from './match'
 
 export interface SaveData {
   version: number
@@ -10,6 +11,8 @@ export interface SaveData {
   /** Master RNG seed (== state.rngSeed). Persisted so bot RNG continues
    * deterministically on resume. Optional for back-compat with older saves. */
   seed?: number
+  /** Per-hand score history for the score table. Optional for back-compat. */
+  history?: HandRecord[]
 }
 
 export type VariantId = 'klasik' | 'yuzbir'
