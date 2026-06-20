@@ -262,52 +262,9 @@ export function Table({
             takeable={false}
           />
         </div>
-        <div>{children}</div>
-        {/* Human nameplate */}
-        <div
-          data-testid="human-nameplate"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderRadius: 10,
-            background: 'linear-gradient(180deg,#c08a44,#7a4a1c)',
-            color: '#fff',
-            boxShadow: view.turn.seat === view.seat ? '0 0 12px #5ad1c4' : '0 2px 4px rgba(0,0,0,.4)',
-          }}
-        >
-          <div style={{
-            width: 30,
-            height: 30,
-            borderRadius: '50%',
-            background: '#3a4570',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: 14,
-          }}>S</div>
-          <span style={{ fontWeight: 700, fontSize: 14 }}>Sen</span>
-          <span style={{
-            background: 'rgba(0,0,0,.3)',
-            borderRadius: 8,
-            padding: '2px 7px',
-            fontSize: 12,
-          }}>
-            {view.you.rack.length}
-          </span>
-          <span style={{
-            background: 'rgba(0,0,0,.45)',
-            borderRadius: 6,
-            padding: '2px 6px',
-            fontSize: 11,
-            fontWeight: 700,
-            color: '#ffd27a',
-          }}>
-            {(standings?.[view.seat] ?? 0)}
-          </span>
-        </div>
+        {/* Action bar + human nameplate + rack are rendered by GameScreen as children,
+            so they sit ABOVE the rack (the nameplate is centred within the action bar). */}
+        <div style={{ width: '100%' }}>{children}</div>
       </div>
     </div>
   )

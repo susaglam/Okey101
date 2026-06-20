@@ -156,6 +156,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // Can the player open right now, FROM THEIR ARRANGEMENT?
   const canOpenSeri = is101 && !view.you.hasOpened && validSeriMelds.length > 0 && handMeldValue >= openingThreshold
   const canOpenCift = is101 && !view.you.hasOpened && pairSegments.length >= pairsNeeded
+  const standingsForSeat = match.standings[view.seat] ?? 0
   const openSeriMelds = validSeriMelds
   const openCiftMelds = pairSegments.slice(0, pairsNeeded)
 
@@ -309,24 +310,115 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
         />
       )}
-      {is101 && !view.you.hasOpened && (
-        <div
-          data-testid="hand-total"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
-            padding: '3px 12px', borderRadius: 999, fontFamily: 'system-ui', fontSize: 13,
-            background: 'rgba(0,0,0,.35)',
-            color: handMeldValue >= openingThreshold ? '#7BE38B' : '#ffe9b0',
-            border: handMeldValue >= openingThreshold ? '1px solid rgba(123,227,139,.6)' : '1px solid rgba(255,233,176,.3)',
-            fontWeight: 700,
-          }}
-        >
-          El toplamı: {handMeldValue}
-          <span style={{ opacity: 0.7, fontWeight: 500 }}>
-            {handMeldValue >= openingThreshold ? `✓ açabilirsin` : `/ ${openingThreshold}`}
-          </span>
+      {/* ── ACTION BAR (above the rack): açma (left) · nameplate+total (center) · git/diz (right) ── */}
+      <div
+        className="action-bar"
+        style={{
+          display: 'flex', width: '100%', maxWidth: 920, margin: '2px auto 8px',
+          alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}
+      >
+        {/* LEFT: utility + opening buttons */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {isMyTurn && <button onClick={handleArrange}>↺ Sırala</button>}
+          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
+          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
+            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
+          )}
+          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromDiscard') && (
+            <button onClick={() => send({ type: 'DrawFromDiscard', seat: view.seat })}>Yerden Çek</button>
+          )}
+          {/* Opening buttons (pre-open). "Aç ≥101" hidden once çift is declared. */}
+          {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && !view.you.declaredCift && (
+            <button
+              disabled={!canOpenSeri}
+              title="İstakadaki perlerinle aç (toplam ≥101)"
+              onClick={() => { if (canOpenSeri) send({ type: 'OpenMeld', seat: view.seat, melds: openSeriMelds }) }}
+            >
+              Aç (≥101)
+            </button>
+          )}
+          {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && (
+            <button
+              disabled={!canOpenCift}
+              title="5 çift ile aç"
+              onClick={() => { if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds }) }}
+            >
+              Çift Aç (5)
+            </button>
+          )}
         </div>
-      )}
+
+        {/* CENTER: live hand total (101) + human nameplate */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {is101 && !view.you.hasOpened && (
+            <div
+              data-testid="hand-total"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '2px 12px', borderRadius: 999, fontFamily: 'system-ui', fontSize: 12,
+                background: 'rgba(0,0,0,.35)',
+                color: handMeldValue >= openingThreshold ? '#7BE38B' : '#ffe9b0',
+                border: handMeldValue >= openingThreshold ? '1px solid rgba(123,227,139,.6)' : '1px solid rgba(255,233,176,.3)',
+                fontWeight: 700,
+              }}
+            >
+              El toplamı: {handMeldValue}
+              <span style={{ opacity: 0.7, fontWeight: 500 }}>
+                {handMeldValue >= openingThreshold ? '✓ açabilirsin' : `/ ${openingThreshold}`}
+              </span>
+            </div>
+          )}
+          <div
+            data-testid="human-nameplate"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 10,
+              background: 'linear-gradient(180deg,#c08a44,#7a4a1c)', color: '#fff',
+              boxShadow: isMyTurn ? '0 0 12px #5ad1c4' : '0 2px 4px rgba(0,0,0,.4)',
+            }}
+          >
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3a4570', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>S</div>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>{seatName(view.seat)}</span>
+            <span style={{ background: 'rgba(0,0,0,.3)', borderRadius: 8, padding: '2px 7px', fontSize: 12 }}>{view.you.rack.length}</span>
+            <span style={{ background: 'rgba(0,0,0,.45)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700, color: '#ffd27a' }}>{standingsForSeat}</span>
+          </div>
+        </div>
+
+        {/* RIGHT: declare çift + lay (seri/çift diz) + işle */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && !view.you.declaredCift && legal.includes('DeclareCift') && (
+            <button onClick={() => send({ type: 'DeclareCift', seat: view.seat })}>Çifte Git</button>
+          )}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute !== 'cift' && (
+            <button
+              disabled={layableMeld101 === null}
+              title="Yere yeni bir seri/grup diz"
+              onClick={() => { if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] }) }}
+            >
+              Seri Diz
+            </button>
+          )}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute === 'cift' && (
+            <button
+              disabled={layablePairs101 === null}
+              title="Yere yeni çift(ler) diz"
+              onClick={() => { if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 }) }}
+            >
+              Çift Diz
+            </button>
+          )}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && (
+            <button
+              disabled={layOffTarget === null || !legal.includes('LayOff') || view.you.rack.length <= 1}
+              title={view.you.rack.length <= 1 ? 'Son taşını işleyemezsin — onu bitmek için atmalısın' : 'Yerdeki perlere taş işle'}
+              onClick={() => { if (layOffTarget && view.you.rack.length > 1) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] }) }}
+            >
+              İşle
+            </button>
+          )}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}
@@ -344,94 +436,15 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           highlight={isDiscardPhase}
         />
       </div>
-      <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
-        {isMyTurn && view.turn.phase === 'DRAW' && (
-          <>
-            {legal.includes('DrawFromStock') && (
-              <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
-            )}
-            {legal.includes('DrawFromDiscard') && (
-              <button onClick={() => send({ type: 'DrawFromDiscard', seat: view.seat })}>Yerden Çek</button>
-            )}
-          </>
-        )}
-        {isMyTurn && view.turn.phase === 'DISCARD' && (
-          <>
-            <button onClick={handleHint}>💡 İpucu</button>
-            {is101 && (
-              <>
-                {!view.you.hasOpened && (
-                  <>
-                    <button
-                      disabled={!canOpenSeri}
-                      title="İstakadaki perlerinle aç (toplam ≥101)"
-                      onClick={() => {
-                        if (canOpenSeri) send({ type: 'OpenMeld', seat: view.seat, melds: openSeriMelds })
-                      }}
-                    >
-                      Aç (≥101)
-                    </button>
-                    <button
-                      disabled={!canOpenCift}
-                      title="5 çift ile aç"
-                      onClick={() => {
-                        if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds })
-                      }}
-                    >
-                      Çift Aç (5)
-                    </button>
-                  </>
-                )}
-                {view.you.hasOpened && openRoute !== 'cift' && (
-                  <button
-                    disabled={layableMeld101 === null}
-                    onClick={() => {
-                      if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] })
-                    }}
-                  >
-                    Seri Aç
-                  </button>
-                )}
-                {view.you.hasOpened && openRoute === 'cift' && (
-                  <button
-                    disabled={layablePairs101 === null}
-                    onClick={() => {
-                      if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 })
-                    }}
-                  >
-                    Çift Aç
-                  </button>
-                )}
-                <button
-                  disabled={layOffTarget === null || !legal.includes('LayOff') || view.you.rack.length <= 1}
-                  title={view.you.rack.length <= 1 ? 'Son taşını işleyemezsin — onu bitmek için atmalısın' : 'Yerdeki perlere taş işle'}
-                  onClick={() => {
-                    if (layOffTarget && view.you.rack.length > 1) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] })
-                  }}
-                >
-                  İşle
-                </button>
-                <button
-                  disabled={!legal.includes('DeclareCift')}
-                  onClick={() => send({ type: 'DeclareCift', seat: view.seat })}
-                >
-                  Çifte Git
-                </button>
-              </>
-            )}
-          </>
-        )}
-        {isMyTurn && (
-          <button onClick={handleArrange}>↺ Sırala</button>
-        )}
-        <button
-          aria-label="Ayarlar"
-          onClick={() => setShowSettings(v => !v)}
-          style={{ fontSize: 18, padding: '6px 12px' }}
-        >
-          ⚙
-        </button>
-      </div>
+
+      {/* Settings button — fixed top-right of the screen */}
+      <button
+        aria-label="Ayarlar"
+        onClick={() => setShowSettings(v => !v)}
+        style={{ position: 'fixed', top: 12, right: 12, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+      >
+        ⚙
+      </button>
 
       {showSettings && (
         <div

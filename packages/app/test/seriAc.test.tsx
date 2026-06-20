@@ -113,12 +113,12 @@ function mockLegalMoves(view: PlayerView): GameEvent['type'][] {
   return moves
 }
 
-describe('Seri Aç button (post-opening meld laying)', () => {
-  it('shows "Seri Aç" button when player hasOpened and rack has a layable meld', async () => {
+describe('Seri Diz button (post-opening meld laying)', () => {
+  it('shows "Seri Diz" button when player hasOpened and rack has a layable meld', async () => {
     const adapter = makeMockAdapter(makeOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /seri aç/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /seri diz/i })).toBeTruthy()
     })
   })
 
@@ -138,8 +138,8 @@ describe('Seri Aç button (post-opening meld laying)', () => {
       // Not opened → should show the ≥101 button (possibly disabled if no opening found)
       const acBtn = screen.queryByRole('button', { name: /aç.*101/i })
       expect(acBtn).toBeTruthy()
-      // Seri Aç should NOT appear when not yet opened
-      expect(screen.queryByRole('button', { name: /seri aç/i })).toBeNull()
+      // Seri Diz (post-open laying) should NOT appear when not yet opened
+      expect(screen.queryByRole('button', { name: /seri diz/i })).toBeNull()
     })
   })
 })

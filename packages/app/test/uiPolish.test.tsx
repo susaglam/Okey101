@@ -119,20 +119,8 @@ describe('Stock indicator', () => {
 // 4. Human nameplate (seat 0) — renders "Sen", chip count, score box
 // ────────────────────────────────────────────────────────────────────────────
 describe('Human nameplate', () => {
-  it('renders "Sen" nameplate in Table', () => {
-    const view = makeView()
-    render(<Table view={view} />)
-    expect(screen.getByTestId('human-nameplate')).toBeInTheDocument()
-    expect(screen.getByTestId('human-nameplate').textContent).toContain('Sen')
-  })
-
-  it('shows score box in human nameplate', () => {
-    const view = makeView({ scores: [5, 3, 2, 1] })
-    render(<Table view={view} />)
-    const nameplate = screen.getByTestId('human-nameplate')
-    expect(nameplate).toBeInTheDocument()
-  })
-
+  // The human nameplate now lives in GameScreen's action bar (centred above the
+  // rack), not in <Table> itself.
   it('GameScreen renders human nameplate with Sen', async () => {
     const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
     render(<GameScreen adapter={adapter} />)
