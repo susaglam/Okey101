@@ -25,7 +25,8 @@ function view101(
   rack: string[],
   phase: 'DRAW' | 'DISCARD',
   hasOpened = false,
-  tableMelds: { owner: number; kind: 'run' | 'group'; tiles: string[] }[] = [],
+  tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: string[] }[] = [],
+  openRoute?: 'seri' | 'cift',
 ) {
   const state: GameState = {
     gameId: 'g101', config: KLASIK_101, rngSeed: 2, handNo: 1,
@@ -33,7 +34,7 @@ function view101(
     indicator: tileFromString('6M'), okey: tileFromString('7M'),
     turn: { seat: 0, phase },
     players: [
-      { seat: 0, rack: rack.map(tileFromString), discard: [], hasOpened, isOut: false },
+      { seat: 0, rack: rack.map(tileFromString), discard: [], hasOpened, isOut: false, ...(openRoute ? { openRoute } : {}) },
       { seat: 1, rack: [], discard: [], hasOpened: false, isOut: false },
       { seat: 2, rack: [], discard: [], hasOpened: false, isOut: false },
       { seat: 3, rack: [], discard: [], hasOpened: false, isOut: false },
@@ -156,6 +157,17 @@ describe('bot.decide 101', () => {
       expect(ev.meldIndex).toBe(0)
       expect(ev.tiles).toHaveLength(1)
     }
+  })
+
+  it('does NOT try to lay off onto a pair meld (çift route) — would deadlock the game', () => {
+    // A çift-opened bot with a pair meld on the table and a tile that "matches" the
+    // pair number must NOT attempt LayOff onto the pair (the engine would reject it
+    // as an invalid meld, stalling runBots). It should discard instead.
+    const rack = ['3K', '5M', '7S', '9R'] // 3K would "extend" a pair of 3s in the buggy path
+    const tableMelds = [{ owner: 0, kind: 'pair' as const, tiles: ['3R', '3R'] }]
+    const view = view101(rack, 'DISCARD', true, tableMelds, 'cift')
+    const ev = decide(view, ['Discard', 'OpenMeld', 'LayOff'], makeRng(1))
+    expect(ev.type).not.toBe('LayOff')
   })
 
   it('Klasik regression: existing Klasik DRAW/DISCARD behavior unchanged', () => {

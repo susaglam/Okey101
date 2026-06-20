@@ -149,7 +149,14 @@ export class LocalAdapter implements Adapter {
       try { this.state = reduce(this.state, ev); this.version++ }
       catch (e) {
         if (!(e instanceof RuleError)) console.error('Bot move error (non-rule):', e)
-        break // a bad bot move ends its turn rather than crashing the game
+        // Fallback so a faulty bot move never deadlocks the turn: make a
+        // guaranteed-legal move (draw, or discard the first tile) instead of stalling.
+        const player = this.state.players.find((p) => p.seat === seat)
+        const fallback: GameEvent = this.state.turn.phase === 'DRAW'
+          ? { type: 'DrawFromStock', seat }
+          : { type: 'Discard', seat, tile: player!.rack[0]! }
+        try { this.state = reduce(this.state, fallback); this.version++ }
+        catch { break } // truly stuck — bail out rather than loop forever
       }
     }
   }

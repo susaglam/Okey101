@@ -113,6 +113,9 @@ function findLayOff(
 ): LayOffResult | null {
   for (let mi = 0; mi < tableMelds.length; mi++) {
     const meld = tableMelds[mi]!
+    // Pair (çift-route) melds can't be extended by a lay-off — merging a tile
+    // would form an invalid meld and the engine would reject it (stalling the bot).
+    if (meld.kind === 'pair') continue
     for (const tile of rack) {
       if (tile.kind !== 'NUMBER') continue
       if (canExtendMeld(tile, meld, okey)) {
