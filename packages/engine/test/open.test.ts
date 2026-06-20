@@ -81,6 +81,16 @@ describe('openingValue', () => {
     const melds = [h('10R', '11R', '7M')]
     expect(openingValue(melds, OKEY)).toBe(33)
   })
+
+  it('values a 13→1 wrap run with REAL face values (13+1+2 = 16, not slot indices)', () => {
+    const melds = [h('13R', '1R', '2R')]
+    expect(openingValue(melds, OKEY)).toBe(16)
+  })
+
+  it('values a 12→13→1 wrap run with REAL face values (12+13+1 = 26)', () => {
+    const melds = [h('12R', '13R', '1R')]
+    expect(openingValue(melds, OKEY)).toBe(26)
+  })
 })
 
 describe('isValidMeldSet', () => {
@@ -123,6 +133,11 @@ describe('isValidMeldSet', () => {
   it('rejects a 13→1 wrap run when runWrap13to1 is false', () => {
     // 12R, 13R, 1R would be a wrap — invalid in 101
     expect(isValidMeldSet([h('12R', '13R', '1R')], OKEY, KLASIK_101)).toBe(false)
+  })
+
+  it('accepts a 13→1 wrap run when runWrap13to1 is true (Klasik) — matches the win-path validator', () => {
+    expect(isValidMeldSet([h('12R', '13R', '1R')], OKEY, KLASIK)).toBe(true)
+    expect(isValidMeldSet([h('13R', '1R', '2R')], OKEY, KLASIK)).toBe(true)
   })
 
   it('rejects a group with duplicate colors', () => {

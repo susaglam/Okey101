@@ -75,6 +75,9 @@ function runValue(meld: Tile[], okey: Tile): number {
   const len = meld.length
 
   // Find the inferred start from the first non-wild tile's position.
+  // The meld is assumed to be in RUN ORDER (each array position = one consecutive
+  // slot), which is how the player arranges melds on the rack and how the engine
+  // emits them. A wild therefore takes the value of the slot it physically occupies.
   // FALSE_JOKER contributes its concrete okey value; real okey-NUMBER tiles are wild.
   let inferredStart: number | null = null
   for (let i = 0; i < len; i++) {
@@ -93,10 +96,13 @@ function runValue(meld: Tile[], okey: Tile): number {
     return 0
   }
 
-  // Sum all slot values
+  // Sum the FACE value of each slot. Normalize into 1..13 so that 13→1 wrap runs
+  // (e.g. 13,1,2) sum to real face values (13+1+2=16), not slot indices (>13).
   let total = 0
   for (let i = 0; i < len; i++) {
-    total += inferredStart + i
+    const n = inferredStart + i
+    const face = (((n - 1) % 13) + 13) % 13 + 1
+    total += face
   }
   return total
 }
@@ -168,37 +174,38 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
   const colors = new Set(nonWildEv.map((v) => v.color))
   if (colors.size !== 1) return false
 
-  const nums = nonWildEv.map((v) => v.number).sort((a, b) => a - b)
-  const min = nums[0]!
-  const max = nums[nums.length - 1]!
+  const nums = nonWildEv.map((v) => v.number)
   const len = meld.length
+  if (len > 13) return false
 
-  // Check no 13→1 wrap: if config disallows it, the sequence must not span across 13→1
-  if (!config.runWrap13to1) {
-    if (min === 1 && max === 13) return false
-  }
+  // A run cannot repeat a number (same colour, distinct consecutive values).
+  const numSet = new Set(nums)
+  if (numSet.size !== nums.length) return false
 
-  // The consecutive range [start, start+len-1] must fit all real numbers
-  // and leave exactly wildCount positions for wilds.
-  const startMin = max - len + 1
-  const startMax = min
+  const wrap = !!config.runWrap13to1
 
-  if (startMin < 1) {
-    if (!config.runWrap13to1) return false
-  }
-  if (startMin > startMax) return false
+  // The run occupies `len` consecutive slots starting at some s (1..13), wrapping
+  // 13→1 only when allowed. A valid run exists iff some window contains every
+  // non-wild number; the remaining slots are then filled by the wilds.
+  for (let s = 1; s <= 13; s++) {
+    const window = new Set<number>()
+    let fits = true
+    for (let k = 0; k < len; k++) {
+      let n = s + k
+      if (n > 13) {
+        if (!wrap) { fits = false; break }
+        n = ((n - 1) % 13) + 1
+      }
+      window.add(n)
+    }
+    if (!fits) continue
+    if (window.size !== len) continue // (only possible if len > 13, already guarded)
 
-  for (let s = startMin; s <= startMax; s++) {
-    if (s < 1 && !config.runWrap13to1) continue
-    if (!config.runWrap13to1 && s + len - 1 > 13) continue
-
-    const inRange = nums.filter((n) => n >= s && n <= s + len - 1)
-    if (inRange.length !== nonWildEv.length) continue
-
-    const slots = new Set(nums)
-    if (slots.size !== nonWildEv.length) continue
-
-    return true
+    let covers = true
+    for (const n of numSet) {
+      if (!window.has(n)) { covers = false; break }
+    }
+    if (covers) return true
   }
 
   return false
