@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { reduce, RuleError } from '../src/reduce'
 import { KLASIK_101, KLASIK } from '../src/config'
-import { tileFromString } from '../src/tile'
+import { tileFromString, tilesEqual } from '../src/tile'
 import type { Tile } from '../src/tile'
 import type { GameState } from '../src/state'
 
@@ -394,6 +394,66 @@ describe('LayOff', () => {
     const s3 = reduce(s2, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('10R')] })
     expect(s3.players[0]!.rack).toHaveLength(1)
     expect(s3.tableMelds![0]!.tiles.length).toBe(4)
+  })
+})
+
+// ── TakeOkey — swap a real tile for the okey on the table ─────────────────────
+
+describe('TakeOkey', () => {
+  const okey = tileFromString('8K') // wild = 8K
+
+  /** seat 0 has opened; a table run [1R, okey(=2), 3R] exists; rack holds the real 2R. */
+  function swapState(rack: string[]): GameState {
+    const base = start101()
+    return {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: [tileFromString('1R'), okey, tileFromString('3R')] }],
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: true, rack: h(...rack) } : p)),
+    }
+  }
+
+  it('inserts the real tile into the meld and returns the okey to the rack', () => {
+    const s = swapState(['2R', '9R'])
+    const s2 = reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('2R') })
+    // meld is now a concrete run 1R,2R,3R (no okey)
+    const meldTiles = s2.tableMelds![0]!.tiles
+    expect(meldTiles.some((t) => tilesEqual(t, okey))).toBe(false)
+    expect(meldTiles.some((t) => tilesEqual(t, tileFromString('2R')))).toBe(true)
+    // rack: 9R stays, 2R gone, okey gained (net size unchanged)
+    const rack = s2.players[0]!.rack
+    expect(rack).toHaveLength(2)
+    expect(rack.some((t) => tilesEqual(t, okey))).toBe(true)
+    expect(rack.some((t) => tilesEqual(t, tileFromString('2R')))).toBe(false)
+  })
+
+  it('rejects when the inserted tile would not fit the okey slot (invalid meld)', () => {
+    const s = swapState(['5R', '9R']) // 5R cannot fill the 2-slot in 1-_-3
+    expect(() =>
+      reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('5R') }),
+    ).toThrow(RuleError)
+  })
+
+  it('rejects when the player does not hold the tile', () => {
+    const s = swapState(['9R'])
+    expect(() =>
+      reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('2R') }),
+    ).toThrow(RuleError)
+  })
+
+  it('rejects when the player has not opened', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: [tileFromString('1R'), okey, tileFromString('3R')] }],
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack: h('2R', '9R') } : p)),
+    }
+    expect(() =>
+      reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('2R') }),
+    ).toThrow(RuleError)
   })
 })
 

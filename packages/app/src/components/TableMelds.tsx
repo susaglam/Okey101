@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react'
 import type { PlayerView, Tile } from '@cs-okey/engine'
 import { tilesEqual } from '@cs-okey/engine'
+import { useDroppable } from '@dnd-kit/core'
 import { TileView } from './Tile'
 import { orderMeldForDisplay, meldRepresentedValues } from '../rack/slots'
 
@@ -18,7 +20,41 @@ function isWild(t: Tile, okey: Tile): boolean {
   return t.kind === 'FALSE_JOKER' || tilesEqual(t, okey)
 }
 
-export function TableMelds({ melds, okey }: { melds: PlayerView['tableMelds']; okey: Tile }) {
+// Only the REAL okey tile (a NUMBER tile equal to okey) can be taken back —
+// a false joker is a fixed plain tile, not a reusable wild.
+function isRealOkey(t: Tile, okey: Tile): boolean {
+  return t.kind === 'NUMBER' && tilesEqual(t, okey)
+}
+
+// Drop target wrapping a table-meld okey: drag your matching real tile here to
+// take the okey back into your hand ("okeyi yerden alma").
+function DroppableOkey({ id, enabled, children }: { id: string; enabled: boolean; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !enabled })
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid="take-okey-target"
+      style={{
+        borderRadius: 7,
+        outline: enabled ? (isOver ? '2px solid #5ad1c4' : '2px dashed rgba(90,209,196,.7)') : undefined,
+        outlineOffset: 1,
+        transition: 'outline-color .12s',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function TableMelds({
+  melds,
+  okey,
+  takeOkeyEnabled = false,
+}: {
+  melds: PlayerView['tableMelds']
+  okey: Tile
+  takeOkeyEnabled?: boolean
+}) {
   return (
     <div
       data-testid="table-melds"
@@ -50,14 +86,25 @@ export function TableMelds({ melds, okey }: { melds: PlayerView['tableMelds']; o
             >
               {ownerLabel(meld.owner)}
             </span>
-            {ordered.map((tile, ti) => (
-              <TileView
-                key={ti}
-                tile={tile}
-                testId="table-meld-tile"
-                repValue={isWild(tile, okey) ? (reps[ti] ?? undefined) : undefined}
-              />
-            ))}
+            {ordered.map((tile, ti) => {
+              const tileEl = (
+                <TileView
+                  tile={tile}
+                  testId="table-meld-tile"
+                  repValue={isWild(tile, okey) ? (reps[ti] ?? undefined) : undefined}
+                />
+              )
+              // Real okey tiles become drop targets so the player can swap in the
+              // tile it represents and take the okey back.
+              if (takeOkeyEnabled && isRealOkey(tile, okey)) {
+                return (
+                  <DroppableOkey key={ti} id={`take-okey:${idx}:${ti}`} enabled>
+                    {tileEl}
+                  </DroppableOkey>
+                )
+              }
+              return <span key={ti}>{tileEl}</span>
+            })}
           </div>
         )
       })}

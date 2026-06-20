@@ -11,3 +11,7 @@ export type GameEvent =
   | { type: 'DeclareCift'; seat: number }
   | { type: 'OpenMeld'; seat: number; melds: Tile[][] }
   | { type: 'LayOff'; seat: number; meldIndex: number; tiles: Tile[] }
+  // Take the okey out of a table meld by inserting the real tile it represents.
+  // The okey returns to the player's rack (it is NOT auto-reused). `tile` is the
+  // real rack tile to put in the okey's place.
+  | { type: 'TakeOkey'; seat: number; meldIndex: number; tile: Tile }

@@ -414,5 +414,61 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
 
       return { ...state, players, tableMelds: newTableMelds }
     }
+
+    case 'TakeOkey': {
+      if (!state) throw new RuleError('No game')
+      requireTurn(state, event.seat, 'DISCARD')
+      const player = state.players.find((p) => p.seat === event.seat)!
+      // Board manipulation requires having opened (same gate as lay-off / işleme).
+      if (!player.hasOpened) throw new RuleError('Player has not opened yet')
+
+      const tableMelds = state.tableMelds ?? []
+      if (event.meldIndex < 0 || event.meldIndex >= tableMelds.length) {
+        throw new RuleError(`meldIndex ${event.meldIndex} out of bounds (${tableMelds.length} melds)`)
+      }
+      const okey = state.okey!
+      const cfg = state.config
+      const targetMeld = tableMelds[event.meldIndex]!
+
+      // The real tile the player wants to insert must be in their rack.
+      if (!player.rack.some((t) => tilesEqual(t, event.tile))) {
+        throw new RuleError('tile to insert is not in the rack')
+      }
+
+      // Only the REAL okey tile (a NUMBER tile equal to okey) can be taken — a
+      // false joker is a fixed plain tile, not a wild, so it cannot be reused.
+      const isRealOkey = (t: Tile) => t.kind === 'NUMBER' && tilesEqual(t, okey)
+
+      // Find an okey in the meld whose slot the inserted tile can fill (the
+      // resulting meld must still be valid). The okey then returns to the rack.
+      let okeyPos = -1
+      let candidate: Tile[] | null = null
+      for (let i = 0; i < targetMeld.tiles.length; i++) {
+        if (!isRealOkey(targetMeld.tiles[i]!)) continue
+        const test = targetMeld.tiles.map((t, j) => (j === i ? event.tile : t))
+        if (isValidMeldSet([test], okey, cfg)) {
+          okeyPos = i
+          candidate = test
+          break
+        }
+      }
+      if (okeyPos === -1 || candidate === null) {
+        throw new RuleError('no okey in this meld can be replaced by the given tile')
+      }
+
+      const takenOkey = targetMeld.tiles[okeyPos]!
+
+      const newTableMelds = tableMelds.map((m, i) =>
+        i === event.meldIndex ? { ...m, tiles: candidate! } : m,
+      )
+
+      // Swap: remove the inserted tile from the rack, add the freed okey back.
+      // (Net rack size unchanged — the player decides later how to use the okey.)
+      const afterRemove = removeTilesFromRack(player.rack, [event.tile])
+      const newRack = [...afterRemove, takenOkey]
+      const players = replacePlayer(state.players, event.seat, (p) => ({ ...p, rack: newRack }))
+
+      return { ...state, players, tableMelds: newTableMelds }
+    }
   }
 }

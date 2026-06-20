@@ -241,6 +241,17 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     const activeId = String(active.id)
     const overId = over ? String(over.id) : null
 
+    // Okey-swap: a rack tile dropped on a table-meld okey ("take-okey:meld:tile").
+    // Insert the real tile and take the okey back into the hand.
+    if (overId && overId.startsWith('take-okey:') && /^\d+$/.test(activeId)) {
+      const meldIndex = Number(overId.split(':')[1])
+      const tile = currentLayout[Number(activeId)]
+      if (tile != null && isDiscardPhase && view.you.hasOpened) {
+        send({ type: 'TakeOkey', seat: view.seat, meldIndex, tile })
+      }
+      return
+    }
+
     const result = interpretDragEnd(activeId, overId)
 
     // If the draw was dropped onto a specific slot, remember it so the drawn tile
@@ -291,7 +302,13 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       </div>
     )}
     <Table view={view} onTakeDiscard={handleTakeDiscard} standings={match.standings}>
-      {is101 && view.okey && <TableMelds melds={view.tableMelds} okey={view.okey} />}
+      {is101 && view.okey && (
+        <TableMelds
+          melds={view.tableMelds}
+          okey={view.okey}
+          takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
+        />
+      )}
       {is101 && !view.you.hasOpened && (
         <div
           data-testid="hand-total"

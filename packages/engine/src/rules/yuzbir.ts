@@ -32,9 +32,10 @@ export function legalMoves101(state: GameState, seat: number): GameEvent['type']
   // (validation of the specific melds is done in reduce; here we just indicate it's structurally possible)
   moves.push('OpenMeld')
 
-  // LayOff: only if the player has already opened and there are table melds
+  // LayOff & TakeOkey: only if the player has opened and there are table melds
   if (player.hasOpened && (state.tableMelds?.length ?? 0) > 0) {
     moves.push('LayOff')
+    moves.push('TakeOkey')
   }
 
   // DeclareWin: can attempt (reduce will validate)
