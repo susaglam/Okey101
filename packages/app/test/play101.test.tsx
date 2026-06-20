@@ -68,11 +68,11 @@ describe('101 GameScreen', () => {
     expect(screen.queryByRole('button', { name: /aç.*101/i })).toBeNull()
   })
 
-  it('renders TableMelds area (data-testid="table-melds") in 101 mode', async () => {
+  it('renders the centre melding area (data-testid="center-melds") in 101 mode', async () => {
     const adapter = new LocalAdapter({ seed: 7, humanSeat: 0, variant: KLASIK_101 })
     render(<GameScreen adapter={adapter} />)
     await waitFor(() => {
-      expect(screen.getByTestId('table-melds')).toBeTruthy()
+      expect(screen.getByTestId('center-melds')).toBeTruthy()
     })
   })
 })

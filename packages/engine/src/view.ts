@@ -8,6 +8,10 @@ export interface OpponentView {
   discardTop?: Tile
   discardCount: number
   hasOpened: boolean
+  /** Public once opened: the first-open value and route (for the centre badges). */
+  openedValue?: number
+  openRoute?: 'seri' | 'cift'
+  declaredCift?: boolean
 }
 
 export interface PlayerView {
@@ -41,6 +45,9 @@ export function redactFor(state: GameState, seat: number, version: number): Play
       discardTop: p.discard.length ? p.discard[p.discard.length - 1] : undefined,
       discardCount: p.discard.length,
       hasOpened: p.hasOpened,
+      openedValue: p.openedValue,
+      openRoute: p.openRoute,
+      declaredCift: p.declaredCift,
     }))
   return {
     seat, config: state.config, handNo: state.handNo,

@@ -100,7 +100,7 @@ export function Table({
   const outerStyle: React.CSSProperties = {
     position: 'relative',
     width: '100%',
-    minHeight: 520,
+    minHeight: '100vh', // fill the screen height — the play area (flex:1) expands
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

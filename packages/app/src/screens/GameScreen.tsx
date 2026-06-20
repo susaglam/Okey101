@@ -14,7 +14,7 @@ import { StockPile } from '../components/StockPile'
 import { flyTile, animationsEnabled } from '../anim/fly'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
-import { TableMelds } from '../components/TableMelds'
+import { CenterMelds } from '../components/CenterMelds'
 import type { HandRecord } from '../match'
 import { HelpContent } from './HelpContent'
 import { loadSettings, saveSettings } from '../settings'
@@ -269,6 +269,18 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
     : []
   const handMeldValue = view.okey ? openingValue(validSeriMelds, view.okey) : 0
 
+  // Centre-table badges: the HIGHEST seri first-open value across players (only the
+  // first open counts — later lay-offs don't change it) and the çift-open pair count.
+  const allSeats = [
+    { openRoute: view.you.openRoute, openedValue: view.you.openedValue },
+    ...view.opponents.map((o) => ({ openRoute: o.openRoute, openedValue: o.openedValue })),
+  ]
+  const seriOpenValue = allSeats.reduce(
+    (mx, p) => (p.openRoute === 'seri' && typeof p.openedValue === 'number' ? Math.max(mx, p.openedValue) : mx),
+    0,
+  )
+  const pairOpenCount = allSeats.some((p) => p.openRoute === 'cift') ? pairsNeeded : 0
+
   // Çift-route valid pairs the player has arranged.
   const pairSegments = view.okey
     ? meldSegments.filter((s) => s.length === 2 && isValidPairSet([s], view.okey!))
@@ -476,11 +488,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       onTakeDiscard={handleTakeDiscard}
       standings={match.standings}
       tableMelds={is101 && view.okey ? (
-        <TableMelds
+        <CenterMelds
           melds={view.tableMelds}
           okey={view.okey}
           takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
           layoffEnabled={isDiscardPhase && view.you.hasOpened && !!view.config.layOff && view.you.rack.length > 1}
+          seriOpenValue={seriOpenValue}
+          pairOpenCount={pairOpenCount}
         />
       ) : null}
       humanDiscard={
