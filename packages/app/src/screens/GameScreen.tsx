@@ -302,14 +302,18 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         {toast}
       </div>
     )}
-    <Table view={view} onTakeDiscard={handleTakeDiscard} standings={match.standings}>
-      {is101 && view.okey && (
+    <Table
+      view={view}
+      onTakeDiscard={handleTakeDiscard}
+      standings={match.standings}
+      tableMelds={is101 && view.okey ? (
         <TableMelds
           melds={view.tableMelds}
           okey={view.okey}
           takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
         />
-      )}
+      ) : null}
+    >
       {/* ── ACTION BAR (above the rack): açma (left) · nameplate+total (center) · git/diz (right) ── */}
       <div
         className="action-bar"

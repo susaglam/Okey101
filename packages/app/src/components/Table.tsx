@@ -101,12 +101,16 @@ export function Table({
   children,
   onTakeDiscard,
   standings,
+  tableMelds,
 }: {
   view: PlayerView
   children?: ReactNode
   onTakeDiscard?: () => void
   /** Running match standings (seat-indexed), accumulated from completed hands. */
   standings?: number[]
+  /** Opened melds shown in the CENTRE of the table (height-capped + scrollable so
+   * they never push the rack off-screen). */
+  tableMelds?: ReactNode
 }) {
   // Find opponents by relative position
   const rightOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 1)
@@ -200,8 +204,23 @@ export function Table({
           )}
         </div>
 
-        {/* CENTER: stok + gösterge + okey label + direction arrow */}
+        {/* CENTER: opened melds (scrollable, never pushes the rack) + stok + gösterge */}
         <div style={centerStyle}>
+          {tableMelds && (
+            <div
+              style={{
+                maxHeight: 200,
+                overflowY: 'auto',
+                overflowX: 'auto',
+                maxWidth: 'min(560px, 60vw)',
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              {tableMelds}
+            </div>
+          )}
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
           <div className="center-well">
             {/* Stock indicator: tile-shaped face-down element with count */}
