@@ -124,6 +124,12 @@ body { overflow-x: hidden; }
   position: absolute;
   bottom: 6px;
 }
+/* "İşlek" taş: delik kırmızı yanar (yerdeki perlere işlenebilir). */
+.okey-tile .hole.islek {
+  background: radial-gradient(circle at 40% 35%, #ff7b6e 0%, #ff3b30 65%, #c0241a 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 6px 2px rgba(255, 59, 48, 0.85);
+}
+.okey-tile.sm .hole.islek { box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.4), 0 0 4px 1px rgba(255, 59, 48, 0.8); }
 
 /* Sahte okey (♣) — altın gövde */
 .okey-tile[aria-label="sahte okey"] {
@@ -347,6 +353,45 @@ body { overflow-x: hidden; }
   border-radius: 4px;
 }
 .facedown span { color: #e8c87a; font-weight: 900; font-size: 15px; z-index: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+
+/* Çekme destesi — beyaz (fildişi) taş istifi. Üst üste taş hissi için arka
+   katmanlar; kalan taş sayısı İÇ KÖŞEDE (gösterge taşıyla karışmasın). */
+.stock-deste {
+  width: var(--tile-w);
+  height: var(--tile-h);
+  border-radius: var(--tile-radius);
+  background: var(--tile-bg);
+  border: 1px solid #c9c0b0;
+  border-bottom: 3px solid #b0a48e;
+  box-shadow: 0 2px 0 #9a8e78, 0 3px 7px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-sizing: border-box;
+  position: relative;
+}
+.stock-deste::before,
+.stock-deste::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--tile-bg);
+  border: 1px solid #c9c0b0;
+  border-bottom: 2px solid #b0a48e;
+  z-index: -1;
+}
+.stock-deste::before { transform: translate(-3px, -3px); }
+.stock-deste::after { transform: translate(-6px, -6px); opacity: 0.8; }
+.stock-deste .count {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #3a2400;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 4px;
+  padding: 0 3px;
+  line-height: 1.25;
+}
 
 .menu {
   position: relative;

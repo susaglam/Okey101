@@ -50,20 +50,13 @@ export function TileView({
       {glyph && (
         <span className="cb-glyph" style={{ fontSize: 10, lineHeight: 1 }}>{glyph}</span>
       )}
-      <span className="hole" />
-      {layable && (
-        <span
-          className="islek-dot"
-          data-testid="islek-dot"
-          aria-label="işlek taş"
-          title="İşlek: yerdeki perlere işlenebilir"
-          style={{
-            position: 'absolute', top: 2, right: 2, width: 9, height: 9, borderRadius: '50%',
-            background: '#ff3b30', border: '1px solid rgba(255,255,255,.85)',
-            boxShadow: '0 0 5px 1px rgba(255,59,48,.85)',
-          }}
-        />
-      )}
+      {/* The round hole turns red when this tile is "işlek" (layable onto a table
+          meld) — clearer than a top-corner dot, which overlapped the number. */}
+      <span
+        className={`hole${layable ? ' islek' : ''}`}
+        data-testid={layable ? 'islek-dot' : undefined}
+        title={layable ? 'İşlek: yerdeki perlere işlenebilir' : undefined}
+      />
       {showRepValue && (
         <span
           className="rep-value"

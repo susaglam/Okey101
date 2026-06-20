@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react'
 import type { PlayerView } from '@cs-okey/engine'
-import { tileToString } from '@cs-okey/engine'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Seat } from './Seat'
-import { TileView } from './Tile'
 import { DiscardPile } from './DiscardPile'
 import { seatName } from '../names'
 
@@ -20,7 +18,7 @@ function DraggableStockTile({ stockCount }: { stockCount: number }) {
     <div
       ref={setNodeRef}
       data-testid="draw-stock"
-      className="facedown"
+      className="stock-deste"
       style={{
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
@@ -31,7 +29,7 @@ function DraggableStockTile({ stockCount }: { stockCount: number }) {
       {...listeners}
       {...attributes}
     >
-      <span>{stockCount}</span>
+      <span className="count">{stockCount}</span>
     </div>
   )
 }
@@ -208,11 +206,12 @@ export function Table({
           )}
         </div>
 
-        {/* CENTER: stok + gösterge + direction arrow */}
+        {/* CENTER: the draw stock (white tile-stack) only. The gösterge moved down
+            next to the human's nameplate (rendered by GameScreen). */}
         <div style={centerStyle}>
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
           <div className="center-well">
-            {/* Stock indicator: tile-shaped face-down element with count */}
+            {/* Stock: white tile-stack; remaining count in its inner corner. */}
             <div
               data-testid="stock-count"
               data-stockcount={view.stockCount}
@@ -221,19 +220,11 @@ export function Table({
               {isMyDrawTurn && view.stockCount > 0 ? (
                 <DraggableStockTile stockCount={view.stockCount} />
               ) : (
-                <div data-testid="stock-tile" className="facedown">
-                  <span>{view.stockCount}</span>
+                <div data-testid="stock-tile" className="stock-deste">
+                  <span className="count">{view.stockCount}</span>
                 </div>
               )}
             </div>
-            {view.indicator && (
-              <div data-testid="gosterge" style={{ textAlign: 'center' }}>
-                <TileView tile={view.indicator} testId="gosterge-tile" />
-                <div style={{ fontSize: 10, opacity: 0.85, marginTop: 3 }}>
-                  okey: {view.okey ? tileToString(view.okey) : '-'}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
