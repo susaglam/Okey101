@@ -398,6 +398,25 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               İşle
             </button>
           )}
+          {/* Post-open laying (seri açan: yeni seri/grup; masada çift varsa: çift) — left group */}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute !== 'cift' && (
+            <button
+              disabled={layableMeld101 === null}
+              title="Yere yeni bir seri/grup aç"
+              onClick={() => { if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] }) }}
+            >
+              Seri Aç
+            </button>
+          )}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && tableHasPair && (
+            <button
+              disabled={layablePairs101 === null}
+              title="Yerdeki çift sırasına yeni çift(ler) aç"
+              onClick={() => { if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 }) }}
+            >
+              Çift Aç
+            </button>
+          )}
         </div>
 
         {/* CENTER: live hand total (101) + human nameplate */}
@@ -435,26 +454,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           </div>
         </div>
 
-        {/* RIGHT: lay (seri/çift diz) + utility (Sırala/İpucu) */}
+        {/* RIGHT: utility only (Sırala / Çift Sırala / İpucu) */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute !== 'cift' && (
-            <button
-              disabled={layableMeld101 === null}
-              title="Yere yeni bir seri/grup diz"
-              onClick={() => { if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] }) }}
-            >
-              Seri Diz
-            </button>
-          )}
-          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && tableHasPair && (
-            <button
-              disabled={layablePairs101 === null}
-              title="Yerdeki çift sırasına yeni çift(ler) diz"
-              onClick={() => { if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 }) }}
-            >
-              Çift Diz
-            </button>
-          )}
           {/* Utility — right group */}
           {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
           {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}

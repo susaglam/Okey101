@@ -231,22 +231,22 @@ describe('ÇİFT route UI — not yet opened', () => {
 // ── Button visibility: seri-opened ───────────────────────────────────────────
 
 describe('ÇİFT route UI — seri-opened player', () => {
-  it('shows "Seri Diz" button after seri open', async () => {
+  it('shows "Seri Aç" button after seri open', async () => {
     const adapter = makeMockAdapter(makeSeriOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /seri diz/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /seri aç/i })).toBeTruthy()
     })
   })
 
-  it('does NOT show "Çift Diz" button after seri open', async () => {
+  it('does NOT show "Çift Aç" button after seri open', async () => {
     const adapter = makeMockAdapter(makeSeriOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      // "Seri Diz" should appear (confirms render happened)
-      expect(screen.getByRole('button', { name: /seri diz/i })).toBeTruthy()
+      // "Seri Aç" should appear (confirms render happened)
+      expect(screen.getByRole('button', { name: /seri aç/i })).toBeTruthy()
     })
-    expect(screen.queryByRole('button', { name: /çift diz/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /çift aç/i })).toBeNull()
   })
 
   it('shows "İşle" button after seri open', async () => {
@@ -272,22 +272,22 @@ describe('ÇİFT route UI — seri-opened player', () => {
 // ── Button visibility: çift-opened ───────────────────────────────────────────
 
 describe('ÇİFT route UI — çift-opened player', () => {
-  it('shows "Çift Diz" button after çift open', async () => {
+  it('shows "Çift Aç" button after çift open', async () => {
     const adapter = makeMockAdapter(makeCiftOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /çift aç/i })).toBeTruthy()
     })
   })
 
-  it('does NOT show "Seri Diz" button after çift open', async () => {
+  it('does NOT show "Seri Aç" button after çift open', async () => {
     const adapter = makeMockAdapter(makeCiftOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      // "Çift Diz" should appear (confirms render happened)
-      expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
+      // "Çift Aç" should appear (confirms render happened)
+      expect(screen.getByRole('button', { name: /çift aç/i })).toBeTruthy()
     })
-    expect(screen.queryByRole('button', { name: /seri diz/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /seri aç/i })).toBeNull()
   })
 
   it('shows "İşle" button after çift open', async () => {
@@ -305,7 +305,7 @@ describe('ÇİFT route UI — çift-opened player', () => {
     const adapter = makeMockAdapter(makeCiftOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /çift aç/i })).toBeTruthy()
     })
     expect(screen.queryByRole('button', { name: /aç.*101/i })).toBeNull()
   })
@@ -314,7 +314,7 @@ describe('ÇİFT route UI — çift-opened player', () => {
     const adapter = makeMockAdapter(makeCiftOpenedView())
     render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /çift aç/i })).toBeTruthy()
     })
     expect(screen.queryAllByTestId('layoff-target').length).toBe(0)
   })
