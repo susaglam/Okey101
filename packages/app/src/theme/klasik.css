@@ -142,6 +142,14 @@ body { overflow-x: hidden; }
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
+/* `plain` (gösterge): never the gold sahte-okey body — render like a normal tile. */
+.okey-tile.plain[aria-label="sahte okey"] {
+  background: var(--tile-bg);
+  border-color: #c9c0b0;
+  border-bottom-color: #b0a48e;
+  box-shadow: 0 2px 0 #9a8e78, 0 3px 6px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
 .okey-tile .cb-glyph {
   opacity: 0.85;
   margin-top: 1px;

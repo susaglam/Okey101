@@ -19,6 +19,7 @@ export function TileView({
   repValue,
   small,
   layable,
+  plain,
 }: {
   tile: Tile
   selected?: boolean
@@ -30,6 +31,9 @@ export function TileView({
   small?: boolean
   /** "İşlek": this tile can be laid off onto a meld already on the table. */
   layable?: boolean
+  /** Render as a normal ivory tile even for a FALSE_JOKER (no gold body). Used by
+   *  the gösterge, which must always look like a normal okey tile. */
+  plain?: boolean
 }) {
   const isJoker = tile.kind === 'FALSE_JOKER'
   const label = isJoker ? 'sahte okey' : tileToString(tile)
@@ -40,7 +44,7 @@ export function TileView({
   return (
     <button
       type="button"
-      className={`okey-tile${selected ? ' sel' : ''}${small ? ' sm' : ''}`}
+      className={`okey-tile${selected ? ' sel' : ''}${small ? ' sm' : ''}${plain ? ' plain' : ''}`}
       data-testid={testId ?? undefined}
       aria-label={isJoker ? 'sahte okey' : label}
       onClick={onClick}
