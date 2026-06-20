@@ -8,7 +8,7 @@ import type { RejectionCode } from '../adapter/Adapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
-import { DiscardZone } from '../components/DiscardZone'
+import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
 import { TableMelds } from '../components/TableMelds'
@@ -113,6 +113,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
   // Single source of truth for action gating (engine legality for the human seat).
   const legal = adapter.legalMoves()
+
+  // The human's single discard spot shows their thrown tiles (top + count).
+  const myDiscardTop = view.you.discard.length > 0 ? view.you.discard[view.you.discard.length - 1] : undefined
+  const myDiscardCount = view.you.discard.length
 
   // The current layout (fall back to fresh initLayout if state hasn't been set yet)
   const currentLayout: SlotLayout = layout ?? initLayout(view.you.rack, COLS)
@@ -485,12 +489,15 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           </div>
         </div>
 
-        {/* RIGHT: utility only (Sırala / Çift Sırala / İpucu) */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {/* Utility — right group */}
-          {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
-          {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
-          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
+        {/* RIGHT: the player's single discard spot — shows thrown tiles; lights up
+            and reads "Taş At" on your discard turn (replaces the old separate AT zone). */}
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+          <MyDiscardTarget
+            topTile={myDiscardTop}
+            count={myDiscardCount}
+            active={isMyTurn && isDiscardPhase}
+            onDropTile={() => { if (selectedSlot !== null) discardFromSlot(selectedSlot) }}
+          />
         </div>
       </div>
 
@@ -503,12 +510,12 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           selectedSlot={selectedSlot}
           onSelectSlot={setSelectedSlot}
         />
-        <DiscardZone
-          onDropTile={() => {
-            if (selectedSlot !== null) discardFromSlot(selectedSlot)
-          }}
-          highlight={isDiscardPhase}
-        />
+        {/* Utility buttons — to the RIGHT of the rack (old AT spot), stacked. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 96 }}>
+          {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
+          {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
+          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
+        </div>
       </div>
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}

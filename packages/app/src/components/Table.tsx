@@ -117,10 +117,6 @@ export function Table({
   const topOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 2)
   const leftOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 3)
 
-  // Human's own discard
-  const myDiscardTop = view.you.discard.length > 0 ? view.you.discard[view.you.discard.length - 1] : undefined
-  const myDiscardCount = view.you.discard.length
-
   // Takeable condition: it's our DRAW turn and left opponent's pile is non-empty
   const isMyDrawTurn = view.turn.seat === view.seat && view.turn.phase === 'DRAW'
   const leftPileCount = leftOpponent?.discardCount ?? 0
@@ -181,8 +177,8 @@ export function Table({
 
       {/* MIDDLE ROW: left seat | center | right seat */}
       <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', flex: 1, margin: '8px 0' }}>
-        {/* LEFT side: seat 3 + its discard pile (our takeable pile) */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        {/* LEFT side: seat 3 + its discard pile (our takeable pile) — pile to the seat's right */}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {leftOpponent && (
             <Seat
               name={seatName(leftOpponent.seat)}
@@ -240,8 +236,8 @@ export function Table({
           </div>
         </div>
 
-        {/* RIGHT side: seat 1 + its discard pile */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        {/* RIGHT side: seat 1 + its discard pile — pile to the seat's right */}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {rightOpponent && (
             <Seat
               name={seatName(rightOpponent.seat)}
@@ -263,18 +259,10 @@ export function Table({
         </div>
       </div>
 
-      {/* BOTTOM ROW: human nameplate + discard + children */}
+      {/* BOTTOM: action bar + human nameplate + rack (rendered by GameScreen). The
+          human's discard spot now lives in the action bar (MyDiscardTarget), so there
+          is no separate bottom discard pile here. */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
-        {/* Human's discard pile (between human and right) */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', paddingRight: 60 }}>
-          <DiscardPile
-            topTile={myDiscardTop}
-            count={myDiscardCount}
-            takeable={false}
-          />
-        </div>
-        {/* Action bar + human nameplate + rack are rendered by GameScreen as children,
-            so they sit ABOVE the rack (the nameplate is centred within the action bar). */}
         <div style={{ width: '100%' }}>{children}</div>
       </div>
     </div>

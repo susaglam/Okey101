@@ -1,0 +1,64 @@
+import { useDroppable } from '@dnd-kit/core'
+import type { Tile } from '@cs-okey/engine'
+import { TileView } from './Tile'
+
+/**
+ * The human's single discard spot: it both SHOWS the tiles the player has thrown
+ * (top tile + count) and acts as the drop/click target for discarding. When it is
+ * the player's turn to discard it lights up and reads "↓ Taş At". This merges the
+ * old separate "AT" zone and the bottom discard pile into one place.
+ */
+export function MyDiscardTarget({
+  topTile,
+  count,
+  active,
+  onDropTile,
+}: {
+  topTile?: Tile
+  count: number
+  active?: boolean
+  onDropTile: () => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'discard' })
+  const hot = isOver || !!active
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid="discard-zone"
+      onClick={onDropTile}
+      title="Taşı buraya at"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 4,
+        padding: 6,
+        borderRadius: 10,
+        cursor: active ? 'pointer' : 'default',
+        border: hot ? '2px solid #f0b53e' : '2px dashed rgba(255,255,255,.22)',
+        background: hot ? 'rgba(240,181,62,.18)' : 'rgba(0,0,0,.18)',
+        boxShadow: hot ? '0 0 14px 3px rgba(240,181,62,.5)' : 'none',
+        transition: 'border-color .15s, background .15s, box-shadow .15s',
+        minWidth: 48,
+      }}
+    >
+      {topTile ? (
+        <TileView tile={topTile} testId="my-discard-top" />
+      ) : (
+        <div
+          style={{
+            width: 'var(--tile-w, 34px)',
+            height: 'var(--tile-h, 46px)',
+            borderRadius: 6,
+            border: '1px dashed rgba(255,255,255,.2)',
+            background: 'rgba(0,0,0,.1)',
+          }}
+        />
+      )}
+      <span style={{ fontSize: 11, fontWeight: 800, color: hot ? '#ffd27a' : 'rgba(255,255,255,.65)' }}>
+        {hot ? '↓ Taş At' : count > 0 ? count : 'AT'}
+      </span>
+    </div>
+  )
+}
