@@ -112,7 +112,6 @@ export function SlotRack({
   repValue?: boolean
   selectedSlot: number | null
   onSelectSlot: (slot: number | null) => void
-  onMove: (from: number, to: number) => void
 }) {
   const cols = layout.length / 2
   const backRow = layout.slice(0, cols)

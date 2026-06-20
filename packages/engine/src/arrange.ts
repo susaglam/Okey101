@@ -318,8 +318,10 @@ function backtrack(state: BtState, currentMelds: Tile[][]): void {
   // Upper-bound pruning.
   if (state.valueFn) {
     // Value mode: current value + best-case value of all undecided tiles.
+    // Use `<` (not `<=`): a branch that can only TIE the best value may still
+    // win the meld-count tie-break (see the accept condition), so don't prune it.
     const cur = state.valueFn(currentMelds)
-    if (cur + remainingValueUpperBound(state) <= state.bestValue) return
+    if (cur + remainingValueUpperBound(state) < state.bestValue) return
   } else {
     // Count mode: melded so far + all undecided tiles.
     const meldedSoFar = countMelded(state)

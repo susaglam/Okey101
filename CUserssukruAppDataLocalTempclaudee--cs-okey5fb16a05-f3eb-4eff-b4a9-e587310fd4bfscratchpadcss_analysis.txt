@@ -1,0 +1,72 @@
+CSS REGRESSION CHECK
+====================
+
+Old CSS selectors that must still exist in new CSS:
+- .okey-tile ✓ FOUND (line 49)
+- .okey-tile.sel ✓ FOUND (line 105)
+- .okey-tile .hole ✓ FOUND (line 118)
+- .okey-rack ✓ FOUND (line 282 — backward compat)
+- .okey-tier ✓ FOUND (line 283)
+- .felt ✓ FOUND (line 289)
+- .menu ✓ FOUND (line 351)
+- .menu button ✓ FOUND (line 364)
+- .act button ✓ FOUND (line 379)
+
+CSS Variable References Status:
+- --c-red: DEFINED but UNUSED in CSS (only available to JS inline styles)
+- --c-black: DEFINED but UNUSED in CSS (only available to JS inline styles)
+- --c-blue: DEFINED but UNUSED in CSS (only available to JS inline styles)
+- --c-yellow: DEFINED but UNUSED in CSS (only available to JS inline styles)
+- --wood-edge: DEFINED but UNUSED in CSS (dead code variable)
+
+Note: Color variables (--c-*) are intentionally for JS use via inline style={{ color: var(--c-red) }}.
+--wood-edge appears to be defined for future use but is not currently referenced.
+
+NEW SELECTORS ADDED (feature):
++ .okey-tile.sm (small tiles for table melds)
++ .okey-rack-outer, .okey-rack-pegs, .okey-rack-surface, .okey-rack-wm, .okey-rack-groove, .okey-rack-row
++ .okey-slot, .okey-slot.empty, .okey-slot.over
++ .okey-tile-drag, .okey-tile-drag.lifting
++ .center-well
++ .facedown, .facedown::before, .facedown span
++ .menu h1 (styles added)
++ .menu button:hover, .menu button:active (new state styles)
++ .action-bar (new class)
++ .action-bar button (new selector)
++ @keyframes seat-glow, .seat.turn
++ @keyframes blink-dot, .active-dot
++ .discard-target, .discard-target.active
++ .okey-rack-wm (watermark with responsive media query)
++ @media (max-width: 480px) responsive rules
+
+CSS CLAMP() VARIABLES (all correct):
+✓ --tile-w: clamp(20px, 3.28vw, 42px) — desktop 42px, mobile 20px
+✓ --tile-h: clamp(28px, 4.53vw, 58px) — desktop 58px, mobile 28px
+✓ --tile-radius: clamp(4px, 0.5vw, 7px) — responsive
+✓ --tile-font: clamp(13px, 1.72vw, 22px) — desktop 22px, mobile 13px
+✓ --tile-hole: clamp(7px, 0.95vw, 12px) — responsive
+✓ --gap-rack: clamp(1px, 0.23vw, 3px) — responsive
+
+All clamp formulas verified: desktop at 1280px+ reaches max values (42px, 58px, 22px),
+mobile at 480px gracefully shrinks to minimums.
+
+SELECTOR SYNTAX CHECK:
+✓ No typos in class selectors
+✓ No broken pseudo-element syntax
+✓ No broken pseudo-class syntax
+✓ All ::before and ::after pseudo-elements properly closed
+✓ Media queries properly formatted
+
+GRADIENT & COLOR CHECK:
+✓ All radial-gradient() valid
+✓ All linear-gradient() valid
+✓ All color values well-formed
+
+POTENTIAL ISSUE: --wood-edge and color variables unused
+- These are NOT regressions, just unused definitions
+- They exist for theme extension / future features
+- They don't break anything
+
+CONCLUSION: NO REGRESSIONS FOUND
+All old styles preserved, all clamp() formulas mathematically correct,
+responsive behavior correct on desktop (42px) and mobile (20px).

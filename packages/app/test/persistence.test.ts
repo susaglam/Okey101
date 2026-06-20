@@ -158,6 +158,21 @@ describe('LocalAdapter snapshot/resume', () => {
       a.subscribe(() => {}, () => {})
       expect(isResumableSave(a.snapshot())).toBe(true)
     })
+
+    it('rejects a save missing fields that redactFor/GameScreen access (scores, config, gameId)', () => {
+      const a = new LocalAdapter({ seed: 5, humanSeat: 0, variant: KLASIK_101 })
+      a.subscribe(() => {}, () => {})
+      const good = a.snapshot()
+      const drop = (key: string): SaveData => {
+        const st = { ...(good.state as Record<string, unknown>) }
+        delete st[key]
+        return { ...good, state: st }
+      }
+      // These all pass the basic players/stock/turn checks but would crash on resume.
+      expect(isResumableSave(drop('scores'))).toBe(false)
+      expect(isResumableSave(drop('config'))).toBe(false)
+      expect(isResumableSave(drop('gameId'))).toBe(false)
+    })
   })
 
   describe('resume seed continuity', () => {

@@ -55,14 +55,21 @@ export function isResumableSave(save: SaveData | null): boolean {
   if (!save) return false
   const s = save.state as Record<string, unknown> | null
   if (typeof s !== 'object' || s === null) return false
+  if (typeof s.gameId !== 'string') return false
+  // config is spread into the PlayerView (view.ts) and drives GameScreen logic.
+  if (typeof s.config !== 'object' || s.config === null) return false
   if (!Array.isArray(s.players) || s.players.length < 2) return false
   for (const p of s.players) {
     if (typeof p !== 'object' || p === null) return false
     const pp = p as Record<string, unknown>
     if (typeof pp.seat !== 'number') return false
     if (!Array.isArray(pp.rack) || !Array.isArray(pp.discard)) return false
+    if (typeof pp.hasOpened !== 'boolean' || typeof pp.isOut !== 'boolean') return false
   }
   if (!Array.isArray(s.stock)) return false
+  // scores is sliced unconditionally in redactFor — a missing/non-array value
+  // would throw synchronously during render.
+  if (!Array.isArray(s.scores)) return false
   const turn = s.turn as Record<string, unknown> | null
   if (typeof turn !== 'object' || turn === null) return false
   if (typeof turn.seat !== 'number' || typeof turn.phase !== 'string') return false

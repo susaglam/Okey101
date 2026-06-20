@@ -446,7 +446,6 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           repValue={settings.repValue}
           selectedSlot={selectedSlot}
           onSelectSlot={setSelectedSlot}
-          onMove={(from, to) => setLayout(l => moveTile(l!, from, to))}
         />
         <DiscardZone
           onDropTile={() => {
