@@ -1,9 +1,21 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { saveGame, loadGame, clearGame, hasSavedGame } from '../src/persistence'
+import { saveGame, loadGame, clearGame, hasSavedGame, isResumableSave } from '../src/persistence'
 import type { SaveData } from '../src/persistence'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import { KLASIK_101 } from '@cs-okey/engine'
+
+// Drive one legal human step (draw or discard rack[0]) — used to compare bot RNG continuity.
+async function step(adapter: LocalAdapter): Promise<void> {
+  const v = adapter.getHumanView()
+  if (v.status !== 'PLAYING' || v.turn.seat !== 0) return
+  if (v.turn.phase === 'DRAW') {
+    await adapter.dispatch({ type: 'DrawFromStock', seat: 0, expectedVersion: adapter.currentVersion() })
+  } else {
+    const t = v.you.rack[0]!
+    await adapter.dispatch({ type: 'Discard', seat: 0, tile: t, expectedVersion: adapter.currentVersion() })
+  }
+}
 
 const SAMPLE_SAVE: SaveData = {
   version: 3,
@@ -132,6 +144,58 @@ describe('LocalAdapter snapshot/resume', () => {
     expect(bView.handNo).toEqual(aView.handNo)
     expect(bView.status).toEqual(aView.status)
     expect(b.getMatch().standings).toEqual(a.getMatch().standings)
+  })
+
+  describe('isResumableSave (structural guard)', () => {
+    it('rejects a partial/malformed state', () => {
+      expect(isResumableSave(SAMPLE_SAVE)).toBe(false) // state has no players/stock/turn
+      expect(isResumableSave(null)).toBe(false)
+      expect(isResumableSave({ ...SAMPLE_SAVE, state: { players: 'nope' } })).toBe(false)
+    })
+
+    it('accepts a real adapter snapshot', () => {
+      const a = new LocalAdapter({ seed: 5, humanSeat: 0, variant: KLASIK_101 })
+      a.subscribe(() => {}, () => {})
+      expect(isResumableSave(a.snapshot())).toBe(true)
+    })
+  })
+
+  describe('resume seed continuity', () => {
+    it('snapshot persists the master seed', () => {
+      const a = new LocalAdapter({ seed: 42, humanSeat: 0, variant: KLASIK_101 })
+      a.subscribe(() => {}, () => {})
+      expect(a.snapshot().seed).toBe(42)
+    })
+
+    it('resume restores the seed from the snapshot, ignoring opts.seed (bot RNG continuity)', async () => {
+      const a = new LocalAdapter({ seed: 42, humanSeat: 0, variant: KLASIK_101 })
+      a.subscribe(() => {}, () => {})
+      const snap = a.snapshot()
+
+      // Two resumes with DIFFERENT opts.seed must behave identically, because the
+      // seed comes from the snapshot (42), not opts.seed (999 / 111).
+      const b = new LocalAdapter({ seed: 999, humanSeat: 0, resumeFrom: snap })
+      const c = new LocalAdapter({ seed: 111, humanSeat: 0, resumeFrom: snap })
+      b.subscribe(() => {}, () => {})
+      c.subscribe(() => {}, () => {})
+      for (let i = 0; i < 4; i++) { await step(b); await step(c) }
+      expect(b.getHumanView().opponents).toEqual(c.getHumanView().opponents)
+      expect(b.getHumanView().turn).toEqual(c.getHumanView().turn)
+    })
+
+    it('resume falls back to state.rngSeed when the save has no seed (old save)', async () => {
+      const a = new LocalAdapter({ seed: 7, humanSeat: 0, variant: KLASIK_101 })
+      a.subscribe(() => {}, () => {})
+      const snap = a.snapshot()
+      const legacy = { ...snap, seed: undefined } // simulate a pre-seed save
+      const b = new LocalAdapter({ seed: 999, humanSeat: 0, resumeFrom: legacy })
+      b.subscribe(() => {}, () => {})
+      // state.rngSeed === 7 (CreateGame seed) → continues like the original, not seed 999
+      const ref = new LocalAdapter({ seed: 7, humanSeat: 0, resumeFrom: snap })
+      ref.subscribe(() => {}, () => {})
+      for (let i = 0; i < 4; i++) { await step(b); await step(ref) }
+      expect(b.getHumanView().opponents).toEqual(ref.getHumanView().opponents)
+    })
   })
 
   it('auto-saves after dispatch: hasSavedGame() is true', async () => {

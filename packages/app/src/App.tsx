@@ -4,7 +4,7 @@ import GameScreen from './screens/GameScreen'
 import Help from './screens/Help'
 import { LocalAdapter } from './adapter/LocalAdapter'
 import { KLASIK, KLASIK_101 } from '@cs-okey/engine'
-import { clearGame, loadGame } from './persistence'
+import { clearGame, loadGame, isResumableSave } from './persistence'
 import type { SaveData } from './persistence'
 
 type View = 'menu' | 'game' | 'help'
@@ -33,7 +33,13 @@ export default function App() {
 
   const handleResume = () => {
     const save = loadGame()
-    if (!save) return
+    // Guard against a corrupt/partial save: resuming it would crash on render.
+    // Drop it and stay on the menu rather than throwing.
+    if (!isResumableSave(save)) {
+      clearGame()
+      setPendingResume(null)
+      return
+    }
     setPendingResume(save)
     setGameKey(k => k + 1)
     setView('game')

@@ -14,7 +14,7 @@ export class LocalAdapter implements Adapter {
   private viewCb: ((v: PlayerView) => void) | null = null
   private statusCb: ((s: Status) => void) | null = null
   private readonly humanSeat: number
-  private readonly seed: number
+  private seed: number
   private readonly totalHands: number
   private variant: VariantConfig
   private standings: number[]
@@ -35,6 +35,9 @@ export class LocalAdapter implements Adapter {
       this.version = rf.version
       this.standings = [...rf.standings]
       this.scoredHandNo = rf.scoredHandNo
+      // Restore the master seed so bot RNG continues deterministically. Older
+      // saves lack `seed`, but CreateGame stored it as state.rngSeed — use that.
+      this.seed = rf.seed ?? this.state.rngSeed ?? opts.seed
     } else {
       this.variant = opts.variant ?? KLASIK
       this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
@@ -65,6 +68,7 @@ export class LocalAdapter implements Adapter {
       standings: [...this.standings],
       scoredHandNo: this.scoredHandNo ?? 0,
       savedAt: 0,
+      seed: this.seed,
     }
   }
 
