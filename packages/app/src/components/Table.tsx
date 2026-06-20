@@ -150,6 +150,12 @@ export function Table({
       <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'flex-start', gap: 24 }}>
         {topOpponent && (
           <>
+            {/* Top seat discards toward the LEFT seat → its pile sits to its left. */}
+            <DiscardPile
+              topTile={topOpponent.discardTop}
+              count={topOpponent.discardCount}
+              takeable={false}
+            />
             <Seat
               name={seatName(topOpponent.seat)}
               count={topOpponent.rackCount}
@@ -157,12 +163,6 @@ export function Table({
               position="top"
               score={standings?.[topOpponent.seat]}
               stack
-            />
-            {/* seat 2's discard pile sits between top and left */}
-            <DiscardPile
-              topTile={topOpponent.discardTop}
-              count={topOpponent.discardCount}
-              takeable={false}
             />
           </>
         )}
@@ -177,8 +177,9 @@ export function Table({
 
       {/* MIDDLE ROW: left seat | center | right seat */}
       <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', flex: 1, margin: '8px 0' }}>
-        {/* LEFT side: seat 3 + its discard pile (our takeable pile) — pile to the seat's right */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {/* LEFT side: seat 3 + its discard pile BELOW it (bottom-left corner). This
+            is the human's takeable pile — seat 3 discards toward the human. */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {leftOpponent && (
             <Seat
               name={seatName(leftOpponent.seat)}
@@ -236,8 +237,16 @@ export function Table({
           </div>
         </div>
 
-        {/* RIGHT side: seat 1 + its discard pile — pile to the seat's right */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {/* RIGHT side: seat 1 + its discard pile ABOVE it (top-right corner) —
+            seat 1 discards toward the top seat. */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {rightOpponent && (
+            <DiscardPile
+              topTile={rightOpponent.discardTop}
+              count={rightOpponent.discardCount}
+              takeable={false}
+            />
+          )}
           {rightOpponent && (
             <Seat
               name={seatName(rightOpponent.seat)}
@@ -246,14 +255,6 @@ export function Table({
               position="right"
               score={standings?.[rightOpponent.seat]}
               stack
-            />
-          )}
-          {/* Seat 1's discard sits between right and top */}
-          {rightOpponent && (
-            <DiscardPile
-              topTile={rightOpponent.discardTop}
-              count={rightOpponent.discardCount}
-              takeable={false}
             />
           )}
         </div>
