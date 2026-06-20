@@ -6,6 +6,7 @@ import {
   reconcile,
   moveTile,
   autoArrange,
+  autoArrangePairs,
   layoutToTiles,
   parseMeldSegments,
 } from '../src/rack/slots'
@@ -275,6 +276,18 @@ describe('autoArrange', () => {
     const layout = autoArrange(tiles, okey, KLASIK, cols)
     const present = layout.filter((s) => s !== null) as Tile[]
     expect(multisetEqual(present, tiles)).toBe(true)
+  })
+
+  it('autoArrangePairs groups identical pairs together (with gaps), then leftovers', () => {
+    // Three pairs (3R-3R, 5K-5K, 8M-8M) + two leftovers (1R, 9S).
+    const tiles = h('3R', '1R', '5K', '8M', '3R', '8M', '5K', '9S')
+    const layout = autoArrangePairs(tiles, okey, KLASIK, cols)
+    const present = layout.filter((s) => s !== null) as Tile[]
+    expect(multisetEqual(present, tiles)).toBe(true)
+    // The first three contiguous segments are the pairs (each two identical tiles).
+    const segs = parseMeldSegments(layout)
+    const pairSegs = segs.filter((s) => s.length === 2 && tilesEqual(s[0]!, s[1]!))
+    expect(pairSegs.length).toBe(3)
   })
 
   it('packs each meld wholly within a row — no meld split across the row boundary', () => {

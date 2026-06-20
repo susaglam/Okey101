@@ -15,7 +15,7 @@ import { HelpContent } from './HelpContent'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 import type { SlotLayout } from '../rack/slots'
-import { initLayout, reconcile, moveTile, autoArrange, parseMeldSegments } from '../rack/slots'
+import { initLayout, reconcile, moveTile, autoArrange, autoArrangePairs, parseMeldSegments } from '../rack/slots'
 import { interpretDragEnd } from '../utils/dragEnd'
 import { captureRackFlip, runRackFlip } from '../anim/flip'
 import { SEAT_NAMES, seatName } from '../names'
@@ -111,6 +111,12 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     if (!view.okey) return
     const okey = view.okey
     withFlip(() => setLayout(autoArrange(view.you.rack, okey, view.config, COLS)), 0.42)
+  }
+
+  const handleArrangePairs = () => {
+    if (!view.okey) return
+    const okey = view.okey
+    withFlip(() => setLayout(autoArrangePairs(view.you.rack, okey, view.config, COLS)), 0.42)
   }
 
   const handleHint = () => {
@@ -450,7 +456,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             </button>
           )}
           {/* Utility — right group */}
-          {isMyTurn && <button onClick={handleArrange}>↺ Sırala</button>}
+          {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
+          {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
           {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
         </div>
       </div>

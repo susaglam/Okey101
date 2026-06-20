@@ -1,4 +1,4 @@
-import { tilesEqual, arrange, openingValue } from '@cs-okey/engine'
+import { tilesEqual, arrange, openingValue, findLayablePairs } from '@cs-okey/engine'
 import type { Tile } from '@cs-okey/engine'
 import type { VariantConfig } from '@cs-okey/engine'
 
@@ -136,15 +136,14 @@ export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayo
  * bottom row. Leftovers follow after a gap (individual tiles may flow freely).
  * Returns a layout of length 2*cols.
  */
-export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, cols: number): SlotLayout {
-  // In 101, maximize the opening VALUE (place wilds/okey in the highest slots so
-  // the player can reach ≥101); in Klasik, maximize melded tile count.
-  const result = config.requiresOpening
-    ? arrange(tiles, okey, config, (melds) => openingValue(melds, okey))
-    : arrange(tiles, okey, config)
+/**
+ * Pack a list of melds (each kept whole within a row) + leftovers into a 2*cols
+ * layout. A meld that doesn't fit the current row's remaining space wraps WHOLE
+ * to the next row (never split across the top/bottom boundary); leftovers follow
+ * after a gap and may flow freely across the boundary.
+ */
+function packIntoLayout(melds: Tile[][], leftovers: Tile[], cols: number): SlotLayout {
   const layout: SlotLayout = new Array<Tile | null>(2 * cols).fill(null)
-  const orderedMelds = result.melds.map((m) => orderMeldForDisplay(m, okey))
-
   let row = 0
   let col = 0
   const place = (t: Tile) => {
@@ -153,10 +152,8 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
     col++
   }
 
-  for (const meld of orderedMelds) {
+  for (const meld of melds) {
     const gap = col > 0 ? 1 : 0
-    // If the meld (plus a separating gap) doesn't fit the rest of this row, wrap
-    // to the next row so the meld is never split across the row boundary.
     if (col + gap + meld.length > cols) {
       row++
       col = 0
@@ -168,17 +165,39 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
     for (const t of meld) place(t)
   }
 
-  // Leftovers after a gap; individual tiles may flow across the row boundary.
-  if (orderedMelds.length > 0 && result.leftovers.length > 0 && col > 0 && col < cols) {
+  if (melds.length > 0 && leftovers.length > 0 && col > 0 && col < cols) {
     col++ // gap before leftovers within the current row
   }
-  for (const t of result.leftovers) {
+  for (const t of leftovers) {
     if (col >= cols) { row++; col = 0 }
     if (row > 1) break
     place(t)
   }
 
   return layout
+}
+
+/**
+ * Auto-arrange tiles into RUN/GROUP melds (the engine's `arrange()`), packed row
+ * by row. In 101 the opening VALUE is maximized; in Klasik the melded count.
+ */
+export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, cols: number): SlotLayout {
+  const result = config.requiresOpening
+    ? arrange(tiles, okey, config, (melds) => openingValue(melds, okey))
+    : arrange(tiles, okey, config)
+  const orderedMelds = result.melds.map((m) => orderMeldForDisplay(m, okey))
+  return packIntoLayout(orderedMelds, result.leftovers, cols)
+}
+
+/**
+ * Auto-arrange tiles by PAIRS (çift): group every identical pair together, then
+ * the remaining (unpaired) tiles. For the çift route — "Çift Sırala".
+ */
+export function autoArrangePairs(tiles: Tile[], okey: Tile, config: VariantConfig, cols: number): SlotLayout {
+  const pairs = findLayablePairs(tiles, okey, config) ?? []
+  const pairsFlat = pairs.flat()
+  const leftovers = tiles.filter((t) => !pairsFlat.includes(t)) // pairs hold original refs
+  return packIntoLayout(pairs, leftovers, cols)
 }
 
 /**
