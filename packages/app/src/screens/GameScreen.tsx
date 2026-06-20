@@ -124,8 +124,38 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
   useEffect(() => {
     const prev = prevViewRef.current
     prevViewRef.current = view
-    if (!view || !prev || !animationsEnabled()) return
-    if (prev.handNo !== view.handNo) return // new hand → not a discard
+    if (!view || !animationsEnabled()) return
+
+    // NEW HAND → deal flourish: face-down tiles fly from the table centre to each
+    // player (a representative round-robin), then play begins. (Skip discard/open
+    // detection on this view.)
+    const newHand = !prev || prev.handNo !== view.handNo
+    if (newHand) {
+      if (view.status === 'PLAYING' && typeof DOMRect !== 'undefined') {
+        const felt = document.querySelector('.felt')
+        const stockTile = document.querySelector('[data-testid="stock-tile"], [data-testid="draw-stock"]')
+        const fr = felt?.getBoundingClientRect()
+        if (felt && stockTile && fr && fr.width) {
+          const src = new DOMRect(fr.left + fr.width / 2 - 20, fr.top + fr.height / 2 - 26, 40, 52)
+          const seatEls = [
+            document.querySelector('[data-testid="slot-rack"]'),            // human (seat 0)
+            document.querySelector('[data-seat="1"][data-testid="seat"]'),
+            document.querySelector('[data-seat="2"][data-testid="seat"]'),
+            document.querySelector('[data-seat="3"][data-testid="seat"]'),
+          ]
+          let k = 0
+          for (let round = 0; round < 5; round++) {
+            for (const tEl of seatEls) {
+              if (!tEl) continue
+              void flyTile({ clone: stockTile, from: src, to: tEl, durationSec: 0.3, delaySec: k * 0.04, fadeOut: true })
+              k++
+            }
+          }
+        }
+      }
+      return
+    }
+    if (!prev) return
     for (const opp of view.opponents) {
       const before = prev.opponents.find((o) => o.seat === opp.seat)
       if (!before || opp.discardCount <= before.discardCount) continue
