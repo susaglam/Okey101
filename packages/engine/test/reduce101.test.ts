@@ -128,6 +128,20 @@ describe('StartHand — 101 deal', () => {
     expect(s.turn).toEqual({ seat: 0, phase: 'DISCARD' })
   })
 
+  it('rotates the starter clockwise each hand (hand 2 → seat 1)', () => {
+    let s = reduce(null, { type: 'CreateGame', gameId: 'gr', seed: 5, config: KLASIK_101 })
+    s = reduce(s, { type: 'StartHand' }) // hand 1 → starter seat 0
+    expect(s.turn.seat).toBe(0)
+    expect(s.players[0]!.rack).toHaveLength(22)
+    s = reduce(s, { type: 'StartHand' }) // hand 2 → starter seat 1
+    expect(s.turn.seat).toBe(1)
+    expect(s.players[1]!.rack).toHaveLength(22)
+    expect(s.players[0]!.rack).toHaveLength(21)
+    s = reduce(s, { type: 'StartHand' }) // hand 3 → starter seat 2
+    expect(s.turn.seat).toBe(2)
+    expect(s.players[2]!.rack).toHaveLength(22)
+  })
+
   // Klasik still deals 15/14/14/14 (regression guard)
   it('Klasik StartHand still deals 15 to starter and 14 to others', () => {
     let s = reduce(null, { type: 'CreateGame', gameId: 'gk', seed: 99, config: KLASIK })
@@ -247,10 +261,11 @@ describe('OpenMeld', () => {
     expect(() => reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })).toThrow(RuleError)
   })
 
-  it('records işlek penalty against left seat when tookFromLeft=true', () => {
-    // Set up: seat 1 took from left (seat 0's discard), now opens
+  // Kural 11 (PO 2026-06-20): taking a tile from the floor carries NO penalty
+  // for anyone ("işlek cezası yok"). Opening after a floor-take must NOT create
+  // an islek-floor-open penalty against the left neighbour (or anyone).
+  it('records NO işlek penalty when opening after a floor-take (tookFromLeft=true)', () => {
     const base = start101()
-    // The "left" of seat 1 is seat 0
     const s: GameState = {
       ...base,
       turn: { seat: 1, phase: 'DISCARD', tookFromLeft: true } as GameState['turn'] & { tookFromLeft: boolean },
@@ -259,40 +274,7 @@ describe('OpenMeld', () => {
       ),
     }
     const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
-    expect(s2.penaltiesApplied).toBeDefined()
-    // Left of seat 1 = seat 0
-    const penalty = s2.penaltiesApplied!.find((pe) => pe.seat === 0 && pe.type === 'islek-floor-open')
-    expect(penalty).toBeDefined()
-  })
-
-  it('does not duplicate işlek penalty within same hand', () => {
-    // Apply islek penalty twice: second application should not add a second entry
-    const base = start101()
-    const s: GameState = {
-      ...base,
-      turn: { seat: 1, phase: 'DISCARD', tookFromLeft: true } as GameState['turn'] & { tookFromLeft: boolean },
-      players: base.players.map((p) =>
-        p.seat === 1 ? { ...p, rack: bigRackTiles } : p
-      ),
-      // Pre-populate the penalty
-      penaltiesApplied: [{ seat: 0, type: 'islek-floor-open' }],
-    }
-    const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
-    const count = s2.penaltiesApplied!.filter((pe) => pe.seat === 0 && pe.type === 'islek-floor-open').length
-    expect(count).toBe(1)
-  })
-
-  it('does NOT record işlek penalty when tookFromLeft is false/absent', () => {
-    const base = start101()
-    const s: GameState = {
-      ...base,
-      turn: { seat: 0, phase: 'DISCARD' },
-      players: base.players.map((p) =>
-        p.seat === 0 ? { ...p, rack: bigRackTiles } : p
-      ),
-    }
-    const s2 = reduce(s, { type: 'OpenMeld', seat: 0, melds: bigMelds })
-    expect(s2.penaltiesApplied!.filter((pe) => pe.type === 'islek-floor-open').length).toBe(0)
+    expect((s2.penaltiesApplied ?? []).filter((pe) => pe.type === 'islek-floor-open').length).toBe(0)
   })
 })
 
@@ -615,102 +597,29 @@ describe('DrawFromDiscard — sets tookFromLeft', () => {
   })
 })
 
-// ── çift-declarer deferred işlek penalty ─────────────────────────────────────
+// ── çift-declarer floor-take carries no penalty ──────────────────────────────
 
-describe('çift-declarer deferred işlek penalty', () => {
-  const bigRackTiles = [
-    ...h('11R', '12R', '13R', '11K', '12K', '13K', '11M', '12M', '13M'),
-    ...h('1R', '2R', '3R'),
-  ]
-  const bigMelds = [
-    h('11R', '12R', '13R'),
-    h('11K', '12K', '13K'),
-    h('11M', '12M', '13M'),
-  ]
-
-  it('applies işlek penalty to left neighbour when çift-declarer opens on a later turn (pendingIslekFromSeat path)', () => {
-    // Construct a state where seat 1 is a çift-declarer who already took from
-    // left (seat 0) on a previous turn (pendingIslekFromSeat=0 set),
-    // and it is now seat 1's DISCARD phase on a subsequent turn
-    // (tookFromLeft is absent — the turn has advanced past the DrawFromDiscard).
-    const base = start101()
-    const s: GameState = {
-      ...base,
-      turn: { seat: 1, phase: 'DISCARD' }, // tookFromLeft intentionally absent (deferred case)
-      players: base.players.map((p) => {
-        if (p.seat === 1) {
-          return {
-            ...p,
-            rack: bigRackTiles,
-            declaredCift: true,
-            pendingIslekFromSeat: 0, // left neighbour of seat 1 = seat 0
-          }
-        }
-        return p
-      }),
-    }
-
-    const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
-
-    // Penalty must be recorded against seat 0 (the discarder / left of seat 1)
-    const penalty = s2.penaltiesApplied!.find(
-      (pe) => pe.seat === 0 && pe.type === 'islek-floor-open'
-    )
-    expect(penalty).toBeDefined()
-
-    // pendingIslekFromSeat must be cleared on the opening player
-    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBeUndefined()
-  })
-
-  it('sets pendingIslekFromSeat on the çift-declarer when they DrawFromDiscard', () => {
-    let s = start101()
-    // seat 0 discards so seat 1 has a tile to draw from left
-    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
-    // Mark seat 1 as çift-declarer
-    s = {
-      ...s,
-      players: s.players.map((p) =>
-        p.seat === 1 ? { ...p, declaredCift: true } : p
-      ),
-    }
-    // seat 1 draws from the left (seat 0) discard pile
-    const s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
-    // pendingIslekFromSeat should be set to seat 0 (left of seat 1)
-    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBe(0)
-  })
-
-  it('does NOT set pendingIslekFromSeat for non-çift player who DrawFromDiscard', () => {
-    let s = start101()
-    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
-    // seat 1 is NOT a çift-declarer (default declaredCift=false)
-    const s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
-    expect(s2.players.find((p) => p.seat === 1)!.pendingIslekFromSeat).toBeUndefined()
-  })
-
-  it('deduplicates işlek penalty even when using pendingIslekFromSeat path', () => {
+describe('çift-declarer floor-take — no işlek penalty (Kural 11)', () => {
+  it('records NO penalty when a çift-declarer who took from the floor opens later', () => {
+    const bigRackTiles = [
+      ...h('11R', '12R', '13R', '11K', '12K', '13K', '11M', '12M', '13M'),
+      ...h('1R', '2R', '3R'),
+    ]
+    const bigMelds = [
+      h('11R', '12R', '13R'),
+      h('11K', '12K', '13K'),
+      h('11M', '12M', '13M'),
+    ]
     const base = start101()
     const s: GameState = {
       ...base,
       turn: { seat: 1, phase: 'DISCARD' },
-      players: base.players.map((p) => {
-        if (p.seat === 1) {
-          return {
-            ...p,
-            rack: bigRackTiles,
-            declaredCift: true,
-            pendingIslekFromSeat: 0,
-          }
-        }
-        return p
-      }),
-      // Pre-populate the penalty so it already exists
-      penaltiesApplied: [{ seat: 0, type: 'islek-floor-open' }],
+      players: base.players.map((p) =>
+        p.seat === 1 ? { ...p, rack: bigRackTiles, declaredCift: true } : p
+      ),
     }
     const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
-    const count = s2.penaltiesApplied!.filter(
-      (pe) => pe.seat === 0 && pe.type === 'islek-floor-open'
-    ).length
-    expect(count).toBe(1)
+    expect((s2.penaltiesApplied ?? []).filter((pe) => pe.type === 'islek-floor-open').length).toBe(0)
   })
 })
 

@@ -136,6 +136,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const handleNextHand = () => {
     adapter.nextHand()
     setMatch(adapter.getMatch())
+    setHistory(adapter.getHistory())
   }
 
   const updateSettings = (patch: Partial<typeof settings>) => {
@@ -498,7 +499,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
       <button
         aria-label="Skor Tabelası"
-        onClick={() => setShowScores(true)}
+        onClick={() => { setHistory(adapter.getHistory()); setShowScores(true) }}
         style={{ position: 'fixed', top: 12, right: 96, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
       >
         📊

@@ -90,6 +90,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         rizikoActive = false
       }
 
+      // Starting player rotates clockwise each hand. handNo here is the PRE-increment
+      // value (0 for the first hand, 1 for the second, …), so the starter is seat 0,
+      // then 1, 2, 3, 0 … across hands. The starter is dealt the extra tile and opens
+      // the hand in the DISCARD phase.
+      const starter = state.handNo % cfg.players
+
       let players: PlayerState[]
 
       if (cfg.requiresOpening) {
@@ -103,17 +109,16 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
           declaredCift: false,
           openedValue: 0,
           openRoute: undefined,
-          pendingIslekFromSeat: undefined,
         }))
         for (const p of players) {
-          const count = p.seat === 0 ? cfg.tilesInRack + cfg.starterExtra : cfg.tilesInRack
+          const count = p.seat === starter ? cfg.tilesInRack + cfg.starterExtra : cfg.tilesInRack
           for (let i = 0; i < count; i++) p.rack.push(stock.pop()!)
         }
       } else {
-        // Klasik deal: seat 0 gets tilesInRack+starterExtra (14+1=15), others get tilesInRack (14)
+        // Klasik deal: starter gets tilesInRack+starterExtra (14+1=15), others get tilesInRack (14)
         players = state.players.map((p) => ({ ...p, rack: [] as Tile[], discard: [] as Tile[], hasOpened: false, isOut: false }))
         for (const p of players) {
-          const count = p.seat === 0 ? cfg.tilesInRack + cfg.starterExtra : cfg.tilesInRack
+          const count = p.seat === starter ? cfg.tilesInRack + cfg.starterExtra : cfg.tilesInRack
           for (let i = 0; i < count; i++) p.rack.push(stock.pop()!)
         }
       }
@@ -126,7 +131,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         okey: okeyTile,
         players,
         status: 'PLAYING',
-        turn: { seat: 0, phase: 'DISCARD' },
+        turn: { seat: starter, phase: 'DISCARD' },
         terminal: undefined,
         tableMelds: [],
         rizikoActive,
@@ -161,14 +166,10 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       let players = replacePlayer(state.players, leftIdx, (p) => ({ ...p, discard: leftDiscard }))
       players = replacePlayer(players, event.seat, (p) => ({ ...p, rack: [...p.rack, taken] }))
       // Record that this player took from the left discard pile (and which tile,
-      // so a non-çift taker who can't open may return it).
+      // so a non-çift taker who can't open may return it). Taking the floor carries
+      // NO penalty for anyone (Kural 11 Q1/Q3: "işlek cezası yok") — the only
+      // consequence is the must-open-or-return restriction enforced in Discard.
       const turn: TurnState = { seat: event.seat, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: taken }
-      // For çift-declarers: also set pendingIslekFromSeat so the penalty survives across turns
-      // (non-çift players must open the same turn, so they rely on the same-turn tookFromLeft path)
-      const drawingPlayer = players.find((p) => p.seat === event.seat)!
-      if (drawingPlayer.declaredCift === true) {
-        players = replacePlayer(players, event.seat, (p) => ({ ...p, pendingIslekFromSeat: leftIdx }))
-      }
       return { ...state, players, turn }
     }
 
@@ -369,30 +370,10 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         openRoute: openedRoute,
       }))
 
-      // İşlek penalty: penalise the left neighbour if the player took from their discard pile.
-      // Same-turn path (non-çift or çift opening immediately): tookFromLeft flag on the turn.
-      // Deferred path (çift-declarer opening on a later turn): pendingIslekFromSeat on the player.
-      let penaltiesApplied = state.penaltiesApplied ?? []
-      const openingPlayer = state.players.find((p) => p.seat === event.seat)!
-      const seatTopenalise: number | null =
-        (state.turn as TurnState & { tookFromLeft?: boolean }).tookFromLeft === true
-          ? leftSeat(event.seat, cfg.players)
-          : openingPlayer.pendingIslekFromSeat != null
-            ? openingPlayer.pendingIslekFromSeat
-            : null
-      if (seatTopenalise !== null) {
-        const penaltyType = 'islek-floor-open'
-        const alreadyApplied = penaltiesApplied.some(
-          (pe) => pe.seat === seatTopenalise && pe.type === penaltyType
-        )
-        if (!alreadyApplied) {
-          penaltiesApplied = [...penaltiesApplied, { seat: seatTopenalise, type: penaltyType }]
-        }
-      }
-      // Clear the deferred pending flag regardless (it has been consumed or was absent)
-      const playersWithPendingCleared = replacePlayer(players, event.seat, (p) => ({ ...p, pendingIslekFromSeat: undefined }))
-
-      return { ...state, players: playersWithPendingCleared, tableMelds, penaltiesApplied }
+      // Taking a tile from the floor carries NO penalty (Kural 11 Q1/Q3:
+      // "işlek cezası yok"). Opening simply lays the melds; the only floor-take
+      // consequence is the must-open-or-return restriction enforced in Discard.
+      return { ...state, players, tableMelds }
     }
 
     case 'LayOff': {
@@ -519,7 +500,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       newRack.splice(ridx, 1)
       const leftIdx = leftSeat(event.seat, state.config.players)
       let players = replacePlayer(state.players, leftIdx, (lp) => ({ ...lp, discard: [...lp.discard, floorTile] }))
-      players = replacePlayer(players, event.seat, (pp) => ({ ...pp, rack: newRack, pendingIslekFromSeat: undefined }))
+      players = replacePlayer(players, event.seat, (pp) => ({ ...pp, rack: newRack }))
 
       // Undo the take entirely: return to the DRAW phase so the player may draw
       // again — re-take the same floor tile to retry, or draw from the stock.

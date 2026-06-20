@@ -27,10 +27,6 @@ export interface PlayerState {
    *  'cift' = opened via 5 identical pairs route.
    *  Governs which subsequent meld-laying is allowed. */
   openRoute?: 'seri' | 'cift'
-  /** Set when a çift-declarer takes a floor tile and may defer opening to a later turn.
-   *  Holds the seat number of the left neighbour (discarder) who should be penalised
-   *  when this player eventually calls OpenMeld. Cleared once the penalty is applied. */
-  pendingIslekFromSeat?: number
 }
 
 export interface Terminal {

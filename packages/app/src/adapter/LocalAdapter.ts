@@ -47,6 +47,8 @@ export class LocalAdapter implements Adapter {
       let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
       s = reduce(s, { type: 'StartHand' })
       this.state = s
+      // If the first hand opens on a bot's turn, play bots until the human's turn.
+      this.runBots()
       // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
       this.settleIfEnded()
     }
@@ -93,6 +95,10 @@ export class LocalAdapter implements Adapter {
     if (this.getMatch().over) return
     this.state = reduce(this.state, { type: 'StartHand' })
     this.version++
+    // The starting seat rotates each hand; if the new hand opens on a bot's turn,
+    // play the bots forward until it is the human's turn (otherwise the game stalls).
+    this.runBots()
+    this.settleIfEnded()
     this.viewCb?.(this.getHumanView())
     // Auto-save after nextHand
     if (this.getMatch().over) {
