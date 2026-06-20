@@ -457,6 +457,31 @@ describe('TakeOkey', () => {
   })
 })
 
+describe('Discard — okey-discard penalty (Kural 11)', () => {
+  it('adds a +101 okey-discard penalty when the real okey is discarded', () => {
+    const base = start101()
+    const okey = base.okey! // the real okey tile (full wild)
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD' },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, rack: [okey, ...h('5R', '6R')] } : p)),
+    }
+    const s2 = reduce(s, { type: 'Discard', seat: 0, tile: okey })
+    expect(s2.penaltiesApplied?.some((x) => x.seat === 0 && x.type === 'okey-discard')).toBe(true)
+  })
+
+  it('does not penalise a normal (non-okey) discard', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD' },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, rack: h('5R', '6R', '7R') } : p)),
+    }
+    const s2 = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('5R') })
+    expect((s2.penaltiesApplied ?? []).length).toBe(0)
+  })
+})
+
 describe('OpenMeld — finish-protection', () => {
   it('rejects laying (post-open) that would empty the rack — must keep a finishing tile', () => {
     const base = start101()

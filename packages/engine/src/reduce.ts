@@ -210,9 +210,18 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         }
       }
 
+      // 101 penalty: discarding the REAL okey costs the discarder a flat +101
+      // (once per hand). Only applies when not finishing (a winning okey-discard
+      // returns above and earns the okey-finish bonus instead).
+      let penaltiesApplied = state.penaltiesApplied ?? []
+      if (cfg.requiresOpening && tile && tile.kind === 'NUMBER' && state.okey && tilesEqual(tile, state.okey)) {
+        const already = penaltiesApplied.some((x) => x.seat === seat && x.type === 'okey-discard')
+        if (!already) penaltiesApplied = [...penaltiesApplied, { seat, type: 'okey-discard' }]
+      }
+
       // tookFromLeft resets on turn advance
       const turn: TurnState = { seat: nextSeat(event.seat, state.config.players), phase: 'DRAW' }
-      return { ...state, players, turn }
+      return { ...state, players, turn, penaltiesApplied }
     }
 
     case 'DeclareWin': {
