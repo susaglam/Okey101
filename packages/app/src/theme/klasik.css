@@ -10,10 +10,15 @@ body { overflow-x: hidden; }
 #root { width: 100%; min-height: 100vh; }
 
 :root {
-  /* Taş boyutu — tek yerden ölçek (dnd-kit + flip ile uyumlu) */
-  --tile-w: 42px;
-  --tile-h: 58px;
-  --tile-radius: 7px;
+  /* Taş boyutu — tek yerden ölçek (dnd-kit + flip ile uyumlu).
+     clamp() ile responsive: ~1280px+ ekranda 42px, dar ekranda küçülür.
+     Sayı fontu + delik + ıstaka boşluğu da bu ölçekle orantılı sürülür. */
+  --tile-w: clamp(20px, 3.28vw, 42px);
+  --tile-h: clamp(28px, 4.53vw, 58px);
+  --tile-radius: clamp(4px, 0.5vw, 7px);
+  --tile-font: clamp(13px, 1.72vw, 22px);
+  --tile-hole: clamp(7px, 0.95vw, 12px);
+  --gap-rack: clamp(1px, 0.23vw, 3px);
 
   /* Çuha (masa) */
   --felt: radial-gradient(ellipse at 50% 36%, #2f9d63 0%, #157a40 52%, #0c5b2f 100%);
@@ -60,7 +65,7 @@ body { overflow-x: hidden; }
   padding-top: 6px;
   font-family: 'Arial Black', 'Arial Narrow', Impact, system-ui, sans-serif;
   font-weight: 900;
-  font-size: 22px;
+  font-size: var(--tile-font);
   letter-spacing: -0.5px;
   line-height: 1;
   cursor: grab;
@@ -111,8 +116,8 @@ body { overflow-x: hidden; }
 
 /* Gri delik (spec: fildişi + gri delik) */
 .okey-tile .hole {
-  width: 12px;
-  height: 12px;
+  width: var(--tile-hole);
+  height: var(--tile-hole);
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #d2cdbe 0%, #a39d8c 70%, #8b8576 100%);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
@@ -160,6 +165,10 @@ body { overflow-x: hidden; }
   align-items: stretch;
   border-radius: 12px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  /* Fallback: if tiles can't shrink enough on a very narrow screen, scroll the
+     rack internally rather than the whole page (body has overflow-x:hidden). */
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* Yan ahşap pegler */
@@ -231,7 +240,7 @@ body { overflow-x: hidden; }
 
 .okey-rack-row {
   display: flex;
-  gap: 3px;
+  gap: var(--gap-rack);
   position: relative;
   z-index: 1;
 }
@@ -367,12 +376,12 @@ body { overflow-x: hidden; }
 .menu button:hover { transform: translateY(-1px); }
 .menu button:active { transform: translateY(2px); box-shadow: 0 2px 0 #9a5e12, 0 3px 8px rgba(0, 0, 0, 0.35); }
 
-.act button {
+.act button, .action-bar button {
   background: linear-gradient(180deg, #f0b53e, #d2811a);
   color: #3a2400;
   font-weight: 800;
-  font-size: 12px;
-  padding: 7px 15px;
+  font-size: clamp(11px, 1.1vw, 12px);
+  padding: clamp(5px, 0.6vw, 7px) clamp(9px, 1.2vw, 15px);
   border: none;
   border-radius: 9px;
   cursor: pointer;
@@ -380,9 +389,18 @@ body { overflow-x: hidden; }
   box-shadow: 0 3px 0 #9a5e12, 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-.act button:hover:not(:disabled) { transform: translateY(-1px); }
-.act button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #9a5e12; }
-.act button:disabled { opacity: 0.45; cursor: default; box-shadow: 0 2px 0 #8a7340; filter: grayscale(0.4); }
+.act button:hover:not(:disabled), .action-bar button:hover:not(:disabled) { transform: translateY(-1px); }
+.act button:active:not(:disabled), .action-bar button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #9a5e12; }
+.act button:disabled, .action-bar button:disabled { opacity: 0.45; cursor: default; box-shadow: 0 2px 0 #8a7340; filter: grayscale(0.4); }
+
+/* Action bar wraps gracefully on narrow screens */
+.action-bar { flex-wrap: wrap; row-gap: 8px; }
+
+/* ── Responsive polish ─────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Hide the rack watermark on phones to reduce visual clutter at small sizes */
+  .okey-rack-wm { display: none; }
+}
 
 /* Sıra göstergesi — nameplate parlaması (Seat .turn) */
 @keyframes seat-glow {
