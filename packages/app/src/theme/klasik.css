@@ -13,12 +13,12 @@ body { overflow-x: hidden; }
   /* Taş boyutu — tek yerden ölçek (dnd-kit + flip ile uyumlu).
      clamp() ile responsive: ~1280px+ ekranda 42px, dar ekranda küçülür.
      Sayı fontu + delik + ıstaka boşluğu da bu ölçekle orantılı sürülür. */
-  --tile-w: clamp(20px, 3.28vw, 42px);
-  --tile-h: clamp(28px, 4.53vw, 58px);
-  --tile-radius: clamp(4px, 0.5vw, 7px);
-  --tile-font: clamp(13px, 1.72vw, 22px);
-  --tile-hole: clamp(7px, 0.95vw, 12px);
-  --gap-rack: clamp(1px, 0.23vw, 3px);
+  --tile-w: clamp(26px, 4.2vw, 56px);
+  --tile-h: clamp(36px, 5.8vw, 76px);
+  --tile-radius: clamp(5px, 0.6vw, 9px);
+  --tile-font: clamp(16px, 2.2vw, 30px);
+  --tile-hole: clamp(8px, 1.15vw, 15px);
+  --gap-rack: clamp(2px, 0.3vw, 4px);
 
   /* Çuha (masa) */
   --felt: radial-gradient(ellipse at 50% 36%, #2f9d63 0%, #157a40 52%, #0c5b2f 100%);
@@ -142,12 +142,13 @@ body { overflow-x: hidden; }
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-/* `plain` (gösterge): never the gold sahte-okey body — render like a normal tile. */
-.okey-tile.plain[aria-label="sahte okey"] {
-  background: var(--tile-bg);
-  border-color: #c9c0b0;
-  border-bottom-color: #b0a48e;
-  box-shadow: 0 2px 0 #9a8e78, 0 3px 6px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+/* `plain` (gösterge): NEVER the gold sahte-okey body — force a normal ivory tile,
+   no matter what (beats the sahte-okey rule unconditionally). */
+.okey-tile.plain {
+  background: var(--tile-bg) !important;
+  border-color: #c9c0b0 !important;
+  border-bottom-color: #b0a48e !important;
+  box-shadow: 0 2px 0 #9a8e78, 0 3px 6px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
 .okey-tile .cb-glyph {

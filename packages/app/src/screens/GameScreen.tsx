@@ -642,9 +642,12 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
               <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <TileView tile={view.indicator} testId="gosterge-tile" plain />
+                {/* Always a numbered tile (never the gold false joker): a legacy
+                    false-joker indicator falls back to the okey tile, and `plain`
+                    forces an ivory body regardless. No yellow effect anywhere. */}
+                <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
                 <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
-                  okey: <strong style={{ color: '#ffd27a' }}>{view.okey ? tileToString(view.okey) : '-'}</strong>
+                  okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
                 </span>
               </div>
             )}
