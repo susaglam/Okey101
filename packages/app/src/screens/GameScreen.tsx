@@ -245,7 +245,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         {toast}
       </div>
     )}
-    <Table view={view} onTakeDiscard={handleTakeDiscard}>
+    <Table view={view} onTakeDiscard={handleTakeDiscard} standings={match.standings}>
       {is101 && view.okey && <TableMelds melds={view.tableMelds} okey={view.okey} />}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack

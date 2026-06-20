@@ -101,10 +101,13 @@ export function Table({
   view,
   children,
   onTakeDiscard,
+  standings,
 }: {
   view: PlayerView
   children?: ReactNode
   onTakeDiscard?: () => void
+  /** Running match standings (seat-indexed), accumulated from completed hands. */
+  standings?: number[]
 }) {
   // Find opponents by relative position
   const rightOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 1)
@@ -153,7 +156,7 @@ export function Table({
               count={topOpponent.rackCount}
               isTurn={view.turn.seat === topOpponent.seat}
               position="top"
-              score={view.scores?.[topOpponent.seat]}
+              score={standings?.[topOpponent.seat]}
               stack
             />
             {/* seat 2's discard pile sits between top and left */}
@@ -176,7 +179,7 @@ export function Table({
               count={leftOpponent.rackCount}
               isTurn={view.turn.seat === leftOpponent.seat}
               position="left"
-              score={view.scores?.[leftOpponent.seat]}
+              score={standings?.[leftOpponent.seat]}
               stack
             />
           )}
@@ -235,7 +238,7 @@ export function Table({
               count={rightOpponent.rackCount}
               isTurn={view.turn.seat === rightOpponent.seat}
               position="right"
-              score={view.scores?.[rightOpponent.seat]}
+              score={standings?.[rightOpponent.seat]}
               stack
             />
           )}
@@ -303,7 +306,7 @@ export function Table({
             fontWeight: 700,
             color: '#ffd27a',
           }}>
-            {(view.scores?.[view.seat] ?? 0)}
+            {(standings?.[view.seat] ?? 0)}
           </span>
         </div>
       </div>
