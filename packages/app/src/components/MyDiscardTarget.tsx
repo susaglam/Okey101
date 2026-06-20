@@ -13,14 +13,26 @@ export function MyDiscardTarget({
   count,
   active,
   onDropTile,
+  okey,
+  colorblind,
+  repValue,
 }: {
   topTile?: Tile
   count: number
   active?: boolean
   onDropTile: () => void
+  okey?: Tile
+  colorblind?: boolean
+  repValue?: boolean
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'discard' })
   const hot = isOver || !!active
+  // Render the thrown tile EXACTLY as it appears in the rack — same colours, same
+  // FALSE_JOKER rep-value — so the discard spot never alters the tile's look.
+  const tileRepValue =
+    topTile && repValue && topTile.kind === 'FALSE_JOKER' && okey?.number !== undefined
+      ? okey.number
+      : undefined
 
   return (
     <div

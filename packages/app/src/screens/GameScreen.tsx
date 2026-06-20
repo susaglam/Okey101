@@ -218,6 +218,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     const okey = view.okey
     for (let mi = 0; mi < tableMelds.length; mi++) {
       const meld = tableMelds[mi]!
+      // Pairs are never lay-off targets — you can't extend a çift into a run/group.
+      if (meld.kind === 'pair') continue
       // Only try 1-tile lay-off (cap per run is 2, but we try one at a time)
       for (const tile of view.you.rack) {
         const merged = [...meld.tiles, tile]
@@ -240,6 +242,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       const key = tileToString(tile)
       if (keys.has(key)) continue
       for (const meld of view.tableMelds) {
+        // Pairs are not lay-off targets, so a tile that only "fits" a pair is not işlek.
+        if (meld.kind === 'pair') continue
         if (isValidMeldSet([[...meld.tiles, tile]], okey, view.config)) { keys.add(key); break }
       }
     }

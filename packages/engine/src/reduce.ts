@@ -390,6 +390,14 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const cfg = state.config
       const okey = state.okey!
 
+      // A PAIR is never a lay-off target: you cannot add a third tile to a çift to
+      // turn it into a run/group. A çift-route opener may only lay onto runs/groups
+      // ("başkasının perine işleyebilir"), never extend a pair. (Kural — çift açan
+      // kendi perini yapamaz.)
+      if (targetMeld.kind === 'pair') {
+        throw new RuleError('cannot lay off onto a pair (pairs stay pairs)')
+      }
+
       // Enforce layoff cap: for runs, at most layOffCapPerRun tiles per turn
       const cap = cfg.layOffCapPerRun ?? 2
       if (targetMeld.kind === 'run' && event.tiles.length > cap) {

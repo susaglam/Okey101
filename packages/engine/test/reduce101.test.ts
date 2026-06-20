@@ -347,6 +347,25 @@ describe('LayOff', () => {
     ).toThrow(RuleError)
   })
 
+  it('rejects laying off onto a PAIR meld (a çift cannot be extended into a group)', () => {
+    const base = start101()
+    // A pair on the table; seat 0 opened via çift and holds a third matching tile.
+    // Laying the 4K onto [4R,4R] would make a group of 4s — not allowed.
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 0, kind: 'pair', tiles: [tileFromString('4R'), tileFromString('4R')] }],
+      players: base.players.map((p) =>
+        p.seat === 0
+          ? { ...p, hasOpened: true, declaredCift: true, openRoute: 'cift', rack: [tileFromString('4K'), tileFromString('9M')] }
+          : p
+      ),
+    }
+    expect(() =>
+      reduce(s, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('4K')] })
+    ).toThrow(RuleError)
+  })
+
   it('throws RuleError if player has not opened yet', () => {
     const base = start101()
     const s: GameState = {
