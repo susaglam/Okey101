@@ -11,7 +11,14 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
       const left = view.opponents.find((o) => o.seat === leftSeatOf(seat, view))
       const top = left?.discardTop
       if (top && top.kind === 'NUMBER' && isUseful(top, rack)) {
-        return { type: 'DrawFromDiscard', seat }
+        // Kural 11: a non-çift, not-yet-opened player who takes the floor MUST open
+        // this turn (else they must return it). So only take if it enables an open
+        // — otherwise stay on the stock and avoid the dead end (and a stalled turn).
+        const mustOpenToTake = view.config.requiresOpening && !view.you.hasOpened && !view.you.declaredCift
+        const canOpenWithFloor = !mustOpenToTake
+          || findOpening([...rack, top], view.okey!, view.config) !== null
+          || findPairOpening([...rack, top], view.okey!, view.config) !== null
+        if (canOpenWithFloor) return { type: 'DrawFromDiscard', seat }
       }
     }
     return { type: 'DrawFromStock', seat }

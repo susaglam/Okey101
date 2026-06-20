@@ -29,6 +29,7 @@ const REJECT_MSG: Record<RejectionCode, string> = {
   'illegal-move': 'Geçersiz hamle',
   'stale-version': 'Bir saniye, tekrar dene',
   'not-winning': 'Bu el bitiş için geçerli değil',
+  'must-open-or-return': 'Yerden aldın — önce aç ya da "Taşı Geri Al"',
   'unknown': 'Hamle reddedildi',
 }
 
@@ -386,6 +387,15 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               }}
             >
               Çifte Git
+            </button>
+          )}
+          {/* Taşı Geri Al — non-çift taker who can't open returns the floor tile (Kural 11) */}
+          {isMyTurn && isDiscardPhase && is101 && view.turn.tookFromLeft && !view.you.hasOpened && !view.you.declaredCift && (
+            <button
+              title="Yerden aldığın taşı geri koy, stoktan çek"
+              onClick={() => send({ type: 'ReturnFloorTile', seat: view.seat })}
+            >
+              ↩ Taşı Geri Al
             </button>
           )}
           {/* İşle (lay-off) — left group */}

@@ -160,8 +160,9 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const taken = leftDiscard.pop()!
       let players = replacePlayer(state.players, leftIdx, (p) => ({ ...p, discard: leftDiscard }))
       players = replacePlayer(players, event.seat, (p) => ({ ...p, rack: [...p.rack, taken] }))
-      // Record that this player took from the left discard pile
-      const turn: TurnState = { seat: event.seat, phase: 'DISCARD', tookFromLeft: true }
+      // Record that this player took from the left discard pile (and which tile,
+      // so a non-çift taker who can't open may return it).
+      const turn: TurnState = { seat: event.seat, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: taken }
       // For çift-declarers: also set pendingIslekFromSeat so the penalty survives across turns
       // (non-çift players must open the same turn, so they rely on the same-turn tookFromLeft path)
       const drawingPlayer = players.find((p) => p.seat === event.seat)!
@@ -175,6 +176,14 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (!state) throw new RuleError('No game')
       requireTurn(state, event.seat, 'DISCARD')
       const p = state.players.find((x) => x.seat === event.seat)!
+      // Kural 11 (Q1): a non-çift player who took the floor this turn must open
+      // this turn — they cannot just discard. They must open, or return the tile.
+      if (state.config.requiresOpening) {
+        const tookFromLeft = (state.turn as TurnState).tookFromLeft === true
+        if (tookFromLeft && !p.declaredCift && !p.hasOpened) {
+          throw new RuleError('floor-take: you must open this turn or return the tile before discarding')
+        }
+      }
       const idx = p.rack.findIndex((t) => tilesEqual(t, event.tile))
       if (idx < 0) throw new RuleError('Tile not in rack')
       const rack = p.rack.slice(); const [tile] = rack.splice(idx, 1)
@@ -488,6 +497,38 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const players = replacePlayer(state.players, event.seat, (p) => ({ ...p, rack: newRack }))
 
       return { ...state, players, tableMelds: newTableMelds }
+    }
+
+    case 'ReturnFloorTile': {
+      if (!state) throw new RuleError('No game')
+      requireTurn(state, event.seat, 'DISCARD')
+      const turn0 = state.turn as TurnState
+      if (turn0.tookFromLeft !== true || turn0.floorTileTaken == null) {
+        throw new RuleError('no floor tile to return this turn')
+      }
+      const p = state.players.find((x) => x.seat === event.seat)!
+      if (p.hasOpened) throw new RuleError('cannot return the floor tile after opening')
+      if (state.stock.length === 0) throw new RuleError('cannot return the floor tile: stock is empty')
+
+      const floorTile = turn0.floorTileTaken
+      const ridx = p.rack.findIndex((t) => tilesEqual(t, floorTile))
+      if (ridx < 0) throw new RuleError('floor tile not in rack')
+
+      // Remove the floor tile from the rack, draw from stock instead.
+      const newRack = p.rack.slice()
+      newRack.splice(ridx, 1)
+      const stock = state.stock.slice()
+      const drawn = stock.pop()!
+      newRack.push(drawn)
+
+      // Put the floor tile back on top of the left neighbour's discard pile.
+      const leftIdx = leftSeat(event.seat, state.config.players)
+      let players = replacePlayer(state.players, leftIdx, (lp) => ({ ...lp, discard: [...lp.discard, floorTile] }))
+      players = replacePlayer(players, event.seat, (pp) => ({ ...pp, rack: newRack, pendingIslekFromSeat: undefined }))
+
+      // tookFromLeft / floorTileTaken cleared → no işlek penalty (treated as a stock draw).
+      const turn: TurnState = { seat: event.seat, phase: 'DISCARD' }
+      return { ...state, stock, players, turn }
     }
   }
 }

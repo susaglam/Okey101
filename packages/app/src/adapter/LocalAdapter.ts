@@ -162,6 +162,8 @@ export class LocalAdapter implements Adapter {
   }
 
   private classify(msg: string): RejectionCode {
+    // Check floor-take before the generic 'turn' rule (the message contains "turn").
+    if (msg.includes('floor-take')) return 'must-open-or-return'
     if (msg.includes('turn')) return 'not-your-turn'
     if (msg.includes('phase')) return 'wrong-phase'
     if (msg.includes('winning')) return 'not-winning'

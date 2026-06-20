@@ -19,7 +19,9 @@ export interface PlayerView {
   stockCount: number
   indicator?: Tile
   okey?: Tile
-  turn: { seat: number; phase: Phase }
+  // tookFromLeft is public (taking the floor is an observable move); the UI uses
+  // it to offer "return the floor tile" to a non-çift taker who can't open.
+  turn: { seat: number; phase: Phase; tookFromLeft?: boolean }
   scores: number[]
   status: GameState['status']
   terminal?: Terminal

@@ -9,6 +9,9 @@ export interface TurnState {
   phase: Phase
   /** Set to true when the player took the left neighbour's top discard tile this turn. */
   tookFromLeft?: boolean
+  /** The exact tile taken from the floor this turn (so it can be returned if the
+   *  non-çift taker can't open). Set together with tookFromLeft. */
+  floorTileTaken?: Tile
 }
 
 export interface PlayerState {

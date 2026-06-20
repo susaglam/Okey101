@@ -15,3 +15,6 @@ export type GameEvent =
   // The okey returns to the player's rack (it is NOT auto-reused). `tile` is the
   // real rack tile to put in the okey's place.
   | { type: 'TakeOkey'; seat: number; meldIndex: number; tile: Tile }
+  // Return the tile taken from the left floor this turn (a non-çift taker who
+  // can't open): puts it back on the left pile and draws from stock instead.
+  | { type: 'ReturnFloorTile'; seat: number }

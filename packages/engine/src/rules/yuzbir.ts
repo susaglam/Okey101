@@ -38,6 +38,12 @@ export function legalMoves101(state: GameState, seat: number): GameEvent['type']
     moves.push('TakeOkey')
   }
 
+  // ReturnFloorTile: a non-çift taker who hasn't opened may return the floor tile
+  // they took this turn (instead of being forced to open).
+  if (state.turn.tookFromLeft === true && !player.declaredCift && !player.hasOpened) {
+    moves.push('ReturnFloorTile')
+  }
+
   // DeclareWin: can attempt (reduce will validate)
   moves.push('DeclareWin')
 

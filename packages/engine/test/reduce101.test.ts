@@ -482,6 +482,45 @@ describe('Discard — okey-discard penalty (Kural 11)', () => {
   })
 })
 
+describe('Kural 11 (Q1) — floor-take must open or return', () => {
+  it('rejects a discard when a non-çift player took the floor but has not opened', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: tileFromString('9R') },
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: false, declaredCift: false, rack: h('9R', '5K', '6M') } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('5K') })).toThrow(RuleError)
+  })
+
+  it('ReturnFloorTile puts the tile back, draws from stock, and clears tookFromLeft', () => {
+    const base = start101()
+    const floor = tileFromString('9R')
+    const leftIdx = 3 // leftSeat(0, 4)
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor },
+      players: base.players.map((p) => {
+        if (p.seat === 0) return { ...p, hasOpened: false, declaredCift: false, rack: [floor, ...h('5K', '6M')] }
+        if (p.seat === leftIdx) return { ...p, discard: [] }
+        return p
+      }),
+    }
+    const stockBefore = s.stock.length
+    const s2 = reduce(s, { type: 'ReturnFloorTile', seat: 0 })
+    // floor tile returned to the left pile; gone from the rack; replaced from stock
+    expect(s2.players[leftIdx]!.discard.some((t) => tilesEqual(t, floor))).toBe(true)
+    expect(s2.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(false)
+    expect(s2.players[0]!.rack).toHaveLength(3)
+    expect(s2.stock.length).toBe(stockBefore - 1)
+    expect((s2.turn as { tookFromLeft?: boolean }).tookFromLeft).toBeFalsy()
+    // discarding is now allowed (no longer a floor-take)
+    expect(() => reduce(s2, { type: 'Discard', seat: 0, tile: s2.players[0]!.rack[0]! })).not.toThrow()
+  })
+})
+
 describe('OpenMeld — finish-protection', () => {
   it('rejects laying (post-open) that would empty the rack — must keep a finishing tile', () => {
     const base = start101()
@@ -524,10 +563,12 @@ describe('DrawFromDiscard — sets tookFromLeft', () => {
   it('tookFromLeft is reset after the player discards', () => {
     let s = start101()
     s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
+    // Seat 1 is a çift-declarer, so it may take the floor and still discard
+    // (deferred işlek) — a non-çift taker would have to open or return first.
+    s = { ...s, players: s.players.map((p) => (p.seat === 1 ? { ...p, declaredCift: true } : p)) }
     let s2 = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
-    // Now seat 1 should discard
     s2 = reduce(s2, { type: 'Discard', seat: 1, tile: s2.players[1]!.rack[0]! })
-    // Turn advances to seat 2
+    // Turn advances to seat 2 with tookFromLeft cleared
     expect((s2.turn as { tookFromLeft?: boolean }).tookFromLeft).toBeFalsy()
   })
 })
