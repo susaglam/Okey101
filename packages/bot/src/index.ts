@@ -59,7 +59,7 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
     }
 
     // 5. Fall through: discard least-useful.
-    const idx = leastUsefulIndex(rack, rng)
+    const idx = leastUsefulIndex(rack, view.okey, rng)
     return { type: 'Discard', seat, tile: rack[idx]! }
   }
 
@@ -73,7 +73,7 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
     }
   }
   // Otherwise discard the least useful tile.
-  const idx = leastUsefulIndex(rack, rng)
+  const idx = leastUsefulIndex(rack, view.okey, rng)
   return { type: 'Discard', seat, tile: rack[idx]! }
 }
 
@@ -199,13 +199,41 @@ function isUseful(t: Tile, rack: Tile[]): boolean {
     ))
 }
 
-function leastUsefulIndex(rack: Tile[], rng: () => number): number {
+/**
+ * How "live"/işlek a tile is: a weighted count of its run/group partners in the
+ * rest of the rack. Higher = keep it; lower = safe to discard. Discarding the
+ * least-connected tile avoids feeding opponents useful (işlek) tiles.
+ */
+function connectionDegree(t: Tile, rest: Tile[]): number {
+  if (t.kind !== 'NUMBER' || t.number == null || t.color == null) return 99
+  let deg = 0
+  for (const r of rest) {
+    if (r.kind !== 'NUMBER' || r.number == null || r.color == null) { deg += 1; continue }
+    if (r.number === t.number && r.color !== t.color) deg += 2          // group partner
+    else if (r.color === t.color) {
+      const d = Math.abs(r.number - t.number)
+      if (d === 1) deg += 2                                             // adjacent run partner
+      else if (d === 2) deg += 1                                        // gapped run partner
+    }
+  }
+  return deg
+}
+
+/**
+ * Pick the index of the tile to discard: the least-connected ("most dead") tile.
+ * Never discards the okey (wild) or a false joker; slightly prefers shedding edge
+ * values (1, 13), which are less useful to opponents.
+ */
+function leastUsefulIndex(rack: Tile[], okey: Tile | undefined, rng: () => number): number {
   let bestIdx = 0; let bestScore = Infinity
   for (let i = 0; i < rack.length; i++) {
     const t = rack[i]!
     const rest = rack.filter((_, j) => j !== i)
-    const score = isUseful(t, rest) ? 1 : 0
-    const jittered = score + rng() * 0.5
+    let score = connectionDegree(t, rest)
+    if (t.kind === 'FALSE_JOKER') score += 1000                         // keep false jokers
+    if (okey && t.kind === 'NUMBER' && tilesEqual(t, okey)) score += 1000 // never discard the okey
+    if (t.kind === 'NUMBER' && (t.number === 1 || t.number === 13)) score -= 0.4 // shed edges first
+    const jittered = score + rng() * 0.3
     if (jittered < bestScore) { bestScore = jittered; bestIdx = i }
   }
   return bestIdx

@@ -64,6 +64,10 @@ interface BtState {
   okey: Tile
   config: VariantConfig
   status: TileStatus[]
+  // Objective: when valueFn is set, maximize meld VALUE (tie-break by count);
+  // otherwise maximize melded tile COUNT (the default Klasik behaviour).
+  valueFn?: (melds: Tile[][]) => number
+  bestValue: number
   // best solution found
   bestMeldedCount: number
   bestMelds: Tile[][]
@@ -87,6 +91,23 @@ function countMelded(state: BtState): number {
   let c = 0
   for (const s of state.status) if (s === 1) c++
   return c
+}
+
+/**
+ * Admissible over-estimate of the value still obtainable from undecided tiles:
+ * each contributes at most its face value (a wild at most 13). Used to prune
+ * value-mode branches that cannot beat the best arrangement found so far.
+ */
+function remainingValueUpperBound(state: BtState): number {
+  let ub = 0
+  for (let i = 0; i < state.tiles.length; i++) {
+    if (state.status[i] !== 0) continue
+    const t = state.tiles[i]!
+    if (isWild(t, state.okey)) { ub += 13; continue }
+    const nc = effectiveNumberColor(t, state.okey)
+    ub += nc ? nc.number : 0
+  }
+  return ub
 }
 
 /** Count undecided wilds. */
@@ -273,7 +294,7 @@ function backtrack(state: BtState, currentMelds: Tile[][]): void {
   if (anchorIdx === -1) {
     // All non-wild tiles are decided. Remaining undecided wilds go to leftovers.
     const meldedCount = countMelded(state)
-    if (meldedCount > state.bestMeldedCount) {
+    const recordBest = () => {
       state.bestMeldedCount = meldedCount
       state.bestMelds = currentMelds.map((m) => [...m])
       state.bestLeftovers = []
@@ -281,14 +302,31 @@ function backtrack(state: BtState, currentMelds: Tile[][]): void {
         if (!isMelded(state, i)) state.bestLeftovers.push(state.tiles[i]!)
       }
     }
+    if (state.valueFn) {
+      // Maximize total meld value (tie-break by melded count).
+      const v = state.valueFn(currentMelds)
+      if (v > state.bestValue || (v === state.bestValue && meldedCount > state.bestMeldedCount)) {
+        state.bestValue = v
+        recordBest()
+      }
+    } else if (meldedCount > state.bestMeldedCount) {
+      recordBest()
+    }
     return
   }
 
-  // Upper bound pruning: melded so far + all undecided tiles
-  const meldedSoFar = countMelded(state)
-  let undecidedCount = 0
-  for (const s of state.status) if (s === 0) undecidedCount++
-  if (meldedSoFar + undecidedCount <= state.bestMeldedCount) return
+  // Upper-bound pruning.
+  if (state.valueFn) {
+    // Value mode: current value + best-case value of all undecided tiles.
+    const cur = state.valueFn(currentMelds)
+    if (cur + remainingValueUpperBound(state) <= state.bestValue) return
+  } else {
+    // Count mode: melded so far + all undecided tiles.
+    const meldedSoFar = countMelded(state)
+    let undecidedCount = 0
+    for (const s of state.status) if (s === 0) undecidedCount++
+    if (meldedSoFar + undecidedCount <= state.bestMeldedCount) return
+  }
 
   // Option A: place anchor in a GROUP meld
   const groups = groupCandidates(state, anchorIdx)
@@ -355,7 +393,20 @@ function backtrack(state: BtState, currentMelds: Tile[][]): void {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function arrange(rack: Tile[], okey: Tile, config: VariantConfig): Arrangement {
+/**
+ * Partition a rack into melds + leftovers.
+ *
+ * Default objective: maximize melded tile COUNT (good for Klasik, where the goal
+ * is to meld everything). Pass `valueFn` to maximize total meld VALUE instead
+ * (used by 101's "Sırala", which should place the okey/false-joker in the
+ * highest-value slots so the player can reach ≥101).
+ */
+export function arrange(
+  rack: Tile[],
+  okey: Tile,
+  config: VariantConfig,
+  valueFn?: (melds: Tile[][]) => number,
+): Arrangement {
   if (rack.length === 0) return { melds: [], leftovers: [], meldedCount: 0 }
 
   // Sort rack for determinism: non-wilds (including FALSE_JOKER) by color+number, wilds last.
@@ -366,6 +417,8 @@ export function arrange(rack: Tile[], okey: Tile, config: VariantConfig): Arrang
     tiles: sorted,
     okey,
     config,
+    valueFn,
+    bestValue: -1,
     status: new Array<TileStatus>(sorted.length).fill(0),
     bestMeldedCount: 0,
     bestMelds: [],

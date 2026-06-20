@@ -1,4 +1,4 @@
-import { tilesEqual, arrange } from '@cs-okey/engine'
+import { tilesEqual, arrange, openingValue } from '@cs-okey/engine'
 import type { Tile } from '@cs-okey/engine'
 import type { VariantConfig } from '@cs-okey/engine'
 
@@ -136,7 +136,11 @@ export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayo
  * Returns a layout of length 2*cols.
  */
 export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, cols: number): SlotLayout {
-  const result = arrange(tiles, okey, config)
+  // In 101, maximize the opening VALUE (place wilds/okey in the highest slots so
+  // the player can reach ≥101); in Klasik, maximize melded tile count.
+  const result = config.requiresOpening
+    ? arrange(tiles, okey, config, (melds) => openingValue(melds, okey))
+    : arrange(tiles, okey, config)
   const layout: SlotLayout = new Array<Tile | null>(2 * cols).fill(null)
 
   let pos = 0
