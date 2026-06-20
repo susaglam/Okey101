@@ -63,11 +63,20 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     fn()
   }
 
+  // When the player drags a draw onto a specific empty slot, remember it so the
+  // newly-drawn tile lands there (not the first empty slot). Consumed once.
+  const pendingDrawSlot = useRef<number | null>(null)
+
   useEffect(() =>
     adapter.subscribe(
       (v) => {
         setView(v)
-        setLayout(prev => prev ? reconcile(prev, v.you.rack) : initLayout(v.you.rack, COLS))
+        setLayout(prev => {
+          if (!prev) return initLayout(v.you.rack, COLS)
+          const pref = pendingDrawSlot.current
+          pendingDrawSlot.current = null
+          return reconcile(prev, v.you.rack, pref)
+        })
         setSelectedSlot(null)
         setMatch(adapter.getMatch())
       },
@@ -207,6 +216,26 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // Guard: only allow discard when human is in DISCARD phase
   const isDiscardPhase = isMyTurn && view.turn.phase === 'DISCARD'
 
+  // Discard the EXACT tile in `slotIdx` (not a duplicate the engine happens to
+  // match first). We optimistically empty that precise slot so reconcile keeps
+  // any identical tile in its own slot instead of reshuffling the rack.
+  const discardFromSlot = (slotIdx: number) => {
+    if (!isDiscardPhase) return
+    const tile = currentLayout[slotIdx]
+    if (tile == null) return
+    const optimistic = currentLayout.map((t, i) => (i === slotIdx ? null : t))
+    setLayout(optimistic)
+    adapter
+      .dispatch({ type: 'Discard', seat: view.seat, tile, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
+      .then((res) => {
+        if (!res.accepted) {
+          showReject(res.reason)
+          // Roll the optimistic removal back from the authoritative rack.
+          setLayout(reconcile(optimistic, view.you.rack))
+        }
+      })
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     const activeId = String(active.id)
@@ -214,23 +243,24 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
     const result = interpretDragEnd(activeId, overId)
 
+    // If the draw was dropped onto a specific slot, remember it so the drawn tile
+    // lands exactly there (reconcile honours pendingDrawSlot).
+    const dropSlot = overId && /^\d+$/.test(overId) ? Number(overId) : null
+
     switch (result.action) {
       case 'draw-stock':
+        pendingDrawSlot.current = dropSlot
         send({ type: 'DrawFromStock', seat: view.seat })
         break
 
       case 'draw-floor':
+        pendingDrawSlot.current = dropSlot
         send({ type: 'DrawFromDiscard', seat: view.seat })
         break
 
-      case 'discard': {
-        // Only when it's the human's DISCARD turn
-        if (!isDiscardPhase) return
-        const tile = currentLayout[result.from]
-        if (tile == null) return
-        send({ type: 'Discard', seat: view.seat, tile })
+      case 'discard':
+        discardFromSlot(result.from)
         break
-      }
 
       case 'move':
         withFlip(() => setLayout(l => moveTile(l!, result.from, result.to)), 0.3)
@@ -292,11 +322,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         />
         <DiscardZone
           onDropTile={() => {
-            if (!isDiscardPhase) return
-            const tile = selectedSlot !== null ? currentLayout[selectedSlot] : null
-            if (tile != null) {
-              send({ type: 'Discard', seat: view.seat, tile })
-            }
+            if (selectedSlot !== null) discardFromSlot(selectedSlot)
           }}
           highlight={isDiscardPhase}
         />

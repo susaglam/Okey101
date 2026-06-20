@@ -133,6 +133,46 @@ describe('reconcile', () => {
     const next = reconcile(layout, h('1R', '2R', '3R', '4R'))
     expect(next.length).toBe(layout.length)
   })
+
+  it('places a newly-drawn tile at the preferred slot (drag-to-draw lands where aimed)', () => {
+    const initial = h('1R', '2R', '3R')
+    const layout = initLayout(initial, cols) // slots 0,1,2 filled
+    // Draw a 5R and drop it on slot 9 specifically
+    const next = reconcile(layout, h('1R', '2R', '3R', '5R'), 9)
+    expect(next[9]).not.toBeNull()
+    expect(tilesEqual(next[9]!, tileFromString('5R'))).toBe(true)
+    // The first empty slot (3) must stay empty — the tile went to the chosen slot
+    expect(next[3]).toBeNull()
+  })
+
+  it('falls back to first empty slot when the preferred slot is occupied', () => {
+    const initial = h('1R', '2R', '3R')
+    const layout = initLayout(initial, cols)
+    // Prefer slot 1 (occupied by 2R) → must fall back to first empty (slot 3)
+    const next = reconcile(layout, h('1R', '2R', '3R', '5R'), 1)
+    expect(tilesEqual(next[1]!, tileFromString('2R'))).toBe(true)
+    expect(tilesEqual(next[3]!, tileFromString('5R'))).toBe(true)
+  })
+
+  it('exact-discard: emptying the dragged duplicate slot keeps the OTHER copy in its meld slot', () => {
+    // Two red-8s: one inside a meld (slot 0), one loose (slot 5). The player drags
+    // the LOOSE one to discard. We optimistically null slot 5, THEN reconcile with
+    // the rack that has one 8R removed. The meld 8R at slot 0 must stay put.
+    const layout = initLayout([], cols)
+    layout[0] = tileFromString('8R') // meld copy
+    layout[1] = tileFromString('9R')
+    layout[2] = tileFromString('10R')
+    layout[5] = tileFromString('8R') // loose copy (the one being discarded)
+    // Optimistic: player dragged slot 5 → null it
+    const optimistic = layout.map((t, i) => (i === 5 ? null : t))
+    // Engine rack after discarding one 8R
+    const after = reconcile(optimistic, h('8R', '9R', '10R'))
+    // The meld copy at slot 0 stays; slot 5 stays empty; meld intact
+    expect(tilesEqual(after[0]!, tileFromString('8R'))).toBe(true)
+    expect(tilesEqual(after[1]!, tileFromString('9R'))).toBe(true)
+    expect(tilesEqual(after[2]!, tileFromString('10R'))).toBe(true)
+    expect(after[5]).toBeNull()
+  })
 })
 
 describe('moveTile', () => {

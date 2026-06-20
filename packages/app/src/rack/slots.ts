@@ -34,8 +34,12 @@ export function initLayout(tiles: Tile[], cols: number): SlotLayout {
  *    the first empty slots left-to-right.
  *
  * Length is preserved (= prev.length).
+ *
+ * `preferredSlotForNew`: when a tile was just drawn and the player dropped it on
+ * a specific (empty) slot, the first newly-added tile is placed there instead of
+ * the first empty slot — so drag-to-draw lands where the player aimed.
  */
-export function reconcile(prev: SlotLayout, tiles: Tile[]): SlotLayout {
+export function reconcile(prev: SlotLayout, tiles: Tile[], preferredSlotForNew?: number | null): SlotLayout {
   // Build a count map keyed by tile identity
   const remaining = new Map<Tile, number>()
   for (const t of tiles) {
@@ -86,6 +90,17 @@ export function reconcile(prev: SlotLayout, tiles: Tile[]): SlotLayout {
   }
 
   let ui = 0
+  // Place the first newly-added tile at the player's chosen drop slot, if empty.
+  if (
+    preferredSlotForNew != null &&
+    preferredSlotForNew >= 0 &&
+    preferredSlotForNew < next.length &&
+    next[preferredSlotForNew] === null &&
+    ui < unclaimed.length
+  ) {
+    next[preferredSlotForNew] = unclaimed[ui]!
+    ui++
+  }
   for (let i = 0; i < next.length && ui < unclaimed.length; i++) {
     if (next[i] === null) {
       next[i] = unclaimed[ui]!
