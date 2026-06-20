@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tileFromString, tilesEqual, KLASIK } from '@cs-okey/engine'
+import { tileFromString, tilesEqual, KLASIK, isValidMeldSet } from '@cs-okey/engine'
 import type { Tile } from '@cs-okey/engine'
 import {
   initLayout,
@@ -7,6 +7,7 @@ import {
   moveTile,
   autoArrange,
   layoutToTiles,
+  parseMeldSegments,
 } from '../src/rack/slots'
 
 // Helper: build an array of tiles from shorthand strings
@@ -274,6 +275,16 @@ describe('autoArrange', () => {
     const layout = autoArrange(tiles, okey, KLASIK, cols)
     const present = layout.filter((s) => s !== null) as Tile[]
     expect(multisetEqual(present, tiles)).toBe(true)
+  })
+
+  it('packs each meld wholly within a row — no meld split across the row boundary', () => {
+    // Two 3-runs can't both fit a 4-wide row → the second must wrap WHOLE to the
+    // bottom row. A split would leave an invalid 1- or 2-tile fragment.
+    const tiles = h('1R', '2R', '3R', '1K', '2K', '3K')
+    const layout = autoArrange(tiles, okey, KLASIK, 4)
+    const segs = parseMeldSegments(layout)
+    expect(segs.length).toBe(2)
+    expect(segs.every((s) => isValidMeldSet([s], okey, KLASIK))).toBe(true)
   })
 })
 

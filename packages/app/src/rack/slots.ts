@@ -130,9 +130,10 @@ export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayo
 
 /**
  * Auto-arrange tiles using the engine's `arrange()`.
- * Melds are laid out contiguously with ONE empty slot between consecutive melds,
- * then leftovers follow (with a gap if any melds preceded them).
- * Flows left-to-right, wrapping from back row to front row.
+ * Melds are packed ROW BY ROW so a meld is never split across the top/bottom
+ * boundary: as many whole melds as fit go on the top row (one empty slot between
+ * them); a meld that doesn't fit the row's remaining space wraps WHOLE to the
+ * bottom row. Leftovers follow after a gap (individual tiles may flow freely).
  * Returns a layout of length 2*cols.
  */
 export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, cols: number): SlotLayout {
@@ -142,31 +143,39 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
     ? arrange(tiles, okey, config, (melds) => openingValue(melds, okey))
     : arrange(tiles, okey, config)
   const layout: SlotLayout = new Array<Tile | null>(2 * cols).fill(null)
+  const orderedMelds = result.melds.map((m) => orderMeldForDisplay(m, okey))
 
-  let pos = 0
-
-  for (let mi = 0; mi < result.melds.length; mi++) {
-    const meld = result.melds[mi]!
-    // Add gap before this meld if not first and we're not at position 0
-    if (mi > 0 && pos < 2 * cols) {
-      pos++ // ONE empty slot between consecutive melds
-    }
-    for (const tile of orderMeldForDisplay(meld, okey)) {
-      if (pos < 2 * cols) {
-        layout[pos++] = tile
-      }
-    }
+  let row = 0
+  let col = 0
+  const place = (t: Tile) => {
+    const idx = row * cols + col
+    if (idx < 2 * cols) layout[idx] = t
+    col++
   }
 
-  // Add leftovers: with a gap if there were any melds
-  if (result.melds.length > 0 && result.leftovers.length > 0 && pos < 2 * cols) {
-    pos++ // gap between last meld and leftovers
+  for (const meld of orderedMelds) {
+    const gap = col > 0 ? 1 : 0
+    // If the meld (plus a separating gap) doesn't fit the rest of this row, wrap
+    // to the next row so the meld is never split across the row boundary.
+    if (col + gap + meld.length > cols) {
+      row++
+      col = 0
+      if (row > 1) break // only two rows; drop overflow (does not happen in practice)
+    } else {
+      col += gap
+    }
+    if (row > 1) break
+    for (const t of meld) place(t)
   }
 
-  for (const tile of result.leftovers) {
-    if (pos < 2 * cols) {
-      layout[pos++] = tile
-    }
+  // Leftovers after a gap; individual tiles may flow across the row boundary.
+  if (orderedMelds.length > 0 && result.leftovers.length > 0 && col > 0 && col < cols) {
+    col++ // gap before leftovers within the current row
+  }
+  for (const t of result.leftovers) {
+    if (col >= cols) { row++; col = 0 }
+    if (row > 1) break
+    place(t)
   }
 
   return layout
