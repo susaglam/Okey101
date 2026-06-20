@@ -301,6 +301,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // Remove tiles from rack
       const newRack = removeTilesFromRack(player.rack, allLaidTiles)
 
+      // Finish-protection: you can never meld away your entire rack — a tile must
+      // remain to discard as the finishing move (same rule as lay-off).
+      if (state.config.mustRetainFinishingTile && newRack.length === 0) {
+        throw new RuleError('must keep at least one tile to discard (cannot meld your whole rack)')
+      }
+
       // Compute opening value (pairs route: value is 0 — no threshold)
       const value = openingValue(event.melds, okey)
 

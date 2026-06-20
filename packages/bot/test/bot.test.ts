@@ -95,6 +95,20 @@ describe('bot.decide 101', () => {
     }
   })
 
+  it('opens via the çift route (5 pairs) when no seri ≥101 opening exists', () => {
+    const pairsRack = ['1R', '1R', '2R', '2R', '3R', '3R', '4R', '4R', '5R', '5R']
+    const okey = tileFromString('7M')
+    // No seri opening reaches 101 from five low pairs → çift route is the fallback.
+    expect(findOpening(pairsRack.map(tileFromString), okey, KLASIK_101)).toBeNull()
+    const view = view101(pairsRack, 'DISCARD', false)
+    const ev = decide(view, ['Discard', 'OpenMeld', 'DeclareCift'], makeRng(1))
+    expect(ev.type).toBe('OpenMeld')
+    if (ev.type === 'OpenMeld') {
+      expect(ev.melds.length).toBe(5)
+      expect(ev.melds.every((m) => m.length === 2)).toBe(true)
+    }
+  })
+
   it('declares win in 101 DISCARD phase when hasOpened and a winning discard exists', () => {
     // Full winning rack (14 tiles) + 1 extra → DeclareWin after discarding extra
     // Use a rack where evaluateHand(rest, okey, config).isWinning is true for one removal

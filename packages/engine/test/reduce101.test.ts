@@ -457,6 +457,26 @@ describe('TakeOkey', () => {
   })
 })
 
+describe('OpenMeld — finish-protection', () => {
+  it('rejects laying (post-open) that would empty the rack — must keep a finishing tile', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('8K'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      players: base.players.map((p) =>
+        p.seat === 0
+          ? { ...p, hasOpened: true, declaredCift: true, openRoute: 'cift', rack: h('3R', '3R') }
+          : p,
+      ),
+    }
+    // Laying the only pair would empty the rack → rejected.
+    expect(() =>
+      reduce(s, { type: 'OpenMeld', seat: 0, melds: [h('3R', '3R')] }),
+    ).toThrow(RuleError)
+  })
+})
+
 // ── DrawFromDiscard sets tookFromLeft on turn ─────────────────────────────────
 
 describe('DrawFromDiscard — sets tookFromLeft', () => {

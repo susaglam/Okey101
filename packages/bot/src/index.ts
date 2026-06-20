@@ -1,4 +1,4 @@
-import { evaluateHand, findOpening, findLayableMeld, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
+import { evaluateHand, findOpening, findLayableMeld, findPairOpening, findLayablePairs, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
 
 export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => number): GameEvent {
   const seat = view.seat
@@ -32,19 +32,38 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
       }
     }
 
-    // 2. OpenMeld: if not yet opened and findOpening returns a set.
+    // 2. OpenMeld: if not yet opened, open via the seri route (≥101) if possible,
+    //    otherwise fall back to the çift route (5 identical pairs).
     if (!view.you.hasOpened && legal.includes('OpenMeld')) {
       const opening = findOpening(rack, view.okey!, view.config)
       if (opening !== null) {
         return { type: 'OpenMeld', seat, melds: opening }
       }
+      const pairOpening = findPairOpening(rack, view.okey!, view.config)
+      if (pairOpening !== null) {
+        return { type: 'OpenMeld', seat, melds: pairOpening }
+      }
     }
 
-    // 3. OpenMeld (post-opening): if already opened, try to lay a new meld from rack.
+    // 3. OpenMeld (post-opening): lay a new meld from the rack — pairs on the çift
+    //    route, runs/groups on the seri route (matches the binding open route).
+    //    Always keep >=1 tile so the engine's finish-protection doesn't reject the
+    //    move (a rejected bot move would stall the turn).
     if (view.you.hasOpened && legal.includes('OpenMeld')) {
-      const layable = findLayableMeld(rack, view.okey!, view.config)
-      if (layable !== null) {
-        return { type: 'OpenMeld', seat, melds: [layable] }
+      if (view.you.openRoute === 'cift') {
+        const pairs = findLayablePairs(rack, view.okey!, view.config)
+        if (pairs !== null && pairs.length > 0) {
+          const maxPairs = Math.floor((rack.length - 1) / 2) // keep >=1 tile to discard
+          const toLay = pairs.slice(0, Math.min(pairs.length, maxPairs))
+          if (toLay.length > 0) {
+            return { type: 'OpenMeld', seat, melds: toLay }
+          }
+        }
+      } else {
+        const layable = findLayableMeld(rack, view.okey!, view.config)
+        if (layable !== null && rack.length - layable.length >= 1) {
+          return { type: 'OpenMeld', seat, melds: [layable] }
+        }
       }
     }
 

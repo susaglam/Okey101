@@ -173,7 +173,7 @@ describe('OpenMeld — openRoute detection', () => {
       h('11S', '11S'),
       h('13R', '13R'),
     ]
-    const rack = pairs5.flat()
+    const rack = [...pairs5.flat(), tileFromString('2M')] // +filler so the open doesn't empty the rack
     let s = reduce(null, { type: 'CreateGame', gameId: 'g-cift2', seed: 1, config: KLASIK_101 })
     s = reduce(s, { type: 'StartHand' })
     s = {
@@ -195,7 +195,7 @@ describe('OpenMeld — openRoute detection', () => {
       h('11S', '11S'),
       h('13R', '13R'),
     ]
-    const rack = pairs5.flat()
+    const rack = [...pairs5.flat(), tileFromString('2M')] // +filler so the open doesn't empty the rack
     let s = reduce(null, { type: 'CreateGame', gameId: 'g-cift3', seed: 1, config: KLASIK_101 })
     s = reduce(s, { type: 'StartHand' })
     s = {
@@ -225,7 +225,7 @@ describe('OpenMeld — already-opened route restrictions', () => {
       h('11S', '11S'),
       h('13R', '13R'),
     ]
-    const rack = [...pairs5.flat(), ...extraRack]
+    const rack = [...pairs5.flat(), ...extraRack, tileFromString('2M')] // +filler keeps a finishing tile after laying
     let s = reduce(null, { type: 'CreateGame', gameId: 'g-cift4', seed: 1, config: KLASIK_101 })
     s = reduce(s, { type: 'StartHand' })
     s = {
@@ -248,6 +248,7 @@ describe('OpenMeld — already-opened route restrictions', () => {
     const bigRack = [
       ...h('11R', '12R', '13R', '11K', '12K', '13K', '11M', '12M', '13M'),
       ...extraRack,
+      tileFromString('2M'), // +filler keeps a finishing tile after laying
     ]
     let s = reduce(null, { type: 'CreateGame', gameId: 'g-seri', seed: 1, config: KLASIK_101 })
     s = reduce(s, { type: 'StartHand' })
