@@ -576,9 +576,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         <div
           className="overlay"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)',
+            position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,.82)',
             color: '#fff', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 18,
+            alignItems: 'center', justifyContent: 'flex-start', gap: 16,
+            paddingTop: '5vh', overflowY: 'auto',
             fontFamily: 'system-ui',
           }}
         >
@@ -600,9 +601,13 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
             </div>
           ) : (
             <button
-              className="act"
               onClick={handleNextHand}
-              style={{ fontSize: 17, padding: '10px 28px', cursor: 'pointer' }}
+              style={{
+                fontSize: 17, padding: '10px 28px', cursor: 'pointer',
+                background: 'linear-gradient(180deg,#f0b53e,#d2811a)', color: '#3a2400',
+                fontWeight: 800, border: 'none', borderRadius: 10,
+                boxShadow: '0 3px 0 #9a5e12, 0 4px 10px rgba(0,0,0,.4)',
+              }}
             >
               Sonraki El ▸
             </button>
