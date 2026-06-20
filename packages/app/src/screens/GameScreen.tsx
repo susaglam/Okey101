@@ -369,6 +369,19 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               Çift Aç (5)
             </button>
           )}
+          {/* Çifte Git (binding) — left group, with confirm so it isn't hit by accident */}
+          {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && !view.you.declaredCift && legal.includes('DeclareCift') && (
+            <button
+              title="Çift rotasını seç (bağlayıcı)"
+              onClick={() => {
+                if (window.confirm('Çifte gitmek BAĞLAYICIDIR: bu el boyunca yalnız çift açıp dizebilirsin, seri/grup açamazsın. Emin misin?')) {
+                  send({ type: 'DeclareCift', seat: view.seat })
+                }
+              }}
+            >
+              Çifte Git
+            </button>
+          )}
           {/* İşle (lay-off) — left group */}
           {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && (
             <button
@@ -416,11 +429,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           </div>
         </div>
 
-        {/* RIGHT: declare çift + lay (seri/çift diz) + utility (Sırala/İpucu) */}
+        {/* RIGHT: lay (seri/çift diz) + utility (Sırala/İpucu) */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && !view.you.declaredCift && legal.includes('DeclareCift') && (
-            <button onClick={() => send({ type: 'DeclareCift', seat: view.seat })}>Çifte Git</button>
-          )}
           {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute !== 'cift' && (
             <button
               disabled={layableMeld101 === null}

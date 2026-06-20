@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
@@ -34,6 +34,8 @@ describe('101 GameScreen', () => {
   })
 
   it('clicking "Çifte Git" does not crash and proceeds without error', async () => {
+    // Çifte Git now asks for confirmation (binding) — auto-confirm in the test.
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const adapter = new LocalAdapter({ seed: 7, humanSeat: 0, variant: KLASIK_101 })
     render(<GameScreen adapter={adapter} />)
     const btn = await screen.findByRole('button', { name: /çifte git/i })

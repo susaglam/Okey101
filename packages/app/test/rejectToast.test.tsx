@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 // P0-1: rejected actions surface a toast instead of being silently swallowed.
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import GameScreen from '../src/screens/GameScreen'
 import { KLASIK_101, tileFromString, type PlayerView, type GameEvent } from '@cs-okey/engine'
 import type { Adapter } from '../src/adapter/Adapter'
 
+// Çifte Git asks for confirmation (binding) — auto-confirm so the dispatch fires.
+beforeEach(() => { vi.spyOn(window, 'confirm').mockReturnValue(true) })
 afterEach(() => cleanup())
 
 function makeRejectingAdapter(view: PlayerView, reason: 'not-your-turn' | 'illegal-move') {
