@@ -341,8 +341,6 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       >
         {/* LEFT: utility + opening buttons */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-          {isMyTurn && <button onClick={handleArrange}>↺ Sırala</button>}
-          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
           {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
             <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
           )}
@@ -366,6 +364,16 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               onClick={() => { if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds }) }}
             >
               Çift Aç (5)
+            </button>
+          )}
+          {/* İşle (lay-off) — left group */}
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && (
+            <button
+              disabled={layOffTarget === null || !legal.includes('LayOff') || view.you.rack.length <= 1}
+              title={view.you.rack.length <= 1 ? 'Son taşını işleyemezsin — onu bitmek için atmalısın' : 'Yerdeki perlere taş işle'}
+              onClick={() => { if (layOffTarget && view.you.rack.length > 1) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] }) }}
+            >
+              İşle
             </button>
           )}
         </div>
@@ -405,7 +413,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           </div>
         </div>
 
-        {/* RIGHT: declare çift + lay (seri/çift diz) + işle */}
+        {/* RIGHT: declare çift + lay (seri/çift diz) + utility (Sırala/İpucu) */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           {isMyTurn && isDiscardPhase && is101 && !view.you.hasOpened && !view.you.declaredCift && legal.includes('DeclareCift') && (
             <button onClick={() => send({ type: 'DeclareCift', seat: view.seat })}>Çifte Git</button>
@@ -428,15 +436,9 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               Çift Diz
             </button>
           )}
-          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && (
-            <button
-              disabled={layOffTarget === null || !legal.includes('LayOff') || view.you.rack.length <= 1}
-              title={view.you.rack.length <= 1 ? 'Son taşını işleyemezsin — onu bitmek için atmalısın' : 'Yerdeki perlere taş işle'}
-              onClick={() => { if (layOffTarget && view.you.rack.length > 1) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] }) }}
-            >
-              İşle
-            </button>
-          )}
+          {/* Utility — right group */}
+          {isMyTurn && <button onClick={handleArrange}>↺ Sırala</button>}
+          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
         </div>
       </div>
 
