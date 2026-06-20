@@ -4,7 +4,7 @@ import GameScreen from './screens/GameScreen'
 import Help from './screens/Help'
 import { LocalAdapter } from './adapter/LocalAdapter'
 import { KLASIK, KLASIK_101 } from '@cs-okey/engine'
-import { clearGame, loadGame, isResumableSave } from './persistence'
+import { clearGame, loadGame, isResumableSave, hasSavedGame } from './persistence'
 import type { SaveData } from './persistence'
 
 type View = 'menu' | 'game' | 'help'
@@ -31,7 +31,7 @@ export default function App() {
   }, [gameKey, variantId, pendingResume, gameSeed])
 
   const handleStart = (v: Variant) => {
-    clearGame()
+    clearGame(v) // start fresh for THIS variant (the other variant's save is kept)
     setPendingResume(null)
     setVariantId(v)
     setGameSeed(freshSeed()) // new random deal each game
@@ -39,15 +39,16 @@ export default function App() {
     setView('game')
   }
 
-  const handleResume = () => {
-    const save = loadGame()
+  const handleResume = (v: Variant) => {
+    const save = loadGame(v)
     // Guard against a corrupt/partial save: resuming it would crash on render.
     // Drop it and stay on the menu rather than throwing.
     if (!isResumableSave(save)) {
-      clearGame()
+      clearGame(v)
       setPendingResume(null)
       return
     }
+    setVariantId(v)
     setPendingResume(save)
     setGameKey(k => k + 1)
     setView('game')
@@ -60,6 +61,8 @@ export default function App() {
       onStart={handleStart}
       onHelp={() => setView('help')}
       onResume={handleResume}
+      hasKlasikSave={hasSavedGame('klasik')}
+      has101Save={hasSavedGame('yuzbir')}
     />
   )
 }

@@ -39,7 +39,7 @@ describe('persistence', () => {
   describe('saveGame / loadGame round-trip', () => {
     it('saves and reloads a SaveData correctly', () => {
       saveGame(SAMPLE_SAVE)
-      const loaded = loadGame()
+      const loaded = loadGame('yuzbir')
       expect(loaded).not.toBeNull()
       expect(loaded!.version).toBe(3)
       expect(loaded!.variantId).toBe('yuzbir')
@@ -49,55 +49,55 @@ describe('persistence', () => {
 
     it('round-trips all fields faithfully', () => {
       saveGame(SAMPLE_SAVE)
-      const loaded = loadGame()
+      const loaded = loadGame('yuzbir')
       expect(loaded).toEqual(SAMPLE_SAVE)
     })
   })
 
   describe('loadGame returns null', () => {
     it('returns null when nothing is saved', () => {
-      expect(loadGame()).toBeNull()
+      expect(loadGame('yuzbir')).toBeNull()
     })
 
     it('returns null when the stored JSON is corrupt', () => {
-      localStorage.setItem('cs-okey-savegame', '{not valid json}}}')
-      expect(loadGame()).toBeNull()
+      localStorage.setItem('cs-okey-savegame-yuzbir', '{not valid json}}}')
+      expect(loadGame('yuzbir')).toBeNull()
     })
 
     it('returns null when the stored value is not an object', () => {
-      localStorage.setItem('cs-okey-savegame', '"just a string"')
-      expect(loadGame()).toBeNull()
+      localStorage.setItem('cs-okey-savegame-yuzbir', '"just a string"')
+      expect(loadGame('yuzbir')).toBeNull()
     })
   })
 
   describe('clearGame', () => {
     it('removes the save so loadGame returns null', () => {
       saveGame(SAMPLE_SAVE)
-      expect(hasSavedGame()).toBe(true)
-      clearGame()
-      expect(loadGame()).toBeNull()
-      expect(hasSavedGame()).toBe(false)
+      expect(hasSavedGame('yuzbir')).toBe(true)
+      clearGame('yuzbir')
+      expect(loadGame('yuzbir')).toBeNull()
+      expect(hasSavedGame('yuzbir')).toBe(false)
     })
 
     it('is safe to call when nothing is saved', () => {
-      expect(() => clearGame()).not.toThrow()
+      expect(() => clearGame('yuzbir')).not.toThrow()
     })
   })
 
   describe('hasSavedGame', () => {
     it('returns false when nothing is saved', () => {
-      expect(hasSavedGame()).toBe(false)
+      expect(hasSavedGame('yuzbir')).toBe(false)
     })
 
     it('returns true after a save', () => {
       saveGame(SAMPLE_SAVE)
-      expect(hasSavedGame()).toBe(true)
+      expect(hasSavedGame('yuzbir')).toBe(true)
     })
 
     it('returns false after clear', () => {
       saveGame(SAMPLE_SAVE)
-      clearGame()
-      expect(hasSavedGame()).toBe(false)
+      clearGame('yuzbir')
+      expect(hasSavedGame('yuzbir')).toBe(false)
     })
   })
 })
@@ -213,13 +213,13 @@ describe('LocalAdapter snapshot/resume', () => {
     })
   })
 
-  it('auto-saves after dispatch: hasSavedGame() is true', async () => {
-    const a = new LocalAdapter({ seed: 0, humanSeat: 0 })
+  it('auto-saves after dispatch: hasSavedGame is true (klasik adapter)', async () => {
+    const a = new LocalAdapter({ seed: 0, humanSeat: 0 }) // KLASIK
     a.subscribe(() => {}, () => {})
-    expect(hasSavedGame()).toBe(false)
+    expect(hasSavedGame('klasik')).toBe(false)
     const tile = a.getHumanView().you.rack[0]!
     await a.dispatch({ type: 'Discard', seat: 0, tile, expectedVersion: a.currentVersion() })
-    expect(hasSavedGame()).toBe(true)
+    expect(hasSavedGame('klasik')).toBe(true)
   })
 
   it('clears save when match is over', async () => {
@@ -247,9 +247,9 @@ describe('LocalAdapter snapshot/resume', () => {
       }
     }
 
-    // If the match is over, save should be cleared
+    // If the match is over, save should be cleared (KLASIK adapter)
     if (a.getMatch().over) {
-      expect(hasSavedGame()).toBe(false)
+      expect(hasSavedGame('klasik')).toBe(false)
     }
   })
 })

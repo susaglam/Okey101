@@ -40,15 +40,15 @@ describe('Help screen', () => {
   it('Menu calls onHelp when "Nasıl Oynanır?" is clicked', () => {
     const onStart = vi.fn()
     const onHelp = vi.fn()
-    render(<Menu onStart={onStart} onHelp={onHelp} />)
+    render(<Menu onStart={onStart} onHelp={onHelp} onResume={() => {}} hasKlasikSave={false} has101Save={false} />)
     fireEvent.click(screen.getByRole('button', { name: /nasıl oynanır/i }))
     expect(onHelp).toHaveBeenCalledOnce()
   })
 
   it('App shows help content after clicking "Nasıl Oynanır?" and returns to menu on Geri', () => {
     render(<App />)
-    // Menu is visible
-    expect(screen.getByRole('button', { name: /^oyna/i })).toBeTruthy()
+    // Menu is visible (the Klasik variant card)
+    expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()
     // Click Nasıl Oynanır?
     fireEvent.click(screen.getByRole('button', { name: /nasıl oynanır/i }))
     // Help screen content
@@ -56,6 +56,6 @@ describe('Help screen', () => {
     // Click Geri
     fireEvent.click(screen.getByRole('button', { name: /geri/i }))
     // Back to menu
-    expect(screen.getByRole('button', { name: /^oyna/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()
   })
 })

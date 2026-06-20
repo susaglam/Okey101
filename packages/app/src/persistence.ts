@@ -12,21 +12,24 @@ export interface SaveData {
   seed?: number
 }
 
-const SAVE_KEY = 'cs-okey-savegame'
+export type VariantId = 'klasik' | 'yuzbir'
+
+// Saves are kept PER VARIANT so Klasik and 101 have independent "continue" slots.
+const saveKey = (v: VariantId) => `cs-okey-savegame-${v}`
 
 export function saveGame(data: SaveData): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data))
+    localStorage.setItem(saveKey(data.variantId), JSON.stringify(data))
   } catch {
     // Quota exceeded or other storage error — save is best-effort
   }
 }
 
-export function loadGame(): SaveData | null {
+export function loadGame(variantId: VariantId): SaveData | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const raw = localStorage.getItem(SAVE_KEY)
+    const raw = localStorage.getItem(saveKey(variantId))
     if (raw === null) return null
     const parsed = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
@@ -36,10 +39,10 @@ export function loadGame(): SaveData | null {
   }
 }
 
-export function clearGame(): void {
+export function clearGame(variantId: VariantId): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.removeItem(SAVE_KEY)
+    localStorage.removeItem(saveKey(variantId))
   } catch {
     // Best-effort
   }
@@ -79,10 +82,10 @@ export function isResumableSave(save: SaveData | null): boolean {
   return true
 }
 
-export function hasSavedGame(): boolean {
+export function hasSavedGame(variantId: VariantId): boolean {
   if (typeof localStorage === 'undefined') return false
   try {
-    return localStorage.getItem(SAVE_KEY) !== null
+    return localStorage.getItem(saveKey(variantId)) !== null
   } catch {
     return false
   }

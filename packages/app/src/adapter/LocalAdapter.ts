@@ -6,7 +6,7 @@ import {
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
 import { applyHandScore, type MatchState } from '../match'
-import { saveGame, clearGame, type SaveData } from '../persistence'
+import { saveGame, clearGame, type SaveData, type VariantId } from '../persistence'
 
 export class LocalAdapter implements Adapter {
   private state: GameState
@@ -60,10 +60,14 @@ export class LocalAdapter implements Adapter {
       : legalMovesKlasik(this.state, this.humanSeat)
   }
 
+  private get variantId(): VariantId {
+    return this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik'
+  }
+
   snapshot(): SaveData {
     return {
       version: this.version,
-      variantId: this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik',
+      variantId: this.variantId,
       state: JSON.parse(JSON.stringify(this.state)),
       standings: [...this.standings],
       scoredHandNo: this.scoredHandNo ?? 0,
@@ -89,7 +93,7 @@ export class LocalAdapter implements Adapter {
     this.viewCb?.(this.getHumanView())
     // Auto-save after nextHand
     if (this.getMatch().over) {
-      clearGame()
+      clearGame(this.variantId)
     } else {
       saveGame(this.snapshot())
     }
@@ -117,7 +121,7 @@ export class LocalAdapter implements Adapter {
     this.viewCb?.(this.getHumanView())
     // Auto-save after dispatch
     if (this.getMatch().over) {
-      clearGame()
+      clearGame(this.variantId)
     } else {
       saveGame(this.snapshot())
     }

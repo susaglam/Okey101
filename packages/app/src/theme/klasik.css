@@ -376,6 +376,22 @@ body { overflow-x: hidden; }
 .menu button:hover { transform: translateY(-1px); }
 .menu button:active { transform: translateY(2px); box-shadow: 0 2px 0 #9a5e12, 0 3px 8px rgba(0, 0, 0, 0.35); }
 
+/* Variant cards: each is a "start new game" tile with an optional "Devam Et" below */
+.variant-cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.variant-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.menu .variant-start {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 150px; padding: 16px 26px;
+}
+.menu .variant-start strong { font-size: 22px; letter-spacing: 1px; }
+.variant-sub { font-size: 12px; font-weight: 700; color: #5a3a10; opacity: 0.85; }
+.variant-cta { font-size: 12px; font-weight: 800; margin-top: 4px; opacity: 0.9; }
+.menu .variant-resume {
+  font-size: 14px; padding: 8px 16px;
+  background: linear-gradient(180deg, #6db36d, #3f7a3f); color: #07210a;
+  box-shadow: 0 3px 0 #2c5a2c, 0 5px 12px rgba(0, 0, 0, 0.3);
+}
+
 .act button, .action-bar button {
   background: linear-gradient(180deg, #f0b53e, #d2811a);
   color: #3a2400;
