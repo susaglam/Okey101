@@ -35,7 +35,13 @@ const REJECT_MSG: Record<RejectionCode, string> = {
   'unknown': 'Hamle reddedildi',
 }
 
-export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
+export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
+  adapter: LocalAdapter
+  /** Return to the main menu (from the match-over screen). */
+  onExitToMenu?: () => void
+  /** Start a fresh match of the same variant (from the match-over screen). */
+  onRestart?: () => void
+}) {
   const [view, setView] = useState<PlayerView | null>(null)
   const [layout, setLayout] = useState<SlotLayout | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
@@ -263,9 +269,11 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     handResultLine = 'Berabere (stok bitti)'
   }
 
-  // Determine match winner (highest standings)
-  const maxStanding = Math.max(...match.standings)
-  const matchWinnerSeat = match.standings.indexOf(maxStanding)
+  // Determine match winner. Direction depends on the scoring model:
+  //  - 101 (yuzbir-penalty): negative = good, so the LOWEST total wins.
+  //  - Klasik (points): the winner gains points, so the HIGHEST total wins.
+  const bestStanding = is101 ? Math.min(...match.standings) : Math.max(...match.standings)
+  const matchWinnerSeat = match.standings.indexOf(bestStanding)
   const matchWinnerName = seatName(matchWinnerSeat)
 
   const handleTakeDiscard = () => {
@@ -715,11 +723,17 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           />
 
           {match.over ? (
-            <div style={{ textAlign: 'center' }}>
-              <h2 style={{ margin: '0 0 6px', fontSize: 26, color: '#ffd700' }}>Maç Bitti</h2>
-              <p style={{ margin: 0, fontSize: 16, opacity: 0.9 }}>
-                Kazanan: <strong>{matchWinnerName}</strong>
-              </p>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+              <div>
+                <h2 style={{ margin: '0 0 6px', fontSize: 26, color: '#ffd700' }}>Maç Bitti</h2>
+                <p style={{ margin: 0, fontSize: 16, opacity: 0.9 }}>
+                  Kazanan: <strong>{matchWinnerName}</strong>
+                </p>
+              </div>
+              <div className="act" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button onClick={() => onRestart?.()}>↻ Yeniden Başlat</button>
+                <button onClick={() => onExitToMenu?.()}>🏠 Ana Menü</button>
+              </div>
             </div>
           ) : (
             <button

@@ -56,7 +56,13 @@ export default function App() {
     setView('game')
   }
 
-  if (view === 'game') return <GameScreen adapter={adapter} />
+  if (view === 'game') return (
+    <GameScreen
+      adapter={adapter}
+      onExitToMenu={() => setView('menu')}
+      onRestart={() => handleStart(variantId)}
+    />
+  )
   if (view === 'help') return <Help onBack={() => setView('menu')} />
   return (
     <Menu
