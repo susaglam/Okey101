@@ -36,10 +36,12 @@ export function MyDiscardTarget({
         padding: 6,
         borderRadius: 10,
         cursor: active ? 'pointer' : 'default',
-        border: hot ? '2px solid #f0b53e' : '2px dashed rgba(255,255,255,.22)',
-        background: hot ? 'rgba(240,181,62,.18)' : 'rgba(0,0,0,.18)',
-        boxShadow: hot ? '0 0 14px 3px rgba(240,181,62,.5)' : 'none',
-        transition: 'border-color .15s, background .15s, box-shadow .15s',
+        // Only the OUTER border (and a soft glow) lights up on your turn — the tile
+        // inside keeps its own colours, never tinted by the target.
+        border: hot ? '3px solid #f0b53e' : '2px dashed rgba(255,255,255,.22)',
+        background: 'rgba(0,0,0,.18)',
+        boxShadow: hot ? '0 0 10px 2px rgba(240,181,62,.55)' : 'none',
+        transition: 'border-color .15s, box-shadow .15s',
         minWidth: 48,
       }}
     >

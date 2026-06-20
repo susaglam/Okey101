@@ -528,8 +528,9 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
         />
-        {/* Utility buttons — to the RIGHT of the rack (old AT spot), stacked. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 96 }}>
+        {/* Utility buttons — to the RIGHT of the rack (old AT spot), stacked. The
+            `act` class gives them the themed (gold) button styling. */}
+        <div className="act" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 96 }}>
           {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
           {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
           {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
