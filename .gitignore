@@ -3,3 +3,6 @@ dist/
 .superpowers/
 *.log
 .remember/
+.playwright-mcp/
+packages/app/.playwright-mcp/
+*.png
