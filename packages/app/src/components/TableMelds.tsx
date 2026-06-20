@@ -42,12 +42,13 @@ function DroppableOkey({ id, enabled, children }: { id: string; enabled: boolean
 
 // Drop target wrapping a whole table meld: drag a rack tile here to lay it off
 // onto THIS meld ("işle"). Gold outline, distinct from the okey target.
-function DroppableMeld({ id, enabled, children }: { id: string; enabled: boolean; children: ReactNode }) {
+function DroppableMeld({ id, enabled, meldIndex, children }: { id: string; enabled: boolean; meldIndex: number; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: !enabled })
   return (
     <div
       ref={setNodeRef}
       data-testid={enabled ? 'layoff-target' : undefined}
+      data-meld-index={meldIndex}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -98,6 +99,7 @@ export function TableMelds({
           <DroppableMeld
             key={idx}
             id={`layoff:${idx}`}
+            meldIndex={idx}
             enabled={layoffEnabled && meld.kind !== 'pair'}
           >
             <span

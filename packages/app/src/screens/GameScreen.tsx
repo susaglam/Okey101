@@ -134,6 +134,24 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
       const faceEl = pileEl?.querySelector('[data-testid="discard-top-tile"]') ?? pileEl
       if (seatEl && pileEl) void flyTile({ clone: faceEl, from: seatEl, to: pileEl, durationSec: 0.3 })
     }
+
+    // Open/lay animation: when new melds appear on the table, fly each new meld's
+    // tiles from their owner (the rack for the human; the seat for opponents) to
+    // their landing spot on the table.
+    if (view.tableMelds.length > prev.tableMelds.length) {
+      for (let mi = prev.tableMelds.length; mi < view.tableMelds.length; mi++) {
+        const meld = view.tableMelds[mi]
+        if (!meld) continue
+        const fromEl = meld.owner === view.seat
+          ? document.querySelector('[data-testid="slot-rack"]')
+          : document.querySelector(`[data-seat="${meld.owner}"][data-testid="seat"]`)
+        const meldEl = document.querySelector(`[data-meld-index="${mi}"]`)
+        const tileEls = meldEl ? Array.from(meldEl.querySelectorAll('[data-testid="table-meld-tile"]')) : []
+        tileEls.forEach((tileEl, ti) => {
+          void flyTile({ clone: tileEl, from: fromEl ?? meldEl, to: tileEl, durationSec: 0.34, delaySec: ti * 0.05 })
+        })
+      }
+    }
   }, [view])
 
   if (!view) return null
