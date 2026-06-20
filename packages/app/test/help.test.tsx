@@ -1,11 +1,26 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import App from '../src/App'
 import Menu from '../src/screens/Menu'
 import Help from '../src/screens/Help'
+import GameScreen from '../src/screens/GameScreen'
+import { LocalAdapter } from '../src/adapter/LocalAdapter'
+import { KLASIK_101 } from '@cs-okey/engine'
 
 afterEach(() => cleanup())
+
+describe('In-game help modal', () => {
+  it('opens a help modal with 101 rules from the in-game ? button', async () => {
+    const adapter = new LocalAdapter({ seed: 3, humanSeat: 0, variant: KLASIK_101 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => expect(screen.getByLabelText('Nasıl Oynanır?')).toBeTruthy())
+    fireEvent.click(screen.getByLabelText('Nasıl Oynanır?'))
+    expect(screen.getByTestId('help-modal')).toBeTruthy()
+    // 101-specific content is present (e.g. "El Açma", "İşleme")
+    expect(screen.getAllByText(/açma/i).length).toBeGreaterThan(0)
+  })
+})
 
 describe('Help screen', () => {
   it('renders help content and Geri button when mounted directly', () => {

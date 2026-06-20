@@ -11,6 +11,7 @@ import { SlotRack } from '../components/SlotRack'
 import { DiscardZone } from '../components/DiscardZone'
 import { Scoreboard } from '../components/Scoreboard'
 import { TableMelds } from '../components/TableMelds'
+import { HelpContent } from './HelpContent'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 import type { SlotLayout } from '../rack/slots'
@@ -38,6 +39,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [match, setMatch] = useState<MatchState>(() => adapter.getMatch())
   const [settings, setSettings] = useState(() => loadSettings())
   const [showSettings, setShowSettings] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   // Reddetme bildirimi (toast) — engine bir hamleyi reddederse kullanıcı sebebini görür.
@@ -455,7 +457,14 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
         />
       </div>
 
-      {/* Settings button — fixed top-right of the screen */}
+      {/* Help + Settings buttons — fixed top-right of the screen */}
+      <button
+        aria-label="Nasıl Oynanır?"
+        onClick={() => setShowHelp(true)}
+        style={{ position: 'fixed', top: 12, right: 54, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+      >
+        ?
+      </button>
       <button
         aria-label="Ayarlar"
         onClick={() => setShowSettings(v => !v)}
@@ -463,6 +472,34 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       >
         ⚙
       </button>
+
+      {showHelp && (
+        <div
+          data-testid="help-modal"
+          role="dialog"
+          aria-label="Nasıl Oynanır?"
+          onClick={() => setShowHelp(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 320, background: 'rgba(0,0,0,.75)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px 12px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#13361f', color: '#fff', borderRadius: 12, padding: '18px 22px',
+              maxWidth: 580, width: '100%', fontFamily: 'system-ui',
+              boxShadow: '0 10px 40px rgba(0,0,0,.6)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>Nasıl Oynanır? {is101 ? '(101)' : '(Klasik)'}</h2>
+              <button onClick={() => setShowHelp(false)} aria-label="Kapat">Kapat</button>
+            </div>
+            <HelpContent variant={is101 ? 'yuzbir' : 'klasik'} />
+          </div>
+        </div>
+      )}
 
       {showSettings && (
         <div
