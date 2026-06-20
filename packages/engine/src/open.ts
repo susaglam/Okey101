@@ -263,17 +263,20 @@ export function isValidMeldSet(melds: Tile[][], okey: Tile, config: VariantConfi
 
 /**
  * Validate a single meld as a "pair" for the pairs-opening route.
- * A pair is exactly 2 tiles of the same number and same color (identical tiles).
- * Neither tile may be a wild (real NUMBER tile equal to okey).
- * FALSE_JOKERs are treated as their concrete okey value (plain, not wild).
+ * A pair is 2 tiles representing the same number and colour. The okey (a real
+ * NUMBER tile equal to okey) is WILD and may stand in for the missing half —
+ * "okey her yerde kullanılır", in çift as well as in seri. So a pair is valid if:
+ *   - both tiles are the same number+colour (identical real tiles, or a FALSE_JOKER
+ *     standing on its concrete okey value), OR
+ *   - at least one tile is the wild okey (it completes the pair).
  */
 function isValidPair(meld: Tile[], okey: Tile): boolean {
   if (meld.length !== 2) return false
   const [a, b] = meld
   if (!a || !b) return false
-  // Neither tile should be a wild (pairs must be real identical tiles)
-  if (isWild(a, okey) || isWild(b, okey)) return false
-  // Use effective values for comparison (handles FALSE_JOKER)
+  // The wild okey completes a pair with any partner (including another wild).
+  if (isWild(a, okey) || isWild(b, okey)) return true
+  // Both concrete: must be the same number and colour.
   const evA = effectiveValue(a, okey)
   const evB = effectiveValue(b, okey)
   if (!evA || !evB) return false
@@ -319,11 +322,12 @@ export function findPairOpening(rack: Tile[], okey: Tile, config: VariantConfig)
  * If `minPairs` is 0, returns all found pairs (or null if none).
  */
 function _collectPairs(rack: Tile[], okey: Tile, minPairs: number): Tile[][] | null {
-  // Group non-wild tiles by their effective "number:color" key
+  // Separate the wild okeys (they can complete any pair) from concrete tiles.
   type Entry = { tile: Tile; key: string }
   const entries: Entry[] = []
+  const wilds: Tile[] = []
   for (const t of rack) {
-    if (isWild(t, okey)) continue
+    if (isWild(t, okey)) { wilds.push(t); continue }
     const ev = effectiveValue(t, okey)
     if (!ev) continue
     entries.push({ tile: t, key: `${ev.number}:${ev.color}` })
@@ -337,13 +341,23 @@ function _collectPairs(rack: Tile[], okey: Tile, minPairs: number): Tile[][] | n
     else { groups.set(key, [tile]) }
   }
 
-  // Extract pairs — each group with ≥2 tiles contributes ⌊count/2⌋ pairs
+  // Extract identical-tile pairs; remember each group's leftover single.
   const pairs: Tile[][] = []
+  const singles: Tile[] = []
   for (const [, tiles] of groups) {
-    for (let i = 0; i + 1 < tiles.length; i += 2) {
-      pairs.push([tiles[i]!, tiles[i + 1]!])
-    }
+    let i = 0
+    for (; i + 1 < tiles.length; i += 2) pairs.push([tiles[i]!, tiles[i + 1]!])
+    if (i < tiles.length) singles.push(tiles[i]!)
   }
+
+  // The okey is wild: pair each leftover single with a wild, then pair any
+  // remaining wilds with each other (a pair of two wilds is valid).
+  let w = 0
+  for (const single of singles) {
+    if (w >= wilds.length) break
+    pairs.push([single, wilds[w++]!])
+  }
+  for (; w + 1 < wilds.length; w += 2) pairs.push([wilds[w]!, wilds[w + 1]!])
 
   if (pairs.length === 0) return null
   if (minPairs > 0 && pairs.length < minPairs) return null

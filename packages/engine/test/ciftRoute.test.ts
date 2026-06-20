@@ -76,18 +76,20 @@ describe('findPairOpening', () => {
     expect(result).toBeNull()
   })
 
-  it('does NOT treat okey (wild) as a pair member', () => {
-    // 7M is okey/wild — two wilds should NOT form a pair for the çift route
+  it('treats the okey (wild) as a usable pair member', () => {
+    // 7M is okey/wild. Four real pairs + a lone 9R + the wild okey → the okey
+    // completes the fifth pair (okey + 9R). "Okey her yerde kullanılır", çift dahil.
     const rack = [
-      ...h('7M', '7M'),   // two wilds — not a valid pair
+      ...h('7M'),         // the wild okey
+      ...h('9R'),         // lone single the okey completes
       ...h('3R', '3R'),
       ...h('5K', '5K'),
       ...h('8M', '8M'),
       ...h('11S', '11S'),
     ]
-    // Only 4 valid pairs; the wilds don't count → null
     const result = findPairOpening(rack, okey, KLASIK_101)
-    expect(result).toBeNull()
+    expect(result).not.toBeNull()
+    expect(result!.length).toBe(5)
   })
 
   it('returns null when pairsOpenCount is not satisfied (e.g. only 5 pairs but config requires more)', () => {
@@ -137,11 +139,12 @@ describe('findLayablePairs', () => {
     expect(result).toBeNull()
   })
 
-  it('does not return wild tiles as pair members', () => {
-    // 7M is okey/wild — two wilds not a valid pair
-    const rack = [...h('7M', '7M'), ...h('1K', '2R', '3S')]
+  it('uses the okey (wild) to complete a layable pair', () => {
+    // 7M is okey/wild. A lone 1K + the wild okey → the okey completes the pair.
+    const rack = [...h('7M'), ...h('1K', '2R', '3S')]
     const result = findLayablePairs(rack, okey, KLASIK_101)
-    expect(result).toBeNull()
+    expect(result).not.toBeNull()
+    expect(result!.length).toBe(1)
   })
 })
 
