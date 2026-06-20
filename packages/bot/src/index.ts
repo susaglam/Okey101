@@ -49,14 +49,16 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
     }
 
     // 4. LayOff: if already opened, try to extend a table meld with one rack tile.
-    if (view.you.hasOpened && legal.includes('LayOff')) {
+    //    Keep at least 2 tiles so the lay-off leaves >=1 to discard as the
+    //    finishing move (the engine rejects a lay-off that empties the rack).
+    if (view.you.hasOpened && legal.includes('LayOff') && rack.length > 1) {
       const layOff = findLayOff(rack, view.tableMelds, view.okey!)
       if (layOff !== null) {
         return { type: 'LayOff', seat, meldIndex: layOff.meldIndex, tiles: [layOff.tile] }
       }
     }
 
-    // 4. Fall through: discard least-useful.
+    // 5. Fall through: discard least-useful.
     const idx = leastUsefulIndex(rack, rng)
     return { type: 'Discard', seat, tile: rack[idx]! }
   }

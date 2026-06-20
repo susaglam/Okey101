@@ -397,6 +397,13 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // Remove tiles from rack
       const newRack = removeTilesFromRack(player.rack, event.tiles)
 
+      // Finish-protection: a player must always keep at least one tile to discard
+      // as the finishing move. Laying off the entire rack would leave nothing to
+      // discard, so the player could never end the hand. Reject it.
+      if (cfg.mustRetainFinishingTile && newRack.length === 0) {
+        throw new RuleError('must keep at least one tile to discard (cannot lay off your whole rack)')
+      }
+
       const newTableMelds = tableMelds.map((m, i) =>
         i === event.meldIndex
           ? { ...m, tiles: mergedTiles }

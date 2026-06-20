@@ -368,6 +368,33 @@ describe('LayOff', () => {
       reduce(s2, { type: 'LayOff', seat: 0, meldIndex: 99, tiles: [extraTile] })
     ).toThrow(RuleError)
   })
+
+  it('throws RuleError if a lay-off would empty the rack (must keep a finishing tile)', () => {
+    const s = openedState()
+    // Reduce seat 0 to a single tile that fits tableMelds[0] (11R,12R,13R → add 10R).
+    const lastTile = tileFromString('10R')
+    const s2: GameState = {
+      ...s,
+      players: s.players.map((p) => (p.seat === 0 ? { ...p, rack: [lastTile] } : p)),
+    }
+    expect(() =>
+      reduce(s2, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [lastTile] })
+    ).toThrow(RuleError)
+  })
+
+  it('allows a lay-off that leaves exactly one tile (the finishing tile)', () => {
+    const s = openedState()
+    // Two tiles: 10R lays onto the run; the other (1K) stays to be discarded.
+    const s2: GameState = {
+      ...s,
+      players: s.players.map((p) =>
+        p.seat === 0 ? { ...p, rack: h('10R', '1K') } : p
+      ),
+    }
+    const s3 = reduce(s2, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('10R')] })
+    expect(s3.players[0]!.rack).toHaveLength(1)
+    expect(s3.tableMelds![0]!.tiles.length).toBe(4)
+  })
 })
 
 // ── DrawFromDiscard sets tookFromLeft on turn ─────────────────────────────────

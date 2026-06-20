@@ -386,9 +386,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
                   </button>
                 )}
                 <button
-                  disabled={layOffTarget === null || !legal.includes('LayOff')}
+                  disabled={layOffTarget === null || !legal.includes('LayOff') || view.you.rack.length <= 1}
+                  title={view.you.rack.length <= 1 ? 'Son taşını işleyemezsin — onu bitmek için atmalısın' : 'Yerdeki perlere taş işle'}
                   onClick={() => {
-                    if (layOffTarget) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] })
+                    if (layOffTarget && view.you.rack.length > 1) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] })
                   }}
                 >
                   İşle
