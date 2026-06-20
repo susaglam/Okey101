@@ -170,8 +170,11 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     ? findLayableMeld(view.you.rack, view.okey, view.config)
     : null
 
-  // findLayablePairs result: post-opening pair laying (only for çift-route players)
-  const layablePairs101 = is101 && view.okey && view.you.hasOpened && openRoute === 'cift'
+  // A çift route is open on the table once anyone has laid a pair. Once it is,
+  // ANY opened player may lay additional pairs (even a seri-route player).
+  const tableHasPair = (view.tableMelds ?? []).some((m) => m.kind === 'pair')
+  // findLayablePairs result: post-opening pair laying (allowed when a çift route exists)
+  const layablePairs101 = is101 && view.okey && view.you.hasOpened && tableHasPair
     ? findLayablePairs(view.you.rack, view.okey, view.config)
     : null
 
@@ -427,10 +430,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
               Seri Diz
             </button>
           )}
-          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute === 'cift' && (
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && tableHasPair && (
             <button
               disabled={layablePairs101 === null}
-              title="Yere yeni çift(ler) diz"
+              title="Yerdeki çift sırasına yeni çift(ler) diz"
               onClick={() => { if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 }) }}
             >
               Çift Diz

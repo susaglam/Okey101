@@ -289,13 +289,27 @@ describe('OpenMeld — already-opened route restrictions', () => {
     ).not.toThrow()
   })
 
-  it('seri-opened player CANNOT lay pairs after opening', () => {
+  it('seri-opened player CANNOT lay pairs when NO çift route is open on the table', () => {
     const extraPairTiles = h('6R', '6R')
-    const s = seriOpenedState(extraPairTiles)
+    const s = seriOpenedState(extraPairTiles) // only seri melds on the table — no pair
     const s2: GameState = { ...s, turn: { seat: 0, phase: 'DISCARD' } }
     expect(() =>
       reduce(s2, { type: 'OpenMeld', seat: 0, melds: [extraPairTiles] })
     ).toThrow(RuleError)
+  })
+
+  it('seri-opened player CAN lay pairs once someone has opened a çift route', () => {
+    const extraPairTiles = h('6R', '6R')
+    const s = seriOpenedState(extraPairTiles)
+    // Another player has a pair on the table → the çift route is open for everyone.
+    const s2: GameState = {
+      ...s,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [...(s.tableMelds ?? []), { owner: 1, kind: 'pair', tiles: h('9R', '9R') }],
+    }
+    expect(() =>
+      reduce(s2, { type: 'OpenMeld', seat: 0, melds: [extraPairTiles] })
+    ).not.toThrow()
   })
 
   it('çift-opened player additional pairs appear in tableMelds with kind="pair"', () => {

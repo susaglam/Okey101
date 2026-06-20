@@ -276,22 +276,26 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
           throw new RuleError('cannot open: melds do not satisfy the opening requirement')
         }
       } else {
-        // Already opened — validate based on the route taken at first open
-        const route = player.openRoute
-        if (route === 'cift') {
-          // ÇİFT route: only additional pairs are allowed; runs/groups are rejected
-          if (!isValidPairSet(event.melds, okey)) {
-            throw new RuleError('cannot open: çift-route player may only lay additional pairs')
+        // Already opened — what is being laid down?
+        const layingPairs = isValidPairSet(event.melds, okey)        // all melds are pairs
+        const layingMelds = isValidMeldSet(event.melds, okey, cfg)   // all melds are runs/groups
+        // A çift route exists on the table once anyone has laid a pair.
+        const tableHasPair = (state.tableMelds ?? []).some((m) => m.kind === 'pair') || player.openRoute === 'cift'
+
+        if (layingPairs) {
+          // Laying new pairs is allowed for ANY opened player — but only once a
+          // çift route is open on the table (someone opened/laid pairs).
+          if (!tableHasPair) {
+            throw new RuleError('cannot lay pairs: no çift route open on the table yet')
+          }
+        } else if (layingMelds) {
+          // Laying new runs/groups (per) is only allowed for seri-route players.
+          // A çift-route player may not open new runs/groups (they lay off / take okey instead).
+          if (player.openRoute === 'cift') {
+            throw new RuleError('cannot open: çift-route player may not lay new runs/groups')
           }
         } else {
-          // SERI route (or unset — treat as seri for backward compat): runs/groups only
-          // Reject if the submitted melds look like pairs (all 2-tile identical pairs)
-          if (isValidPairSet(event.melds, okey)) {
-            throw new RuleError('cannot open: seri-route player may only lay runs/groups')
-          }
-          if (!isValidMeldSet(event.melds, okey, cfg)) {
-            throw new RuleError('cannot open: invalid meld set')
-          }
+          throw new RuleError('cannot open: invalid meld set')
         }
       }
 
