@@ -57,11 +57,12 @@ describe('reduce — turn enforcement', () => {
     expect(s2.players[0]!.discard).toHaveLength(0)
     expect(s2.turn).toMatchObject({ seat: 1, phase: 'DISCARD' })
   })
-  it('voids the hand when stock is exhausted on a stock draw', () => {
+  it('voids the hand on the discard that empties the draw (proactive exhaustion)', () => {
     let s = started()
     s = { ...s, stock: [] } // force empty stock
-    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! }) // seat1 to draw
-    const s2 = reduce(s, { type: 'DrawFromStock', seat: 1 })
+    // The discard that finds an empty stock ends the hand immediately — the next
+    // player is never handed a turn they could only fail to draw on.
+    const s2 = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
     expect(s2.status).toBe('ENDED')
     expect(s2.terminal?.reason).toBe('hand-void')
   })

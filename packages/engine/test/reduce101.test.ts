@@ -136,6 +136,29 @@ describe('StartHand — 101 deal', () => {
   })
 })
 
+// ── Stock exhaustion ends the hand on the discard that empties the draw ───────
+
+describe('stock exhaustion ends the hand proactively', () => {
+  it('101: a discard with an empty stock ends the hand (exhausted), not the next draw', () => {
+    const base = start101()
+    const s: GameState = { ...base, stock: [], turn: { seat: 0, phase: 'DISCARD' } }
+    const tile = s.players[0]!.rack[0]!
+    const s2 = reduce(s, { type: 'Discard', seat: 0, tile })
+    expect(s2.status).toBe('ENDED')
+    expect(s2.terminal?.reason).toBe('exhausted')
+  })
+
+  it('Klasik: a discard with an empty stock voids the hand (hand-void)', () => {
+    let s = reduce(null, { type: 'CreateGame', gameId: 'gx', seed: 3, config: KLASIK })
+    s = reduce(s, { type: 'StartHand' })
+    s = { ...s, stock: [], turn: { seat: 0, phase: 'DISCARD' } }
+    const tile = s.players[0]!.rack[0]!
+    const s2 = reduce(s, { type: 'Discard', seat: 0, tile })
+    expect(s2.status).toBe('ENDED')
+    expect(s2.terminal?.reason).toBe('hand-void')
+  })
+})
+
 // ── DeclareCift ───────────────────────────────────────────────────────────────
 
 describe('DeclareCift', () => {

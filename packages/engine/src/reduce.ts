@@ -219,6 +219,15 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         if (!already) penaltiesApplied = [...penaltiesApplied, { seat, type: 'okey-discard' }]
       }
 
+      // Stock exhaustion: if there are no tiles left to draw, the hand ends NOW
+      // rather than passing the turn to a player who could only fail to draw.
+      // (101 scores on exhaustion; Klasik voids and replays.) The win paths above
+      // already returned, so reaching here means nobody finished on this discard.
+      if (state.stock.length === 0) {
+        const exhaustionReason = cfg.scoringModel === 'yuzbir-penalty' ? 'exhausted' : 'hand-void'
+        return { ...state, players, penaltiesApplied, status: 'ENDED', terminal: { reason: exhaustionReason } }
+      }
+
       // tookFromLeft resets on turn advance
       const turn: TurnState = { seat: nextSeat(event.seat, state.config.players), phase: 'DRAW' }
       return { ...state, players, turn, penaltiesApplied }
