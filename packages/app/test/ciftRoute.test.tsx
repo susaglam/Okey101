@@ -259,6 +259,14 @@ describe('ÇİFT route UI — seri-opened player', () => {
       expect(isleBtn).toBeTruthy()
     })
   })
+
+  it('shows lay-off drop targets on run/group melds after seri open', async () => {
+    const adapter = makeMockAdapter(makeSeriOpenedView())
+    render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
+    await waitFor(() => {
+      expect(screen.getAllByTestId('layoff-target').length).toBeGreaterThan(0)
+    })
+  })
 })
 
 // ── Button visibility: çift-opened ───────────────────────────────────────────
@@ -300,5 +308,14 @@ describe('ÇİFT route UI — çift-opened player', () => {
       expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
     })
     expect(screen.queryByRole('button', { name: /aç.*101/i })).toBeNull()
+  })
+
+  it('does NOT show lay-off targets on pair melds (çift route)', async () => {
+    const adapter = makeMockAdapter(makeCiftOpenedView())
+    render(<GameScreen adapter={adapter as Parameters<typeof GameScreen>[0]['adapter']} />)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /çift diz/i })).toBeTruthy()
+    })
+    expect(screen.queryAllByTestId('layoff-target').length).toBe(0)
   })
 })

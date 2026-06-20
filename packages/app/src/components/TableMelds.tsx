@@ -21,7 +21,7 @@ function isRealOkey(t: Tile, okey: Tile): boolean {
 }
 
 // Drop target wrapping a table-meld okey: drag your matching real tile here to
-// take the okey back into your hand ("okeyi yerden alma").
+// take the okey back into your hand ("okeyi yerden alma"). Turquoise outline.
 function DroppableOkey({ id, enabled, children }: { id: string; enabled: boolean; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: !enabled })
   return (
@@ -40,14 +40,42 @@ function DroppableOkey({ id, enabled, children }: { id: string; enabled: boolean
   )
 }
 
+// Drop target wrapping a whole table meld: drag a rack tile here to lay it off
+// onto THIS meld ("işle"). Gold outline, distinct from the okey target.
+function DroppableMeld({ id, enabled, children }: { id: string; enabled: boolean; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !enabled })
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid={enabled ? 'layoff-target' : undefined}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '4px 6px',
+        borderRadius: 8,
+        background: 'rgba(0,0,0,.18)',
+        outline: enabled ? (isOver ? '2px solid #f0b24a' : '2px dashed rgba(240,178,74,.5)') : undefined,
+        outlineOffset: 1,
+        transition: 'outline-color .12s',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function TableMelds({
   melds,
   okey,
   takeOkeyEnabled = false,
+  layoffEnabled = false,
 }: {
   melds: PlayerView['tableMelds']
   okey: Tile
   takeOkeyEnabled?: boolean
+  /** When true, each non-pair meld becomes a lay-off drop target. */
+  layoffEnabled?: boolean
 }) {
   return (
     <div
@@ -67,16 +95,10 @@ export function TableMelds({
         const ordered = orderMeldForDisplay(meld.tiles, okey)
         const reps = meldRepresentedValues(ordered, okey)
         return (
-          <div
+          <DroppableMeld
             key={idx}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '4px 6px',
-              borderRadius: 8,
-              background: 'rgba(0,0,0,.18)',
-            }}
+            id={`layoff:${idx}`}
+            enabled={layoffEnabled && meld.kind !== 'pair'}
           >
             <span
               style={{
@@ -110,7 +132,7 @@ export function TableMelds({
               }
               return <span key={ti}>{tileEl}</span>
             })}
-          </div>
+          </DroppableMeld>
         )
       })}
     </div>

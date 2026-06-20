@@ -242,6 +242,20 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
     const activeId = String(active.id)
     const overId = over ? String(over.id) : null
 
+    // Lay-off via drag: a rack tile dropped on a table meld ("layoff:meldIndex").
+    // Extend THAT specific meld. Validated by the engine; rejection → toast.
+    if (overId && overId.startsWith('layoff:') && /^\d+$/.test(activeId)) {
+      const meldIndex = Number(overId.split(':')[1])
+      const tile = currentLayout[Number(activeId)]
+      if (
+        tile != null && isDiscardPhase && view.you.hasOpened &&
+        view.you.rack.length > 1 && legal.includes('LayOff')
+      ) {
+        send({ type: 'LayOff', seat: view.seat, meldIndex, tiles: [tile] })
+      }
+      return
+    }
+
     // Okey-swap: a rack tile dropped on a table-meld okey ("take-okey:meld:tile").
     // Insert the real tile and take the okey back into the hand.
     if (overId && overId.startsWith('take-okey:') && /^\d+$/.test(activeId)) {
@@ -311,6 +325,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           melds={view.tableMelds}
           okey={view.okey}
           takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
+          layoffEnabled={isDiscardPhase && view.you.hasOpened && !!view.config.layOff && view.you.rack.length > 1}
         />
       ) : null}
     >
