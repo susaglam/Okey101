@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { Tile } from '@cs-okey/engine'
+import { tileToString } from '@cs-okey/engine'
 import type { SlotLayout } from '../rack/slots'
 import { TileView } from './Tile'
 import { tileFlipId } from '../anim/flip'
@@ -14,6 +15,7 @@ function DraggableTile({
   selected,
   colorblind,
   repValue,
+  layable,
   onSelectSlot,
 }: {
   slotIndex: number
@@ -21,6 +23,7 @@ function DraggableTile({
   selected: boolean
   colorblind?: boolean
   repValue?: number
+  layable?: boolean
   onSelectSlot: (slot: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -47,6 +50,7 @@ function DraggableTile({
         selected={selected}
         colorblind={colorblind}
         repValue={repValue}
+        layable={layable}
         onClick={() => onSelectSlot(slotIndex)}
       />
     </div>
@@ -62,6 +66,7 @@ function RackSlot({
   selected,
   colorblind,
   repValue,
+  layable,
   onSelectSlot,
 }: {
   slotIndex: number
@@ -69,6 +74,7 @@ function RackSlot({
   selected: boolean
   colorblind?: boolean
   repValue?: number
+  layable?: boolean
   onSelectSlot: (slot: number) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: String(slotIndex) })
@@ -88,6 +94,7 @@ function RackSlot({
           selected={selected}
           colorblind={colorblind}
           repValue={repValue}
+          layable={layable}
           onSelectSlot={onSelectSlot}
         />
       )}
@@ -105,6 +112,7 @@ export function SlotRack({
   repValue,
   selectedSlot,
   onSelectSlot,
+  layableKeys,
 }: {
   layout: SlotLayout
   okey?: Tile
@@ -112,6 +120,8 @@ export function SlotRack({
   repValue?: boolean
   selectedSlot: number | null
   onSelectSlot: (slot: number | null) => void
+  /** Keys (tileToString) of rack tiles that can be laid off onto a table meld — marked "işlek". */
+  layableKeys?: Set<string>
 }) {
   const cols = layout.length / 2
   const backRow = layout.slice(0, cols)
@@ -126,6 +136,8 @@ export function SlotRack({
         ? okeyNumber
         : undefined
 
+    const layable = tile !== null && !!layableKeys && layableKeys.has(tileToString(tile))
+
     return (
       <RackSlot
         key={slotIndex}
@@ -134,6 +146,7 @@ export function SlotRack({
         selected={selectedSlot === slotIndex}
         colorblind={colorblind}
         repValue={tileRepValue}
+        layable={layable}
         onSelectSlot={onSelectSlot}
       />
     )

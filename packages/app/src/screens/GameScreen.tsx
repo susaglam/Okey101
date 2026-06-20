@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
 import { DndContext } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
@@ -227,6 +227,23 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       }
     }
     return null
+  })()
+
+  // "İşlek" tiles: rack tiles that fit onto a meld already on the table. Marked with
+  // a red dot so the player can see which tiles are layable (shown whenever there are
+  // table melds — informational, regardless of whether the human has opened yet).
+  const layableKeys: Set<string> = (() => {
+    const keys = new Set<string>()
+    if (!is101 || !view.okey || view.tableMelds.length === 0) return keys
+    const okey = view.okey
+    for (const tile of view.you.rack) {
+      const key = tileToString(tile)
+      if (keys.has(key)) continue
+      for (const meld of view.tableMelds) {
+        if (isValidMeldSet([[...meld.tiles, tile]], okey, view.config)) { keys.add(key); break }
+      }
+    }
+    return keys
   })()
 
   // Determine hand result text
@@ -509,6 +526,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
           repValue={settings.repValue}
           selectedSlot={selectedSlot}
           onSelectSlot={setSelectedSlot}
+          layableKeys={layableKeys}
         />
         {/* Utility buttons — to the RIGHT of the rack (old AT spot), stacked. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 96 }}>

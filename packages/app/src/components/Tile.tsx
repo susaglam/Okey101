@@ -18,6 +18,7 @@ export function TileView({
   colorblind,
   repValue,
   small,
+  layable,
 }: {
   tile: Tile
   selected?: boolean
@@ -27,6 +28,8 @@ export function TileView({
   repValue?: number
   /** Compact size — used for table melds laid on the felt. */
   small?: boolean
+  /** "İşlek": this tile can be laid off onto a meld already on the table. */
+  layable?: boolean
 }) {
   const isJoker = tile.kind === 'FALSE_JOKER'
   const label = isJoker ? 'sahte okey' : tileToString(tile)
@@ -48,6 +51,19 @@ export function TileView({
         <span className="cb-glyph" style={{ fontSize: 10, lineHeight: 1 }}>{glyph}</span>
       )}
       <span className="hole" />
+      {layable && (
+        <span
+          className="islek-dot"
+          data-testid="islek-dot"
+          aria-label="işlek taş"
+          title="İşlek: yerdeki perlere işlenebilir"
+          style={{
+            position: 'absolute', top: 2, right: 2, width: 9, height: 9, borderRadius: '50%',
+            background: '#ff3b30', border: '1px solid rgba(255,255,255,.85)',
+            boxShadow: '0 0 5px 1px rgba(255,59,48,.85)',
+          }}
+        />
+      )}
       {showRepValue && (
         <span
           className="rep-value"
