@@ -6,34 +6,6 @@ import { Seat } from './Seat'
 import { DiscardPile } from './DiscardPile'
 import { seatName } from '../names'
 
-// ── DraggableStockTile ───────────────────────────────────────────────────────
-// Renders the face-down stock pile as a dnd-kit draggable element.
-// Only enabled when it's the human's DRAW phase and stock is non-empty.
-function DraggableStockTile({ stockCount }: { stockCount: number }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: 'draw-stock',
-  })
-
-  return (
-    <div
-      ref={setNodeRef}
-      data-testid="draw-stock"
-      className="stock-deste"
-      style={{
-        cursor: isDragging ? 'grabbing' : 'grab',
-        touchAction: 'none',
-        transform: CSS.Translate.toString(transform),
-        zIndex: isDragging ? 100 : 1,
-        boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,.8), 0 0 0 2px #e8c87a' : undefined,
-      }}
-      {...listeners}
-      {...attributes}
-    >
-      <span className="count">{stockCount}</span>
-    </div>
-  )
-}
-
 // ── DraggableFloorPile ───────────────────────────────────────────────────────
 // Wraps the takeable floor pile (DiscardPile) with a dnd-kit draggable.
 // Only rendered when takeablePile is true.
@@ -41,10 +13,12 @@ function DraggableFloorPile({
   topTile,
   count,
   onTake,
+  seat,
 }: {
   topTile: Parameters<typeof DiscardPile>[0]['topTile']
   count: number
   onTake?: () => void
+  seat?: number
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: 'draw-floor',
@@ -69,6 +43,7 @@ function DraggableFloorPile({
         count={count}
         takeable={true}
         onTake={onTake}
+        seat={seat}
       />
     </div>
   )
@@ -156,6 +131,7 @@ export function Table({
             />
             <Seat
               name={seatName(topOpponent.seat)}
+              seat={topOpponent.seat}
               count={topOpponent.rackCount}
               isTurn={view.turn.seat === topOpponent.seat}
               position="top"
@@ -206,26 +182,10 @@ export function Table({
           )}
         </div>
 
-        {/* CENTER: the draw stock (white tile-stack) only. The gösterge moved down
-            next to the human's nameplate (rendered by GameScreen). */}
+        {/* CENTER: just the turn-direction arrow. The draw stock + gösterge moved to
+            the rack's upper-right (rendered by GameScreen). */}
         <div style={centerStyle}>
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
-          <div className="center-well">
-            {/* Stock: white tile-stack; remaining count in its inner corner. */}
-            <div
-              data-testid="stock-count"
-              data-stockcount={view.stockCount}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
-            >
-              {isMyDrawTurn && view.stockCount > 0 ? (
-                <DraggableStockTile stockCount={view.stockCount} />
-              ) : (
-                <div data-testid="stock-tile" className="stock-deste">
-                  <span className="count">{view.stockCount}</span>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* RIGHT side: seat 1 + its discard pile ABOVE it (top-right corner) —

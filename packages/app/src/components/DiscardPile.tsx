@@ -6,11 +6,14 @@ export function DiscardPile({
   count,
   takeable,
   onTake,
+  seat,
 }: {
   topTile?: Tile
   count: number
   takeable?: boolean
   onTake?: () => void
+  /** Owning seat — animation anchor (data-seat) for the discard fly target. */
+  seat?: number
 }) {
   const glowStyle: React.CSSProperties = takeable
     ? {
@@ -50,6 +53,7 @@ export function DiscardPile({
     <div
       data-testid="discard-pile"
       data-takeable={takeable ? 'true' : undefined}
+      data-seat={seat}
       style={containerStyle}
       onClick={takeable ? onTake : undefined}
       role={takeable ? 'button' : undefined}

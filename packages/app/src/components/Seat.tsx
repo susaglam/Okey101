@@ -6,6 +6,7 @@ export function Seat({
   score,
   chips,
   stack,
+  seat,
 }: {
   name: string
   count: number
@@ -15,6 +16,8 @@ export function Seat({
   chips?: number | string
   /** Rakip varlığı için yüz-aşağı mini taş yığını göster */
   stack?: boolean
+  /** Oturma indeksi — animasyon çapası (data-seat) için. */
+  seat?: number
 }) {
   const isVertical = position === 'left' || position === 'right'
 
@@ -77,6 +80,7 @@ export function Seat({
     <div
       className={`seat${isTurn ? ' turn' : ''}`}
       data-testid="seat"
+      data-seat={seat}
       style={containerStyle}
     >
       <div style={avatarStyle}>

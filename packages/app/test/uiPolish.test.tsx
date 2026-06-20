@@ -4,6 +4,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { SlotRack } from '../src/components/SlotRack'
 import { Table } from '../src/components/Table'
 import { Seat } from '../src/components/Seat'
+import { StockPile } from '../src/components/StockPile'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import { initLayout } from '../src/rack/slots'
@@ -99,16 +100,13 @@ describe('Empty slot appearance', () => {
 // ────────────────────────────────────────────────────────────────────────────
 describe('Stock indicator', () => {
   it('shows stockCount number in the stock indicator', () => {
-    const view = makeView({ stockCount: 37 })
-    render(<Table view={view} />)
-    const stockEl = screen.getByTestId('stock-count')
-    expect(stockEl.textContent).toContain('37')
+    // The stock now renders via StockPile (moved out of Table to the rack's upper-right).
+    render(<StockPile stockCount={37} enabled={false} />)
+    expect(screen.getByTestId('stock-count').textContent).toContain('37')
   })
 
-  it('stock indicator is a tile-shaped element (data-testid="stock-tile" when not DRAW turn)', () => {
-    // When NOT on a DRAW turn, the non-draggable stock-tile is shown
-    const view = makeView({ stockCount: 22, turn: { seat: 0, phase: 'DISCARD' } })
-    render(<Table view={view} />)
+  it('stock indicator is a tile-shaped element (data-testid="stock-tile" when not draggable)', () => {
+    render(<StockPile stockCount={22} enabled={false} />)
     const stockTile = screen.getByTestId('stock-tile')
     expect(stockTile).toBeInTheDocument()
     expect(stockTile.textContent).toContain('22')

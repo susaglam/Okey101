@@ -42,14 +42,14 @@ function makeView(overrides: Partial<PlayerView> = {}): PlayerView {
 }
 
 describe('Table', () => {
-  it('renders 3 opponent seats and the stock count', () => {
+  it('renders 3 opponent seats and the children', () => {
     const a = new LocalAdapter({ seed: 5, humanSeat: 0 })
     const view = a.getHumanView()
     render(<Table view={view}><div data-testid="bottom">rack</div></Table>)
     expect(screen.getAllByTestId('seat')).toHaveLength(3)
-    expect(screen.getByTestId('stock-count').textContent).toContain(String(view.stockCount))
-    // The gösterge moved out of Table — it now renders next to the human nameplate
-    // (in GameScreen), so it is no longer part of the bare Table.
+    // The stock + gösterge moved out of the bare Table to the rack's upper-right
+    // (rendered by GameScreen), so neither is part of Table any more.
+    expect(screen.queryByTestId('stock-count')).toBeNull()
     expect(screen.queryByTestId('gosterge')).toBeNull()
     expect(screen.getByTestId('bottom')).toBeInTheDocument()
   })

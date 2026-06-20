@@ -10,6 +10,7 @@ import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
 import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
+import { StockPile } from '../components/StockPile'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
 import { TableMelds } from '../components/TableMelds'
@@ -484,23 +485,8 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
           )}
         </div>
 
-        {/* CENTER: gösterge (moved down here, by the player) + live hand total + nameplate */}
+        {/* CENTER: live hand total (101) + human nameplate */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {view.indicator && (
-            <div
-              data-testid="gosterge"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 4px',
-                borderRadius: 10, background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.12)',
-              }}
-            >
-              <span style={{ fontSize: 10, opacity: 0.75, fontWeight: 700 }}>Gösterge</span>
-              <TileView tile={view.indicator} testId="gosterge-tile" small />
-              <span style={{ fontSize: 11, opacity: 0.9 }}>
-                okey: <strong style={{ color: '#ffd27a' }}>{view.okey ? tileToString(view.okey) : '-'}</strong>
-              </span>
-            </div>
-          )}
           {is101 && !view.you.hasOpened && (
             <div
               data-testid="hand-total"
@@ -534,9 +520,21 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
           </div>
         </div>
 
-        {/* RIGHT: the player's single discard spot — shows thrown tiles; lights up
-            and reads "Taş At" on your discard turn (replaces the old separate AT zone). */}
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+        {/* RIGHT (rack's upper-right): draw stock + gösterge, then the discard spot. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
+          {/* Draw stock (white tile-stack) + the gösterge tile (rendered exactly like
+              a rack tile) with the derived okey. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
+            {view.indicator && (
+              <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <TileView tile={view.indicator} testId="gosterge-tile" />
+                <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
+                  okey: <strong style={{ color: '#ffd27a' }}>{view.okey ? tileToString(view.okey) : '-'}</strong>
+                </span>
+              </div>
+            )}
+          </div>
           <MyDiscardTarget
             topTile={myDiscardTop}
             count={myDiscardCount}

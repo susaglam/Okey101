@@ -11,6 +11,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { DndContext } from '@dnd-kit/core'
 import { Table } from '../src/components/Table'
 import { SlotRack } from '../src/components/SlotRack'
+import { StockPile } from '../src/components/StockPile'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import { interpretDragEnd } from '../src/utils/dragEnd'
@@ -139,45 +140,27 @@ describe('interpretDragEnd', () => {
 
 // ── 2. Stock tile has data-testid="draw-stock" on DRAW turn ─────────────────
 
-describe('Table stock tile draggable on DRAW turn', () => {
-  it('renders stock tile with data-testid="draw-stock" on human DRAW turn', () => {
-    const view = makeView({ turn: { seat: 0, phase: 'DRAW' }, stockCount: 10 })
+describe('StockPile draggable gating', () => {
+  // The stock moved out of Table to StockPile (rendered at the rack's upper-right
+  // by GameScreen). StockPile is draggable (data-testid="draw-stock") only when
+  // `enabled`; GameScreen computes enabled = isMyTurn && DRAW && stockCount > 0.
+  it('renders a draggable draw-stock when enabled', () => {
     render(
       <DndContext>
-        <Table view={view} />
+        <StockPile stockCount={10} enabled />
       </DndContext>
     )
     expect(screen.getByTestId('draw-stock')).toBeInTheDocument()
   })
 
-  it('does NOT render draw-stock testid when it is not human DRAW turn', () => {
-    const view = makeView({ turn: { seat: 1, phase: 'DRAW' }, stockCount: 10 })
+  it('renders a static stock-tile (no draw-stock) when disabled', () => {
     render(
       <DndContext>
-        <Table view={view} />
+        <StockPile stockCount={10} enabled={false} />
       </DndContext>
     )
     expect(screen.queryByTestId('draw-stock')).not.toBeInTheDocument()
-  })
-
-  it('does NOT render draw-stock when stockCount is 0', () => {
-    const view = makeView({ turn: { seat: 0, phase: 'DRAW' }, stockCount: 0 })
-    render(
-      <DndContext>
-        <Table view={view} />
-      </DndContext>
-    )
-    expect(screen.queryByTestId('draw-stock')).not.toBeInTheDocument()
-  })
-
-  it('does NOT render draw-stock on human DISCARD phase', () => {
-    const view = makeView({ turn: { seat: 0, phase: 'DISCARD' }, stockCount: 10 })
-    render(
-      <DndContext>
-        <Table view={view} />
-      </DndContext>
-    )
-    expect(screen.queryByTestId('draw-stock')).not.toBeInTheDocument()
+    expect(screen.getByTestId('stock-tile')).toBeInTheDocument()
   })
 })
 
