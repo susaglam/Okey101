@@ -17,8 +17,8 @@ import type { SlotLayout } from '../rack/slots'
 import { initLayout, reconcile, moveTile, autoArrange, parseMeldSegments } from '../rack/slots'
 import { interpretDragEnd } from '../utils/dragEnd'
 import { captureRackFlip, runRackFlip } from '../anim/flip'
+import { SEAT_NAMES, seatName } from '../names'
 
-const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
 const COLS = 16
 
 // Reddedilen hamleler için kullanıcı-dostu Türkçe mesajlar (toast).
@@ -195,7 +195,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   let handResultLine: string
   if (view.terminal?.reason === 'win') {
     const winnerSeat = view.terminal.winnerSeat
-    const winnerName = winnerSeat != null ? (NAMES[winnerSeat] ?? `Oyuncu ${winnerSeat}`) : 'Bilinmeyen'
+    const winnerName = winnerSeat != null ? seatName(winnerSeat) : 'Bilinmeyen'
     const winTypeLabel = view.terminal.winType === 'pairs' ? 'Çift' : 'Per'
     handResultLine = winnerSeat === view.seat
       ? `🏆 Kazandın! — ${winTypeLabel}`
@@ -207,7 +207,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // Determine match winner (highest standings)
   const maxStanding = Math.max(...match.standings)
   const matchWinnerSeat = match.standings.indexOf(maxStanding)
-  const matchWinnerName = NAMES[matchWinnerSeat] ?? `Oyuncu ${matchWinnerSeat}`
+  const matchWinnerName = seatName(matchWinnerSeat)
 
   const handleTakeDiscard = () => {
     send({ type: 'DrawFromDiscard', seat: view.seat })
@@ -518,7 +518,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
           <Scoreboard
             standings={match.standings}
-            names={NAMES}
+            names={[...SEAT_NAMES]}
             handNo={match.handNo}
             totalHands={match.totalHands}
           />

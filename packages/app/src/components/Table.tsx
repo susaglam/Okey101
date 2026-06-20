@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Seat } from './Seat'
 import { TileView } from './Tile'
 import { DiscardPile } from './DiscardPile'
+import { seatName } from '../names'
 
 // ── DraggableStockTile ───────────────────────────────────────────────────────
 // Renders the face-down stock pile as a dnd-kit draggable element.
@@ -74,8 +75,6 @@ function DraggableFloorPile({
     </div>
   )
 }
-
-const BOT_NAMES = ['Ayşe', 'Mert', 'Can', 'Arda', 'Elif']
 
 // Seat layout:
 //   view.seat = 0 (human) = BOTTOM
@@ -152,7 +151,7 @@ export function Table({
         {topOpponent && (
           <>
             <Seat
-              name={BOT_NAMES[(topOpponent.seat) % BOT_NAMES.length]!}
+              name={seatName(topOpponent.seat)}
               count={topOpponent.rackCount}
               isTurn={view.turn.seat === topOpponent.seat}
               position="top"
@@ -175,7 +174,7 @@ export function Table({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {leftOpponent && (
             <Seat
-              name={BOT_NAMES[(leftOpponent.seat) % BOT_NAMES.length]!}
+              name={seatName(leftOpponent.seat)}
               count={leftOpponent.rackCount}
               isTurn={view.turn.seat === leftOpponent.seat}
               position="left"
@@ -234,7 +233,7 @@ export function Table({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {rightOpponent && (
             <Seat
-              name={BOT_NAMES[(rightOpponent.seat) % BOT_NAMES.length]!}
+              name={seatName(rightOpponent.seat)}
               count={rightOpponent.rackCount}
               isTurn={view.turn.seat === rightOpponent.seat}
               position="right"

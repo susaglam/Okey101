@@ -4,16 +4,10 @@ import { tilesEqual } from '@cs-okey/engine'
 import { useDroppable } from '@dnd-kit/core'
 import { TileView } from './Tile'
 import { orderMeldForDisplay, meldRepresentedValues } from '../rack/slots'
-
-const OWNER_LABELS: Record<number, string> = {
-  0: 'Sen',
-  1: 'O1',
-  2: 'O2',
-  3: 'O3',
-}
+import { seatName } from '../names'
 
 function ownerLabel(owner: number): string {
-  return OWNER_LABELS[owner] ?? `O${owner}`
+  return seatName(owner)
 }
 
 function isWild(t: Tile, okey: Tile): boolean {
