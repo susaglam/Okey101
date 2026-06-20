@@ -199,9 +199,13 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         const player = players.find((x) => x.seat === seat)!
         if (rack.length === 0 && player.hasOpened) {
           const winnersPlayers = replacePlayer(players, seat, (pp) => ({ ...pp, isOut: true }))
+          // Derive the finish type from the player's opening route so a çift-route
+          // finisher gets the ×2 cift multiplier (scoreHand101 keys it on winType==='pairs').
+          // (Empty rack can't be re-evaluated, so the route is the source of truth.)
+          const winType = player.openRoute === 'cift' ? 'pairs' : 'perOnly'
           return {
             ...state, players: winnersPlayers, status: 'ENDED',
-            terminal: { reason: 'win', winnerSeat: seat, winType: 'perOnly', finishingTile: tile },
+            terminal: { reason: 'win', winnerSeat: seat, winType, finishingTile: tile },
           }
         }
       }

@@ -93,7 +93,24 @@ function makeMockAdapter(view: PlayerView): Adapter {
     currentVersion: () => view.version,
     getMatch: () => ({ handNo: 1, totalHands: 11, standings: [0, 0, 0, 0], over: false }),
     nextHand: vi.fn(),
+    legalMoves: () => mockLegalMoves(view),
   } as unknown as Adapter
+}
+
+/** Mirrors engine legalMoves101 but driven by the redacted view (for mock adapters). */
+function mockLegalMoves(view: PlayerView): GameEvent['type'][] {
+  if (view.status !== 'PLAYING' || view.turn.seat !== view.seat) return []
+  if (view.turn.phase === 'DRAW') {
+    const moves: GameEvent['type'][] = ['DrawFromStock']
+    const leftSeat = (view.seat - 1 + view.config.players) % view.config.players
+    const left = view.opponents.find((o) => o.seat === leftSeat)
+    if (left && left.discardCount > 0) moves.push('DrawFromDiscard')
+    return moves
+  }
+  const moves: GameEvent['type'][] = ['Discard', 'OpenMeld', 'DeclareWin']
+  if (!view.you.declaredCift) moves.push('DeclareCift')
+  if (view.you.hasOpened && (view.tableMelds?.length ?? 0) > 0) moves.push('LayOff')
+  return moves
 }
 
 describe('Seri Aç button (post-opening meld laying)', () => {

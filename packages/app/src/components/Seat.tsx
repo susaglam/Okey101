@@ -5,6 +5,7 @@ export function Seat({
   position,
   score,
   chips,
+  stack,
 }: {
   name: string
   count: number
@@ -12,10 +13,13 @@ export function Seat({
   position?: 'top' | 'left' | 'right' | 'bottom'
   score?: number
   chips?: number | string
+  /** Rakip varlığı için yüz-aşağı mini taş yığını göster */
+  stack?: boolean
 }) {
   const isVertical = position === 'left' || position === 'right'
 
   const containerStyle: React.CSSProperties = {
+    position: 'relative',
     display: 'flex',
     flexDirection: isVertical ? 'column' : 'row',
     alignItems: 'center',
@@ -28,6 +32,7 @@ export function Seat({
   }
 
   const avatarStyle: React.CSSProperties = {
+    position: 'relative',
     width: isVertical ? 24 : 30,
     height: isVertical ? 24 : 30,
     borderRadius: '50%',
@@ -43,7 +48,7 @@ export function Seat({
   const nameStyle: React.CSSProperties = {
     fontWeight: 700,
     fontSize: isVertical ? 11 : 14,
-    maxWidth: isVertical ? 32 : undefined,
+    maxWidth: isVertical ? 40 : undefined,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -65,14 +70,54 @@ export function Seat({
     color: '#ffd27a',
   }
 
+  // Yüz-aşağı mini taş yığını (rakip elinin görsel temsili)
+  const stackCount = stack ? Math.min(count, 7) : 0
+
   return (
     <div
       className={`seat${isTurn ? ' turn' : ''}`}
       data-testid="seat"
       style={containerStyle}
     >
-      <div style={avatarStyle}>{name[0]}</div>
+      <div style={avatarStyle}>
+        {name[0]}
+        {isTurn && (
+          <span
+            className="active-dot"
+            style={{ position: 'absolute', bottom: -1, right: -1, border: '1px solid #7a4a1c' }}
+          />
+        )}
+      </div>
       <span style={nameStyle}>{name}</span>
+      {stackCount > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'relative',
+            width: 14 + (stackCount - 1) * 3,
+            height: 20,
+            flexShrink: 0,
+          }}
+        >
+          {Array.from({ length: stackCount }, (_, i) => (
+            <span
+              key={i}
+              style={{
+                position: 'absolute',
+                left: i * 3,
+                top: 0,
+                width: 12,
+                height: 18,
+                borderRadius: 2,
+                background: 'linear-gradient(175deg,#f5f0e8,#e2d8c4)',
+                border: '1px solid #b8ac90',
+                borderBottom: '2px solid #9a8e72',
+                boxShadow: '0 1px 1px rgba(0,0,0,.25)',
+              }}
+            />
+          ))}
+        </div>
+      )}
       <span style={badgeStyle}>{count}</span>
       {chips !== undefined && (
         <span style={{ ...badgeStyle, background: 'rgba(60,180,60,.35)', fontSize: isVertical ? 9 : 11 }}>

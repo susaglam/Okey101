@@ -57,7 +57,7 @@ export function reconcile(prev: SlotLayout, tiles: Tile[]): SlotLayout {
   // Pass 1: keep existing tiles that are still in the multiset
   for (let i = 0; i < prev.length; i++) {
     const t = prev[i]
-    if (t === null) continue
+    if (t == null) continue
     // Try to claim one from remaining
     let claimed = false
     for (const [key, count] of remaining) {

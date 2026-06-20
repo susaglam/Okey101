@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
 import { suggestDiscard, tilesEqual, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isValidMeldSet } from '@cs-okey/engine'
 import { DndContext } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
+import type { RejectionCode } from '../adapter/Adapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
@@ -15,9 +16,20 @@ import { applyTheme } from '../theme/themes'
 import type { SlotLayout } from '../rack/slots'
 import { initLayout, reconcile, moveTile, autoArrange } from '../rack/slots'
 import { interpretDragEnd } from '../utils/dragEnd'
+import { captureRackFlip, runRackFlip } from '../anim/flip'
 
 const NAMES = ['Sen', 'Ayşe', 'Mert', 'Can']
 const COLS = 16
+
+// Reddedilen hamleler için kullanıcı-dostu Türkçe mesajlar (toast).
+const REJECT_MSG: Record<RejectionCode, string> = {
+  'not-your-turn': 'Sıra sende değil',
+  'wrong-phase': 'Şu an bu hamleyi yapamazsın',
+  'illegal-move': 'Geçersiz hamle',
+  'stale-version': 'Bir saniye, tekrar dene',
+  'not-winning': 'Bu el bitiş için geçerli değil',
+  'unknown': 'Hamle reddedildi',
+}
 
 export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [view, setView] = useState<PlayerView | null>(null)
@@ -26,6 +38,30 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const [match, setMatch] = useState<MatchState>(() => adapter.getMatch())
   const [settings, setSettings] = useState(() => loadSettings())
   const [showSettings, setShowSettings] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  // Reddetme bildirimi (toast) — engine bir hamleyi reddederse kullanıcı sebebini görür.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showReject = (reason?: RejectionCode) => {
+    setToast(REJECT_MSG[reason ?? 'unknown'])
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2600)
+  }
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
+  // GSAP Flip: ıstaka yeniden-dizilince taşları akıcı kaydır.
+  // Konum durumu, layout değişmeden ÖNCE yakalanır; render sonrası oynatılır.
+  const pendingFlip = useRef<{ state: unknown; duration: number } | null>(null)
+  useLayoutEffect(() => {
+    if (pendingFlip.current) {
+      runRackFlip(pendingFlip.current.state, pendingFlip.current.duration)
+      pendingFlip.current = null
+    }
+  })
+  const withFlip = (fn: () => void, duration = 0.3) => {
+    pendingFlip.current = { state: captureRackFlip(), duration }
+    fn()
+  }
 
   useEffect(() =>
     adapter.subscribe(
@@ -43,6 +79,8 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   if (!view) return null
 
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
+  // Single source of truth for action gating (engine legality for the human seat).
+  const legal = adapter.legalMoves()
 
   // The current layout (fall back to fresh initLayout if state hasn't been set yet)
   const currentLayout: SlotLayout = layout ?? initLayout(view.you.rack, COLS)
@@ -51,12 +89,17 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   const selectedTile = selectedSlot !== null ? currentLayout[selectedSlot] ?? null : null
 
   const send = (intent: GameEvent) => {
-    void adapter.dispatch({ ...intent, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
+    adapter
+      .dispatch({ ...intent, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
+      .then((res) => {
+        if (!res.accepted) showReject(res.reason)
+      })
   }
 
   const handleArrange = () => {
     if (!view.okey) return
-    setLayout(autoArrange(view.you.rack, view.okey, view.config, COLS))
+    const okey = view.okey
+    withFlip(() => setLayout(autoArrange(view.you.rack, okey, view.config, COLS)), 0.42)
   }
 
   const handleHint = () => {
@@ -127,9 +170,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // Determine hand result text
   let handResultLine: string
   if (view.terminal?.reason === 'win') {
-    const winnerName = NAMES[view.terminal.winnerSeat] ?? `Oyuncu ${view.terminal.winnerSeat}`
+    const winnerSeat = view.terminal.winnerSeat
+    const winnerName = winnerSeat != null ? (NAMES[winnerSeat] ?? `Oyuncu ${winnerSeat}`) : 'Bilinmeyen'
     const winTypeLabel = view.terminal.winType === 'pairs' ? 'Çift' : 'Per'
-    handResultLine = view.terminal.winnerSeat === view.seat
+    handResultLine = winnerSeat === view.seat
       ? `🏆 Kazandın! — ${winTypeLabel}`
       : `${winnerName} kazandı — ${winTypeLabel}`
   } else {
@@ -174,7 +218,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       }
 
       case 'move':
-        setLayout(l => moveTile(l!, result.from, result.to))
+        withFlip(() => setLayout(l => moveTile(l!, result.from, result.to)), 0.3)
         break
 
       case 'none':
@@ -186,8 +230,23 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
+    {toast && (
+      <div
+        role="alert"
+        data-testid="reject-toast"
+        style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 300, background: 'rgba(28,6,6,0.92)', color: '#ffd9d9',
+          border: '1px solid rgba(255,120,120,0.45)', padding: '10px 18px',
+          borderRadius: 10, fontFamily: 'system-ui', fontWeight: 700, fontSize: 14,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.55)', pointerEvents: 'none',
+        }}
+      >
+        {toast}
+      </div>
+    )}
     <Table view={view} onTakeDiscard={handleTakeDiscard}>
-      {is101 && <TableMelds melds={view.tableMelds} okey={view.okey} />}
+      {is101 && view.okey && <TableMelds melds={view.tableMelds} okey={view.okey} />}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}
@@ -212,8 +271,10 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
       <div className="act" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
         {isMyTurn && view.turn.phase === 'DRAW' && (
           <>
-            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
-            {view.opponents.some((o) => o.seat === (view.seat - 1 + view.config.players) % view.config.players && o.discardCount > 0) && (
+            {legal.includes('DrawFromStock') && (
+              <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
+            )}
+            {legal.includes('DrawFromDiscard') && (
               <button onClick={() => send({ type: 'DrawFromDiscard', seat: view.seat })}>Yerden Çek</button>
             )}
           </>
@@ -264,7 +325,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
                   </button>
                 )}
                 <button
-                  disabled={layOffTarget === null}
+                  disabled={layOffTarget === null || !legal.includes('LayOff')}
                   onClick={() => {
                     if (layOffTarget) send({ type: 'LayOff', seat: view.seat, meldIndex: layOffTarget.meldIndex, tiles: [layOffTarget.tile] })
                   }}
@@ -272,7 +333,7 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
                   İşle
                 </button>
                 <button
-                  disabled={!!view.you.declaredCift}
+                  disabled={!legal.includes('DeclareCift')}
                   onClick={() => send({ type: 'DeclareCift', seat: view.seat })}
                 >
                   Çifte Git

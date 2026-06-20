@@ -19,46 +19,18 @@ function DraggableStockTile({ stockCount }: { stockCount: number }) {
     <div
       ref={setNodeRef}
       data-testid="draw-stock"
+      className="facedown"
       style={{
-        width: 40,
-        height: 56,
-        borderRadius: 6,
-        background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
-        boxShadow: isDragging
-          ? '0 6px 20px rgba(0,0,0,.8), 0 0 0 2px #e8c87a'
-          : '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
-        border: '1px solid #5a4020',
-        boxSizing: 'border-box' as const,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
-        opacity: isDragging ? 0.75 : 1,
         transform: CSS.Translate.toString(transform),
         zIndex: isDragging ? 100 : 1,
+        boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,.8), 0 0 0 2px #e8c87a' : undefined,
       }}
       {...listeners}
       {...attributes}
     >
-      {/* subtle back pattern */}
-      <div style={{
-        position: 'absolute',
-        inset: 4,
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 3,
-      }} />
-      <span style={{
-        color: '#e8c87a',
-        fontWeight: 900,
-        fontSize: 15,
-        zIndex: 1,
-        textShadow: '0 1px 2px rgba(0,0,0,.6)',
-      }}>
-        {stockCount}
-      </span>
+      <span>{stockCount}</span>
     </div>
   )
 }
@@ -170,12 +142,6 @@ export function Table({
     gap: 6,
   }
 
-  const centerRowStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-  }
-
   return (
     <div className="felt" style={outerStyle}>
       {/* TOP ROW: top seat + its discard pile */}
@@ -188,6 +154,7 @@ export function Table({
               isTurn={view.turn.seat === topOpponent.seat}
               position="top"
               score={view.scores?.[topOpponent.seat]}
+              stack
             />
             {/* seat 2's discard pile sits between top and left */}
             <DiscardPile
@@ -210,6 +177,7 @@ export function Table({
               isTurn={view.turn.seat === leftOpponent.seat}
               position="left"
               score={view.scores?.[leftOpponent.seat]}
+              stack
             />
           )}
           {/* Seat 3's discard = human's takeable pile */}
@@ -233,7 +201,7 @@ export function Table({
         {/* CENTER: stok + gösterge + okey label + direction arrow */}
         <div style={centerStyle}>
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
-          <div style={centerRowStyle}>
+          <div className="center-well">
             {/* Stock indicator: tile-shaped face-down element with count */}
             <div
               data-testid="stock-count"
@@ -243,46 +211,15 @@ export function Table({
               {isMyDrawTurn && view.stockCount > 0 ? (
                 <DraggableStockTile stockCount={view.stockCount} />
               ) : (
-                <div
-                  data-testid="stock-tile"
-                  style={{
-                    width: 40,
-                    height: 56,
-                    borderRadius: 6,
-                    background: 'linear-gradient(160deg, #3a2e1a 0%, #1e1508 100%)',
-                    boxShadow: '0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06)',
-                    border: '1px solid #5a4020',
-                    boxSizing: 'border-box',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* subtle back pattern */}
-                  <div style={{
-                    position: 'absolute',
-                    inset: 4,
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 3,
-                  }} />
-                  <span style={{
-                    color: '#e8c87a',
-                    fontWeight: 900,
-                    fontSize: 15,
-                    zIndex: 1,
-                    textShadow: '0 1px 2px rgba(0,0,0,.6)',
-                  }}>
-                    {view.stockCount}
-                  </span>
+                <div data-testid="stock-tile" className="facedown">
+                  <span>{view.stockCount}</span>
                 </div>
               )}
             </div>
             {view.indicator && (
               <div data-testid="gosterge" style={{ textAlign: 'center' }}>
                 <TileView tile={view.indicator} testId="gosterge-tile" />
-                <div style={{ fontSize: 10, opacity: 0.8 }}>
+                <div style={{ fontSize: 10, opacity: 0.85, marginTop: 3 }}>
                   okey: {view.okey ? tileToString(view.okey) : '-'}
                 </div>
               </div>
@@ -299,6 +236,7 @@ export function Table({
               isTurn={view.turn.seat === rightOpponent.seat}
               position="right"
               score={view.scores?.[rightOpponent.seat]}
+              stack
             />
           )}
           {/* Seat 1's discard sits between right and top */}

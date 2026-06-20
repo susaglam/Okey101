@@ -1,6 +1,6 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101,
+  reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101,
   type GameState, type GameEvent, type PlayerView, type VariantConfig,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
@@ -49,6 +49,13 @@ export class LocalAdapter implements Adapter {
 
   currentVersion(): number { return this.version }
   getHumanView(): PlayerView { return redactFor(this.state, this.humanSeat, this.version) }
+
+  /** Legal event types for the human seat — single source of truth for UI action gating. */
+  legalMoves(): GameEvent['type'][] {
+    return this.variant.requiresOpening
+      ? legalMoves101(this.state, this.humanSeat)
+      : legalMovesKlasik(this.state, this.humanSeat)
+  }
 
   snapshot(): SaveData {
     return {
@@ -126,7 +133,7 @@ export class LocalAdapter implements Adapter {
   private runBots(): void {
     const getLegal = this.variant.requiresOpening
       ? (s: GameState, seat: number) => legalMoves101(s, seat)
-      : (s: GameState, seat: number) => legalMoves(s, seat)
+      : (s: GameState, seat: number) => legalMovesKlasik(s, seat)
     let guard = 0
     while (this.state.status === 'PLAYING' && this.state.turn.seat !== this.humanSeat && guard++ < 500) {
       const seat = this.state.turn.seat

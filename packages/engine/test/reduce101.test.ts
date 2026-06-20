@@ -498,3 +498,41 @@ describe('çift-declarer deferred işlek penalty', () => {
     expect(count).toBe(1)
   })
 })
+
+// ── Discard auto-finish: winType derives from the opening route ────────────────
+describe('Discard auto-finish (101) — winType derives from openRoute', () => {
+  function finishState(route: 'cift' | 'seri'): GameState {
+    const okey = tileFromString('7M')
+    const finishing = tileFromString('3K')
+    const players = [0, 1, 2, 3].map((seat) => ({
+      seat,
+      rack: seat === 0 ? [finishing] : ([] as Tile[]),
+      discard: [] as Tile[],
+      hasOpened: seat === 0,
+      isOut: false,
+      declaredCift: route === 'cift' && seat === 0,
+      openedValue: 0,
+      openRoute: seat === 0 ? route : undefined,
+    }))
+    return {
+      gameId: 'g', config: KLASIK_101, rngSeed: 1, handNo: 1,
+      stock: h('5R'), indicator: tileFromString('6M'), okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      players, scores: [0, 0, 0, 0], status: 'PLAYING',
+      tableMelds: [], rizikoActive: false, penaltiesApplied: [],
+    }
+  }
+
+  it('çift-route finisher (empty rack) → winType "pairs" (gets the ×2 cift multiplier)', () => {
+    const after = reduce(finishState('cift'), { type: 'Discard', seat: 0, tile: tileFromString('3K') })
+    expect(after.status).toBe('ENDED')
+    expect(after.terminal?.reason).toBe('win')
+    expect(after.terminal?.winnerSeat).toBe(0)
+    expect(after.terminal?.winType).toBe('pairs')
+  })
+
+  it('seri-route finisher (empty rack) → winType "perOnly"', () => {
+    const after = reduce(finishState('seri'), { type: 'Discard', seat: 0, tile: tileFromString('3K') })
+    expect(after.terminal?.winType).toBe('perOnly')
+  })
+})

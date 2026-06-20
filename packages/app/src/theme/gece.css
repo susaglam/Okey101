@@ -1,14 +1,37 @@
-body[data-theme="gece"] {
-  --felt: linear-gradient(160deg, #10131f, #1b2236);
-}
+/* ============================================================================
+   CS_OKEY — Gece teması
+   Klasik temanın CSS değişkenlerini ezer; layout aynı kalır (spec §7).
+   ============================================================================ */
 
-body[data-theme="gece"] .felt,
-body[data-theme="gece"] .menu {
-  background: linear-gradient(160deg, #10131f, #1b2236);
-  color: #e8e8e8;
+body[data-theme="gece"] {
+  --felt: radial-gradient(ellipse at 50% 36%, #1c2647 0%, #141a30 55%, #0d1120 100%);
+  --felt-glow: radial-gradient(ellipse at 50% 0%, rgba(110, 150, 255, 0.14) 0%, transparent 60%);
+  --felt-grid: rgba(120, 150, 255, 0.05);
+
+  /* Ahşap gece tonu (daha koyu, mor-kahve) */
+  --wood: linear-gradient(180deg, #6a5a44 0%, #4c4030 48%, #352c20 100%);
+  --wood-edge: #241d14;
+
+  --accent: #7aa2ff;
 }
 
 body[data-theme="gece"] .menu h1 {
   color: #c8d4f0;
-  text-shadow: 0 0 12px rgba(100, 140, 255, 0.4);
+  text-shadow: 0 0 12px rgba(100, 140, 255, 0.45);
 }
+
+body[data-theme="gece"] .menu button,
+body[data-theme="gece"] .act button {
+  background: linear-gradient(180deg, #5b76c8, #34457f);
+  color: #eaf0ff;
+  box-shadow: 0 3px 0 #222c52, 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* Gece pegleri biraz daha koyu */
+body[data-theme="gece"] .okey-rack-pegs {
+  background: linear-gradient(to right, #463b2a, #5c4d38 50%, #463b2a);
+}
+
+/* Watermark gece tonunda */
+body[data-theme="gece"] .okey-rack-wm { color: rgba(200, 212, 240, 0.12); }
+body[data-theme="gece"] .okey-rack-wm small { color: rgba(200, 212, 240, 0.09); }

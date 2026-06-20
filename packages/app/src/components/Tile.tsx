@@ -53,6 +53,7 @@ export function TileView({
           ={repValue}
         </span>
       )}
+      <span className="tile-edge" aria-hidden="true" />
     </button>
   )
 }

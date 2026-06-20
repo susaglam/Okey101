@@ -3,53 +3,11 @@ import { CSS } from '@dnd-kit/utilities'
 import type { Tile } from '@cs-okey/engine'
 import type { SlotLayout } from '../rack/slots'
 import { TileView } from './Tile'
+import { tileFlipId } from '../anim/flip'
 
 // ---------------------------------------------------------------------------
-// Slot sub-components
+// DraggableTile — taş + dnd-kit sürükleme + "pop" hissi + flip kimliği
 // ---------------------------------------------------------------------------
-
-function DroppableSlot({
-  slotIndex,
-  children,
-}: {
-  slotIndex: number
-  children?: React.ReactNode
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: String(slotIndex) })
-  return (
-    <div
-      ref={setNodeRef}
-      data-slot={slotIndex}
-      style={{
-        width: 44,
-        height: 58,
-        borderRadius: 5,
-        boxSizing: 'border-box',
-        position: 'relative',
-        background: isOver ? 'rgba(255,255,255,0.18)' : 'transparent',
-        transition: 'background 0.1s',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function EmptySlotGap() {
-  return (
-    <div
-      data-testid="slot-empty"
-      style={{
-        width: 44,
-        height: 58,
-        borderRadius: 5,
-        background: 'transparent',
-        boxSizing: 'border-box',
-      }}
-    />
-  )
-}
-
 function DraggableTile({
   slotIndex,
   tile,
@@ -69,18 +27,21 @@ function DraggableTile({
     id: String(slotIndex),
   })
 
+  const t = CSS.Translate.toString(transform)
   const style: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    transform: CSS.Translate.toString(transform),
-    zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.75 : 1,
+    transform: isDragging ? `${t ?? ''} scale(1.12) rotate(2deg)` : t,
+    transformOrigin: 'center',
+    zIndex: isDragging ? 1000 : 1,
+    transition: isDragging ? undefined : 'transform 0.12s ease',
     cursor: isDragging ? 'grabbing' : 'grab',
+    filter: isDragging ? 'drop-shadow(0 14px 24px rgba(0,0,0,0.55))' : undefined,
     touchAction: 'none',
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} data-flip-id={tileFlipId(tile)} style={style} {...listeners} {...attributes}>
       <TileView
         tile={tile}
         selected={selected}
@@ -93,9 +54,50 @@ function DraggableTile({
 }
 
 // ---------------------------------------------------------------------------
-// SlotRack
+// RackSlot — tek yuva (dolu veya boş); droppable + data-slot her zaman var
 // ---------------------------------------------------------------------------
+function RackSlot({
+  slotIndex,
+  tile,
+  selected,
+  colorblind,
+  repValue,
+  onSelectSlot,
+}: {
+  slotIndex: number
+  tile: Tile | null
+  selected: boolean
+  colorblind?: boolean
+  repValue?: number
+  onSelectSlot: (slot: number) => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: String(slotIndex) })
+  const empty = tile === null
 
+  return (
+    <div
+      ref={setNodeRef}
+      data-slot={slotIndex}
+      data-testid={empty ? 'slot-empty' : undefined}
+      className={`okey-slot${empty ? ' empty' : ''}${isOver ? ' over' : ''}`}
+    >
+      {!empty && (
+        <DraggableTile
+          slotIndex={slotIndex}
+          tile={tile}
+          selected={selected}
+          colorblind={colorblind}
+          repValue={repValue}
+          onSelectSlot={onSelectSlot}
+        />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SlotRack — basamaklı 2 katlı ahşap ıstaka
+// ---------------------------------------------------------------------------
 export function SlotRack({
   layout,
   okey,
@@ -103,7 +105,6 @@ export function SlotRack({
   repValue,
   selectedSlot,
   onSelectSlot,
-  onMove,
 }: {
   layout: SlotLayout
   okey?: Tile
@@ -117,67 +118,51 @@ export function SlotRack({
   const backRow = layout.slice(0, cols)
   const frontRow = layout.slice(cols)
 
-  // Compute the numeric okey value for false-joker repValue display,
-  // mirroring the existing Rack.tsx wiring.
+  // FALSE_JOKER için gösterilen rep-değeri = okey'in sayısı (Rack.tsx ile aynı)
   const okeyNumber = okey?.number
 
   function renderSlot(tile: Tile | null, slotIndex: number) {
-    if (tile === null) {
-      return (
-        <DroppableSlot key={slotIndex} slotIndex={slotIndex}>
-          <EmptySlotGap />
-        </DroppableSlot>
-      )
-    }
     const tileRepValue =
-      repValue && tile.kind === 'FALSE_JOKER' && okeyNumber !== undefined
+      tile !== null && repValue && tile.kind === 'FALSE_JOKER' && okeyNumber !== undefined
         ? okeyNumber
         : undefined
 
     return (
-      <DroppableSlot key={slotIndex} slotIndex={slotIndex}>
-        <DraggableTile
-          slotIndex={slotIndex}
-          tile={tile}
-          selected={selectedSlot === slotIndex}
-          colorblind={colorblind}
-          repValue={tileRepValue}
-          onSelectSlot={onSelectSlot}
-        />
-      </DroppableSlot>
+      <RackSlot
+        key={slotIndex}
+        slotIndex={slotIndex}
+        tile={tile}
+        selected={selectedSlot === slotIndex}
+        colorblind={colorblind}
+        repValue={tileRepValue}
+        onSelectSlot={onSelectSlot}
+      />
     )
   }
 
   const { setNodeRef: setRackRef } = useDroppable({ id: 'rack' })
 
   return (
-    <div
-      ref={setRackRef}
-      data-testid="rack-droppable"
-      style={{ display: 'inline-block' }}
-    >
-      <div
-        data-testid="slot-rack"
-        style={{
-          display: 'inline-flex',
-          flexDirection: 'column',
-          gap: 6,
-          padding: '10px 12px',
-          background: 'linear-gradient(180deg, #b5783a 0%, #8b5e2a 100%)',
-          borderRadius: 10,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
-          border: '2px solid #6b4420',
-        }}
-      >
-        {/* Back row (top): slots 0 .. cols-1 */}
-        <div style={{ display: 'flex', gap: 4 }}>
+    <div ref={setRackRef} data-testid="rack-droppable" className="okey-rack-outer">
+      <div className="okey-rack-pegs left" aria-hidden="true"><i /><i /></div>
+
+      <div data-testid="slot-rack" className="okey-rack-surface">
+        <div className="okey-rack-wm" aria-hidden="true">
+          <b>101</b>
+          <small>OKEY</small>
+        </div>
+        {/* Üst kat: 0 .. cols-1 */}
+        <div className="okey-rack-row">
           {backRow.map((tile, i) => renderSlot(tile, i))}
         </div>
-        {/* Front row (bottom): slots cols .. 2*cols-1 */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="okey-rack-groove" aria-hidden="true" />
+        {/* Alt kat: cols .. 2*cols-1 */}
+        <div className="okey-rack-row">
           {frontRow.map((tile, i) => renderSlot(tile, cols + i))}
         </div>
       </div>
+
+      <div className="okey-rack-pegs right" aria-hidden="true"><i /><i /></div>
     </div>
   )
 }

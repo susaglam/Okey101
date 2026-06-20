@@ -111,7 +111,7 @@ export function scoreHand101(state: GameState): number[] {
   const penalties = state.penaltiesApplied ?? []
   for (const { seat } of penalties) {
     if (seat >= 0 && seat < n) {
-      deltas[seat] += 101
+      deltas[seat] = (deltas[seat] ?? 0) + 101
     }
   }
 
