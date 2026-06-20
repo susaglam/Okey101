@@ -2,9 +2,10 @@
 import { describe, it, expect } from 'vitest'
 import { reduce, RuleError } from '../src/reduce'
 import { KLASIK_101, KLASIK } from '../src/config'
-import { tileFromString, tilesEqual } from '../src/tile'
+import { tileFromString, tilesEqual, tileToString } from '../src/tile'
 import type { Tile } from '../src/tile'
 import type { GameState } from '../src/state'
+import { buildDeck } from '../src/deck'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,45 @@ function start101(seed = 1): GameState {
   s = reduce(s, { type: 'StartHand' })
   return s
 }
+
+// ── Deal integrity + RNG variety + stock accounting ──────────────────────────
+
+/** Stable multiset signature of a tile list (order-independent). */
+function multisetKey(tiles: Tile[]): string {
+  return tiles.map(tileToString).sort().join('|')
+}
+
+describe('Deal integrity & RNG variety', () => {
+  it('deals the full 106-tile deck with no missing or duplicate tiles', () => {
+    const s = start101()
+    const all = [
+      ...s.players.flatMap((p) => p.rack),
+      ...s.stock,
+      ...(s.indicator ? [s.indicator] : []),
+    ]
+    expect(all).toHaveLength(106)
+    expect(multisetKey(all)).toEqual(multisetKey(buildDeck(KLASIK_101)))
+  })
+
+  it('different seeds produce different deals (RNG is varied)', () => {
+    // Ordered starter hand so we detect identical shuffles, not just same multiset.
+    const ordered = (seed: number) => start101(seed).players[0]!.rack.map(tileToString).join(',')
+    expect(new Set([ordered(1), ordered(2), ordered(3), ordered(12345), ordered(99999)]).size).toBe(5)
+  })
+})
+
+describe('Stock accounting', () => {
+  it('stock decreases by 1 on DrawFromStock and is unchanged on DrawFromDiscard', () => {
+    let s = start101()
+    // seat 0 discards so seat 1 has a floor tile available from its left (seat 0)
+    s = reduce(s, { type: 'Discard', seat: 0, tile: s.players[0]!.rack[0]! })
+    const before = s.stock.length
+    const fromStock = reduce(s, { type: 'DrawFromStock', seat: 1 })
+    expect(fromStock.stock.length).toBe(before - 1)
+    const fromFloor = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
+    expect(fromFloor.stock.length).toBe(before)
+  })
+})
 
 // ── StartHand (101 deal) ──────────────────────────────────────────────────────
 
