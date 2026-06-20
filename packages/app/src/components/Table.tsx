@@ -128,6 +128,7 @@ export function Table({
               topTile={topOpponent.discardTop}
               count={topOpponent.discardCount}
               takeable={false}
+              seat={topOpponent.seat}
             />
             <Seat
               name={seatName(topOpponent.seat)}
@@ -157,6 +158,7 @@ export function Table({
           {leftOpponent && (
             <Seat
               name={seatName(leftOpponent.seat)}
+              seat={leftOpponent.seat}
               count={leftOpponent.rackCount}
               isTurn={view.turn.seat === leftOpponent.seat}
               position="left"
@@ -171,12 +173,14 @@ export function Table({
                 topTile={leftOpponent.discardTop}
                 count={leftOpponent.discardCount}
                 onTake={onTakeDiscard}
+                seat={leftOpponent.seat}
               />
             ) : (
               <DiscardPile
                 topTile={leftOpponent.discardTop}
                 count={leftOpponent.discardCount}
                 takeable={false}
+                seat={leftOpponent.seat}
               />
             )
           )}
@@ -196,11 +200,13 @@ export function Table({
               topTile={rightOpponent.discardTop}
               count={rightOpponent.discardCount}
               takeable={false}
+              seat={rightOpponent.seat}
             />
           )}
           {rightOpponent && (
             <Seat
               name={seatName(rightOpponent.seat)}
+              seat={rightOpponent.seat}
               count={rightOpponent.rackCount}
               isTurn={view.turn.seat === rightOpponent.seat}
               position="right"

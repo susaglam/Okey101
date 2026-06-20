@@ -11,6 +11,7 @@ import { SlotRack } from '../components/SlotRack'
 import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
 import { StockPile } from '../components/StockPile'
+import { flyTile, animationsEnabled } from '../anim/fly'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
 import { TableMelds } from '../components/TableMelds'
@@ -115,6 +116,25 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
     ),
     [adapter]
   )
+
+  // Animate opponent (bot) discards: when an opponent's discard pile grows between
+  // two views, fly a ghost of the discarded tile from that seat to its pile. Bots
+  // are paced (one view per move) so each discard animates cleanly.
+  const prevViewRef = useRef<PlayerView | null>(null)
+  useEffect(() => {
+    const prev = prevViewRef.current
+    prevViewRef.current = view
+    if (!view || !prev || !animationsEnabled()) return
+    if (prev.handNo !== view.handNo) return // new hand → not a discard
+    for (const opp of view.opponents) {
+      const before = prev.opponents.find((o) => o.seat === opp.seat)
+      if (!before || opp.discardCount <= before.discardCount) continue
+      const seatEl = document.querySelector(`[data-seat="${opp.seat}"][data-testid="seat"]`)
+      const pileEl = document.querySelector(`[data-seat="${opp.seat}"][data-testid="discard-pile"]`)
+      const faceEl = pileEl?.querySelector('[data-testid="discard-top-tile"]') ?? pileEl
+      if (seatEl && pileEl) void flyTile({ clone: faceEl, from: seatEl, to: pileEl, durationSec: 0.3 })
+    }
+  }, [view])
 
   if (!view) return null
 
@@ -292,6 +312,12 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart }: {
     if (!isDiscardPhase) return
     const tile = currentLayout[slotIdx]
     if (tile == null) return
+    // Fly the tile from its rack slot to the discard spot (before it's removed).
+    if (animationsEnabled()) {
+      const tileEl = document.querySelector(`[data-slot="${slotIdx}"] [data-flip-id]`)
+      const zoneEl = document.querySelector('[data-testid="discard-zone"]')
+      if (tileEl && zoneEl) void flyTile({ clone: tileEl, from: tileEl, to: zoneEl, durationSec: 0.28, fadeOut: true })
+    }
     const optimistic = currentLayout.map((t, i) => (i === slotIdx ? null : t))
     setLayout(optimistic)
     adapter
