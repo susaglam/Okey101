@@ -82,29 +82,13 @@ describe('StartHand — 101 deal', () => {
     expect(s.okey).toBeDefined()
   })
 
-  it('sets rizikoActive=true when indicator is a false joker', () => {
-    // We need to find a seed where the indicator is a FALSE_JOKER.
-    // Try many seeds deterministically.
-    let rizikoFound = false
+  it('never flips a FALSE JOKER as the indicator (PO rule), across many seeds', () => {
+    // A false joker can never be the indicator: StartHand re-flips until a NUMBER
+    // turns up. Verify the indicator is always a numbered tile (and never riziko).
     for (let seed = 1; seed <= 500; seed++) {
       const s = start101(seed)
-      if (s.indicator?.kind === 'FALSE_JOKER') {
-        expect(s.rizikoActive).toBe(true)
-        rizikoFound = true
-        break
-      }
-    }
-    expect(rizikoFound).toBe(true)
-  })
-
-  it('sets rizikoActive=false when indicator is a numbered tile', () => {
-    // Find a seed where indicator is NOT a false joker
-    for (let seed = 1; seed <= 500; seed++) {
-      const s = start101(seed)
-      if (s.indicator?.kind === 'NUMBER') {
-        expect(s.rizikoActive).toBe(false)
-        break
-      }
+      expect(s.indicator?.kind).toBe('NUMBER')
+      expect(s.rizikoActive).toBe(false)
     }
   })
 

@@ -74,11 +74,26 @@ export default function GameScreen({ adapter }: { adapter: LocalAdapter }) {
   // newly-drawn tile lands there (not the first empty slot). Consumed once.
   const pendingDrawSlot = useRef<number | null>(null)
 
+  // The hand number whose freshly-dealt rack we have already auto-arranged, so we
+  // only auto-arrange ONCE per hand (and never clobber the player's manual layout).
+  const autoArrangedHand = useRef<number | null>(null)
+
   useEffect(() =>
     adapter.subscribe(
       (v) => {
         setView(v)
+        const isNewHand = v.handNo !== autoArrangedHand.current
+        if (isNewHand) autoArrangedHand.current = v.handNo
         setLayout(prev => {
+          // On a freshly dealt hand, auto-arrange the rack: prefer çift if there are
+          // ≥4 pairs, otherwise seri (runs/groups). This is the requested opening view.
+          if (isNewHand && v.okey) {
+            const okey = v.okey
+            const cift = autoArrangePairs(v.you.rack, okey, v.config, COLS)
+            const pairCount = parseMeldSegments(cift)
+              .filter((s) => s.length === 2 && isValidPairSet([s], okey)).length
+            return pairCount >= 4 ? cift : autoArrange(v.you.rack, okey, v.config, COLS)
+          }
           if (!prev) return initLayout(v.you.rack, COLS)
           const pref = pendingDrawSlot.current
           pendingDrawSlot.current = null

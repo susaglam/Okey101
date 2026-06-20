@@ -66,29 +66,19 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const rng = makeRng(deriveSeed(state.rngSeed, 'hand:' + state.handNo)) // distinct shuffle per hand, deterministic
       const deck = shuffle(buildDeck(cfg), rng)
       const stock = deck.slice()
-      const indicator = stock.pop()! // flip indicator off the stock; never drawable
-
-      let okeyTile: Tile
-      let rizikoActive = false
-
-      if (indicator.kind === 'FALSE_JOKER') {
-        // Riziko: indicator is a false joker — find the next numbered tile to derive okey from,
-        // but do NOT pop it from stock (it remains drawable).
-        // We scan stock from the top (end of array) until we find a numbered tile.
-        rizikoActive = true
-        let found: Tile | null = null
-        for (let i = stock.length - 1; i >= 0; i--) {
-          if (stock[i]!.kind === 'NUMBER') {
-            found = stock[i]!
-            break
-          }
-        }
-        if (!found) throw new RuleError('No numbered tile found to derive okey for riziko hand')
-        okeyTile = deriveOkey(found)
-      } else {
-        okeyTile = deriveOkey(indicator)
-        rizikoActive = false
+      // Flip the indicator off the top of the stock (it is never drawable).
+      // PO rule: a FALSE JOKER may NEVER be the indicator. If the flipped tile is a
+      // false joker, return it to the BOTTOM of the stock (still drawable as an okey
+      // substitute) and flip again until a NUMBER tile turns up.
+      let indicator = stock.pop()!
+      while (indicator.kind !== 'NUMBER' && stock.length > 0) {
+        stock.unshift(indicator)
+        indicator = stock.pop()!
       }
+      const okeyTile = deriveOkey(indicator)
+      // Riziko was only ever triggered by a false-joker indicator, which can no
+      // longer occur — so a hand is never riziko.
+      const rizikoActive = false
 
       // Starting player rotates clockwise each hand. handNo here is the PRE-increment
       // value (0 for the first hand, 1 for the second, …), so the starter is seat 0,
