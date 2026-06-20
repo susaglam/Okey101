@@ -8,6 +8,8 @@ import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
 import { applyHandScore, type MatchState, type HandRecord } from '../match'
 import { saveGame, clearGame, type SaveData, type VariantId } from '../persistence'
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 export class LocalAdapter implements Adapter {
   private state: GameState
   private version = 0
@@ -20,10 +22,12 @@ export class LocalAdapter implements Adapter {
   private standings: number[]
   private scoredHandNo: number | null = null
   private history: HandRecord[] = []
+  private readonly botDelayMs: number
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
     this.seed = opts.seed
+    this.botDelayMs = opts.botDelayMs ?? 0
 
     if (opts.resumeFrom) {
       const rf = opts.resumeFrom
@@ -47,9 +51,8 @@ export class LocalAdapter implements Adapter {
       let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
       s = reduce(s, { type: 'StartHand' })
       this.state = s
-      // If the first hand opens on a bot's turn, play bots until the human's turn.
-      this.runBots()
-      // StartHand just dealt — hand is not ENDED here, settleIfEnded is a no-op
+      // The first hand always starts on the human (handNo 0 → starter 0), so no
+      // bots need to run here. StartHand just dealt — settleIfEnded is a no-op.
       this.settleIfEnded()
     }
   }
@@ -95,17 +98,11 @@ export class LocalAdapter implements Adapter {
     if (this.getMatch().over) return
     this.state = reduce(this.state, { type: 'StartHand' })
     this.version++
-    // The starting seat rotates each hand; if the new hand opens on a bot's turn,
-    // play the bots forward until it is the human's turn (otherwise the game stalls).
-    this.runBots()
-    this.settleIfEnded()
-    this.viewCb?.(this.getHumanView())
-    // Auto-save after nextHand
-    if (this.getMatch().over) {
-      clearGame(this.variantId)
-    } else {
-      saveGame(this.snapshot())
-    }
+    this.viewCb?.(this.getHumanView()) // show the fresh deal immediately
+    // The starting seat rotates each hand; if it opens on a bot, play the bots
+    // forward (paced) until it is the human's turn. Fire-and-forget — viewCb
+    // updates flow in as each bot moves.
+    void this.advance()
   }
 
   subscribe(onView: (v: PlayerView) => void, onStatus: (s: Status) => void): () => void {
@@ -125,15 +122,9 @@ export class LocalAdapter implements Adapter {
       if (e instanceof RuleError) return { accepted: false, reason: this.classify(e.message) }
       throw e
     }
-    this.runBots()
-    this.settleIfEnded()
+    // Show the human's own move immediately, then let the bots play out (paced).
     this.viewCb?.(this.getHumanView())
-    // Auto-save after dispatch
-    if (this.getMatch().over) {
-      clearGame(this.variantId)
-    } else {
-      saveGame(this.snapshot())
-    }
+    await this.advance()
     return { accepted: true }
   }
 
@@ -158,7 +149,19 @@ export class LocalAdapter implements Adapter {
     }
   }
 
-  private runBots(): void {
+  /** Run bots forward (paced), then settle, emit the final view, and persist. */
+  private async advance(): Promise<void> {
+    await this.runBots()
+    this.settleIfEnded()
+    this.viewCb?.(this.getHumanView())
+    if (this.getMatch().over) {
+      clearGame(this.variantId)
+    } else {
+      saveGame(this.snapshot())
+    }
+  }
+
+  private async runBots(): Promise<void> {
     const getLegal = this.variant.requiresOpening
       ? (s: GameState, seat: number) => legalMoves101(s, seat)
       : (s: GameState, seat: number) => legalMovesKlasik(s, seat)
@@ -182,6 +185,10 @@ export class LocalAdapter implements Adapter {
         try { this.state = reduce(this.state, fallback); this.version++ }
         catch { break } // truly stuck — bail out rather than loop forever
       }
+      // Emit each bot move so the player can follow who is playing (the active
+      // seat's nameplate glows and its discard pile updates), paced by botDelayMs.
+      this.viewCb?.(this.getHumanView())
+      if (this.botDelayMs > 0) await sleep(this.botDelayMs)
     }
   }
 

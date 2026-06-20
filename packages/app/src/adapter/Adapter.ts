@@ -9,4 +9,4 @@ export interface Adapter {
   /** Legal event types for the human seat in the current state (single source of truth for action gating). */
   legalMoves(): GameEvent['type'][]
 }
-export interface LocalOptions { seed: number; humanSeat: number; difficulty?: 'easy'; matchHands?: number; variant?: VariantConfig; resumeFrom?: SaveData }
+export interface LocalOptions { seed: number; humanSeat: number; difficulty?: 'easy'; matchHands?: number; variant?: VariantConfig; resumeFrom?: SaveData; /** Delay between bot moves (ms) so each is visible. 0 = instant (default, tests). */ botDelayMs?: number }

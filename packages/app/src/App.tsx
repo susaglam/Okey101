@@ -23,11 +23,13 @@ export default function App() {
   const [pendingResume, setPendingResume] = useState<SaveData | null>(null)
 
   const adapter = useMemo(() => {
+    // Pace bot moves so each is visible (the active seat glows + its pile updates).
+    const botDelayMs = 450
     if (pendingResume) {
       // seed is restored from the snapshot (rf.seed ?? state.rngSeed) inside LocalAdapter.
-      return new LocalAdapter({ seed: gameSeed, humanSeat: 0, resumeFrom: pendingResume })
+      return new LocalAdapter({ seed: gameSeed, humanSeat: 0, resumeFrom: pendingResume, botDelayMs })
     }
-    return new LocalAdapter({ seed: gameSeed, humanSeat: 0, variant: variantId === 'yuzbir' ? KLASIK_101 : KLASIK })
+    return new LocalAdapter({ seed: gameSeed, humanSeat: 0, variant: variantId === 'yuzbir' ? KLASIK_101 : KLASIK, botDelayMs })
   }, [gameKey, variantId, pendingResume, gameSeed])
 
   const handleStart = (v: Variant) => {
