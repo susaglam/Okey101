@@ -4,6 +4,11 @@
    Not: renkler/boyutlar CSS değişkenleriyle sürülür; Gece teması bunları ezer.
    ============================================================================ */
 
+/* Tam ekran (full-bleed) — kenar boşluğu ve yatay kaydırma çubuğu olmasın */
+html, body { margin: 0; padding: 0; }
+body { overflow-x: hidden; }
+#root { width: 100%; min-height: 100vh; }
+
 :root {
   /* Taş boyutu — tek yerden ölçek (dnd-kit + flip ile uyumlu) */
   --tile-w: 42px;
@@ -63,6 +68,18 @@
   -webkit-user-select: none;
   transition: box-shadow 0.12s ease, transform 0.1s ease;
 }
+
+/* Küçük taş — yere serilen perler için (TableMelds) */
+.okey-tile.sm {
+  width: 30px;
+  height: 40px;
+  font-size: 15px;
+  padding-top: 3px;
+  border-bottom-width: 2px;
+  cursor: default;
+}
+.okey-tile.sm .hole { width: 8px; height: 8px; bottom: 4px; }
+.okey-tile.sm .rep-value { font-size: 7px; top: 2px; right: 3px; }
 
 /* Rakam kabartması — currentColor (button style={{color}}) rengini taşır */
 .okey-tile > span:first-child {

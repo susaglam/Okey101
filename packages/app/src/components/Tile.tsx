@@ -17,6 +17,7 @@ export function TileView({
   testId = 'tile',
   colorblind,
   repValue,
+  small,
 }: {
   tile: Tile
   selected?: boolean
@@ -24,6 +25,8 @@ export function TileView({
   testId?: string | undefined
   colorblind?: boolean
   repValue?: number
+  /** Compact size — used for table melds laid on the felt. */
+  small?: boolean
 }) {
   const isJoker = tile.kind === 'FALSE_JOKER'
   const label = isJoker ? 'sahte okey' : tileToString(tile)
@@ -34,7 +37,7 @@ export function TileView({
   return (
     <button
       type="button"
-      className={`okey-tile${selected ? ' sel' : ''}`}
+      className={`okey-tile${selected ? ' sel' : ''}${small ? ' sm' : ''}`}
       data-testid={testId ?? undefined}
       aria-label={isJoker ? 'sahte okey' : label}
       onClick={onClick}

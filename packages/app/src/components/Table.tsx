@@ -172,6 +172,13 @@ export function Table({
         )}
       </div>
 
+      {/* OPENED MELDS: full-width band, wraps horizontally (no scrollbars) */}
+      {tableMelds && (
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+          {tableMelds}
+        </div>
+      )}
+
       {/* MIDDLE ROW: left seat | center | right seat */}
       <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', flex: 1, margin: '8px 0' }}>
         {/* LEFT side: seat 3 + its discard pile (our takeable pile) */}
@@ -204,23 +211,8 @@ export function Table({
           )}
         </div>
 
-        {/* CENTER: opened melds (scrollable, never pushes the rack) + stok + gösterge */}
+        {/* CENTER: stok + gösterge + direction arrow */}
         <div style={centerStyle}>
-          {tableMelds && (
-            <div
-              style={{
-                maxHeight: 200,
-                overflowY: 'auto',
-                overflowX: 'auto',
-                maxWidth: 'min(560px, 60vw)',
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
-              {tableMelds}
-            </div>
-          )}
           <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
           <div className="center-well">
             {/* Stock indicator: tile-shaped face-down element with count */}

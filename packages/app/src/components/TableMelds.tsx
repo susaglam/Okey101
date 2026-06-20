@@ -54,10 +54,13 @@ export function TableMelds({
       data-testid="table-melds"
       style={{
         display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        gap: 8,
         minHeight: 24,
-        marginBottom: 8,
+        width: '100%',
       }}
     >
       {melds.map((meld, idx) => {
@@ -66,7 +69,14 @@ export function TableMelds({
         return (
           <div
             key={idx}
-            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 6px',
+              borderRadius: 8,
+              background: 'rgba(0,0,0,.18)',
+            }}
           >
             <span
               style={{
@@ -85,6 +95,7 @@ export function TableMelds({
                 <TileView
                   tile={tile}
                   testId="table-meld-tile"
+                  small
                   repValue={isWild(tile, okey) ? (reps[ti] ?? undefined) : undefined}
                 />
               )
