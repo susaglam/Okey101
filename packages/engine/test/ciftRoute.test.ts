@@ -189,6 +189,42 @@ describe('OpenMeld — openRoute detection', () => {
     expect(s2.players[0]!.openRoute).toBe('cift')
   })
 
+  it('detects a 5-pair open that USES THE OKEY as the çift route (not misread as seri)', () => {
+    // Regression: an okey-backed pair (wild + real) must still count as a pair so
+    // the open is detected as çift — otherwise the player could then illegally lay runs.
+    const okey = tileFromString('1S')
+    const pairs5: Tile[][] = [
+      [tileFromString('1S'), tileFromString('7M')], // okey (wild) completes the pair
+      h('3R', '3R'),
+      h('5K', '5K'),
+      h('8M', '8M'),
+      h('11S', '11S'),
+    ]
+    const rack = [...pairs5.flat(), tileFromString('2M')]
+    let s = reduce(null, { type: 'CreateGame', gameId: 'g-cift-okey', seed: 2, config: KLASIK_101 })
+    s = reduce(s, { type: 'StartHand' })
+    s = { ...s, okey, turn: { seat: 0, phase: 'DISCARD' }, players: s.players.map((p) => (p.seat === 0 ? { ...p, rack } : p)) }
+    const s2 = reduce(s, { type: 'OpenMeld', seat: 0, melds: pairs5 })
+    expect(s2.players[0]!.openRoute).toBe('cift')
+  })
+
+  it('a çift-route player may NOT lay a new run/group (OpenMeld throws)', () => {
+    const okey = tileFromString('1S')
+    const run = h('5R', '6R', '7R')
+    let s = reduce(null, { type: 'CreateGame', gameId: 'g-cift-run', seed: 3, config: KLASIK_101 })
+    s = reduce(s, { type: 'StartHand' })
+    s = {
+      ...s,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 0, kind: 'pair' as const, tiles: h('4R', '4R') }],
+      players: s.players.map((p) => (p.seat === 0
+        ? { ...p, hasOpened: true, declaredCift: true, openRoute: 'cift' as const, rack: [...run, tileFromString('9M')] }
+        : p)),
+    }
+    expect(() => reduce(s, { type: 'OpenMeld', seat: 0, melds: [run] })).toThrow(RuleError)
+  })
+
   it('adds pair tableMelds with kind="pair" when opening via çift route', () => {
     const okey = tileFromString('1S')
     const pairs5: Tile[][] = [

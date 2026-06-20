@@ -283,9 +283,11 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
 
   // Determine the player's open route (after first open)
   const openRoute = view.you.openRoute as 'seri' | 'cift' | undefined
+  // A çift player (declared OR opened via pairs) may never lay new runs/groups.
+  const isCiftPlayer = openRoute === 'cift' || view.you.declaredCift === true
 
   // findLayableMeld result: post-opening meld laying (only for seri-route players)
-  const layableMeld101 = is101 && view.okey && view.you.hasOpened && openRoute !== 'cift'
+  const layableMeld101 = is101 && view.okey && view.you.hasOpened && !isCiftPlayer
     ? findLayableMeld(view.you.rack, view.okey, view.config)
     : null
 
@@ -481,6 +483,17 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           layoffEnabled={isDiscardPhase && view.you.hasOpened && !!view.config.layOff && view.you.rack.length > 1}
         />
       ) : null}
+      humanDiscard={
+        <MyDiscardTarget
+          topTile={myDiscardTop}
+          count={myDiscardCount}
+          active={isMyTurn && isDiscardPhase}
+          onDropTile={() => { if (selectedSlot !== null) discardFromSlot(selectedSlot) }}
+          okey={view.okey}
+          colorblind={settings.colorblind}
+          repValue={settings.repValue}
+        />
+      }
     >
       {/* ── ACTION BAR (above the rack): açma (left) · nameplate+total (center) · git/diz (right) ── */}
       <div
@@ -490,8 +503,20 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           alignItems: 'center', justifyContent: 'space-between', gap: 10,
         }}
       >
-        {/* LEFT: utility + opening buttons */}
+        {/* LEFT: hand-count badge + game-action buttons */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Which hand of the match + the player's running score. */}
+          <div
+            data-testid="hand-count"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.15,
+              padding: '3px 10px', borderRadius: 8, background: 'rgba(0,0,0,.35)',
+              border: '1px solid rgba(255,255,255,.14)', fontFamily: 'system-ui', flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 700 }}>El {match.handNo}/{match.totalHands}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#ffd27a' }}>{standingsForSeat}</span>
+          </div>
           {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
             <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
           )}
@@ -550,7 +575,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             </button>
           )}
           {/* Post-open laying (seri açan: yeni seri/grup; masada çift varsa: çift) — left group */}
-          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && openRoute !== 'cift' && (
+          {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && !isCiftPlayer && (
             <button
               disabled={layableMeld101 === null}
               title="Yere yeni bir seri/grup aç"
@@ -605,10 +630,14 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           </div>
         </div>
 
-        {/* RIGHT (rack's upper-right): draw stock + gösterge, then the discard spot. */}
+        {/* RIGHT of the nameplate: sort (diz) buttons + hint, then the draw stock +
+            gösterge at the far right. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
-          {/* Draw stock (white tile-stack) + the gösterge tile (rendered exactly like
-              a rack tile) with the derived okey. */}
+          <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
+            {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
+            {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
@@ -620,15 +649,6 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               </div>
             )}
           </div>
-          <MyDiscardTarget
-            topTile={myDiscardTop}
-            count={myDiscardCount}
-            active={isMyTurn && isDiscardPhase}
-            onDropTile={() => { if (selectedSlot !== null) discardFromSlot(selectedSlot) }}
-            okey={view.okey}
-            colorblind={settings.colorblind}
-            repValue={settings.repValue}
-          />
         </div>
       </div>
 
@@ -642,13 +662,6 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
         />
-        {/* Utility buttons — to the RIGHT of the rack (old AT spot), stacked. The
-            `act` class gives them the themed (gold) button styling. */}
-        <div className="act" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 96 }}>
-          {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
-          {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
-          {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
-        </div>
       </div>
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}

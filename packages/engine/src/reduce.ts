@@ -268,25 +268,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const cfg = state.config
       const okey = state.okey!
 
-      // Determine if this is a çift-route open: all melds are valid pairs and
-      // the count matches the configured pairs-open count.
+      // Determine if this is a çift-route open: exactly `pairsCount` melds, all
+      // valid pairs. Uses isValidPairSet so okey-backed pairs (the wild as a
+      // pair-mate) count — otherwise a çift open that uses the okey would be
+      // misdetected as 'seri' and the player could then illegally lay runs.
       const pairsCount = cfg.pairsOpenCount ?? 5
-      const isCiftOpen = event.melds.length === pairsCount && event.melds.every((m) => {
-        if (m.length !== 2) return false
-        const [a, b] = m
-        if (!a || !b) return false
-        // Neither tile should be wild
-        if (a.kind === 'NUMBER' && tilesEqual(a, okey)) return false
-        if (b.kind === 'NUMBER' && tilesEqual(b, okey)) return false
-        // Effective values must match
-        const evA = a.kind === 'FALSE_JOKER'
-          ? (okey.number != null && okey.color != null ? { number: okey.number, color: okey.color } : null)
-          : (a.number != null && a.color != null ? { number: a.number, color: a.color } : null)
-        const evB = b.kind === 'FALSE_JOKER'
-          ? (okey.number != null && okey.color != null ? { number: okey.number, color: okey.color } : null)
-          : (b.number != null && b.color != null ? { number: b.number, color: b.color } : null)
-        return evA !== null && evB !== null && evA.number === evB.number && evA.color === evB.color
-      })
+      const isCiftOpen = event.melds.length === pairsCount && isValidPairSet(event.melds, okey)
 
       if (!player.hasOpened) {
         // First open: validate via canOpen (≥101 or 5 pairs)
@@ -308,8 +295,9 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
           }
         } else if (layingMelds) {
           // Laying new runs/groups (per) is only allowed for seri-route players.
-          // A çift-route player may not open new runs/groups (they lay off / take okey instead).
-          if (player.openRoute === 'cift') {
+          // A çift player (declared OR opened via pairs) may NEVER lay runs/groups —
+          // they only lay pairs / lay off / take the okey.
+          if (player.openRoute === 'cift' || player.declaredCift === true) {
             throw new RuleError('cannot open: çift-route player may not lay new runs/groups')
           }
         } else {
@@ -332,9 +320,11 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // Compute opening value (pairs route: value is 0 — no threshold)
       const value = openingValue(event.melds, okey)
 
-      // Determine the route for this open (only relevant on first open, but derived from meld shape)
+      // Determine the route for this open. A player who declared çift is locked to
+      // the çift route regardless of meld shape; otherwise it's derived from the
+      // opening melds (all pairs → çift, else seri).
       const openedRoute: 'seri' | 'cift' = !player.hasOpened
-        ? (isCiftOpen ? 'cift' : 'seri')
+        ? ((isCiftOpen || player.declaredCift === true) ? 'cift' : 'seri')
         : (player.openRoute ?? 'seri')
 
       // Build new table meld entries

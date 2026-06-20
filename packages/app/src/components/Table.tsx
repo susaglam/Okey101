@@ -75,15 +75,17 @@ export function Table({
   onTakeDiscard,
   standings,
   tableMelds,
+  humanDiscard,
 }: {
   view: PlayerView
   children?: ReactNode
   onTakeDiscard?: () => void
   /** Running match standings (seat-indexed), accumulated from completed hands. */
   standings?: number[]
-  /** Opened melds shown in the CENTRE of the table (height-capped + scrollable so
-   * they never push the rack off-screen). */
+  /** Opened melds shown in the CENTRE of the table. */
   tableMelds?: ReactNode
+  /** The human's discard target, placed at the bottom-right corner of the play area. */
+  humanDiscard?: ReactNode
 }) {
   // Find opponents by relative position
   const rightOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 1)
@@ -109,120 +111,65 @@ export function Table({
     boxSizing: 'border-box',
   }
 
-  // Center panel styles
-  const centerStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 6,
-  }
-
   return (
     <div className="felt" style={outerStyle}>
-      {/* TOP ROW: top seat + its discard pile */}
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'flex-start', gap: 24 }}>
+      {/* PLAY AREA: opponents at the edges, each discard pile at a corner, the
+          CENTRE kept empty (opened melds shown there for now; reserved for the
+          opening layout). Each player discards toward the player on their right,
+          so the pile sits in the corner between them. */}
+      <div style={{ position: 'relative', flex: 1, width: '100%', minHeight: 340 }}>
+        {/* TOP seat (Can) — centre; its discard at the TOP-LEFT corner. */}
         {topOpponent && (
           <>
-            {/* Top seat discards toward the LEFT seat → its pile sits to its left. */}
-            <DiscardPile
-              topTile={topOpponent.discardTop}
-              count={topOpponent.discardCount}
-              takeable={false}
-              seat={topOpponent.seat}
-            />
-            <Seat
-              name={seatName(topOpponent.seat)}
-              seat={topOpponent.seat}
-              count={topOpponent.rackCount}
-              isTurn={view.turn.seat === topOpponent.seat}
-              position="top"
-              score={standings?.[topOpponent.seat]}
-              stack
-            />
+            <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)' }}>
+              <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} stack />
+            </div>
+            <div style={{ position: 'absolute', top: 6, left: 8 }}>
+              <DiscardPile topTile={topOpponent.discardTop} count={topOpponent.discardCount} takeable={false} seat={topOpponent.seat} />
+            </div>
           </>
+        )}
+        {/* RIGHT seat (Aras) — right edge; its discard at the TOP-RIGHT corner. */}
+        {rightOpponent && (
+          <>
+            <div style={{ position: 'absolute', right: 4, top: '46%', transform: 'translateY(-50%)' }}>
+              <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} stack />
+            </div>
+            <div style={{ position: 'absolute', top: 6, right: 8 }}>
+              <DiscardPile topTile={rightOpponent.discardTop} count={rightOpponent.discardCount} takeable={false} seat={rightOpponent.seat} />
+            </div>
+          </>
+        )}
+        {/* LEFT seat (Gamze) — left edge; its discard at the BOTTOM-LEFT corner
+            (the human's takeable pile — left seat discards toward the human). */}
+        {leftOpponent && (
+          <>
+            <div style={{ position: 'absolute', left: 4, top: '46%', transform: 'translateY(-50%)' }}>
+              <Seat name={seatName(leftOpponent.seat)} seat={leftOpponent.seat} count={leftOpponent.rackCount} isTurn={view.turn.seat === leftOpponent.seat} position="left" score={standings?.[leftOpponent.seat]} stack />
+            </div>
+            <div style={{ position: 'absolute', bottom: 6, left: 8 }}>
+              {takeablePile ? (
+                <DraggableFloorPile topTile={leftOpponent.discardTop} count={leftOpponent.discardCount} onTake={onTakeDiscard} seat={leftOpponent.seat} />
+              ) : (
+                <DiscardPile topTile={leftOpponent.discardTop} count={leftOpponent.discardCount} takeable={false} seat={leftOpponent.seat} />
+              )}
+            </div>
+          </>
+        )}
+        {/* BOTTOM-RIGHT corner: the human's own discard target. */}
+        {humanDiscard && (
+          <div style={{ position: 'absolute', bottom: 6, right: 8 }}>{humanDiscard}</div>
+        )}
+        {/* CENTRE: opened melds (otherwise empty). */}
+        {tableMelds && (
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 96, right: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {tableMelds}
+          </div>
         )}
       </div>
 
-      {/* OPENED MELDS: full-width band, wraps horizontally (no scrollbars) */}
-      {tableMelds && (
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
-          {tableMelds}
-        </div>
-      )}
-
-      {/* MIDDLE ROW: left seat | center | right seat */}
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', flex: 1, margin: '8px 0' }}>
-        {/* LEFT side: seat 3 + its discard pile BELOW it (bottom-left corner). This
-            is the human's takeable pile — seat 3 discards toward the human. */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          {leftOpponent && (
-            <Seat
-              name={seatName(leftOpponent.seat)}
-              seat={leftOpponent.seat}
-              count={leftOpponent.rackCount}
-              isTurn={view.turn.seat === leftOpponent.seat}
-              position="left"
-              score={standings?.[leftOpponent.seat]}
-              stack
-            />
-          )}
-          {/* Seat 3's discard = human's takeable pile */}
-          {leftOpponent && (
-            takeablePile ? (
-              <DraggableFloorPile
-                topTile={leftOpponent.discardTop}
-                count={leftOpponent.discardCount}
-                onTake={onTakeDiscard}
-                seat={leftOpponent.seat}
-              />
-            ) : (
-              <DiscardPile
-                topTile={leftOpponent.discardTop}
-                count={leftOpponent.discardCount}
-                takeable={false}
-                seat={leftOpponent.seat}
-              />
-            )
-          )}
-        </div>
-
-        {/* CENTER: just the turn-direction arrow. The draw stock + gösterge moved to
-            the rack's upper-right (rendered by GameScreen). */}
-        <div style={centerStyle}>
-          <div style={{ fontSize: 18, opacity: 0.7 }}>↻</div>
-        </div>
-
-        {/* RIGHT side: seat 1 + its discard pile ABOVE it (top-right corner) —
-            seat 1 discards toward the top seat. */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          {rightOpponent && (
-            <DiscardPile
-              topTile={rightOpponent.discardTop}
-              count={rightOpponent.discardCount}
-              takeable={false}
-              seat={rightOpponent.seat}
-            />
-          )}
-          {rightOpponent && (
-            <Seat
-              name={seatName(rightOpponent.seat)}
-              seat={rightOpponent.seat}
-              count={rightOpponent.rackCount}
-              isTurn={view.turn.seat === rightOpponent.seat}
-              position="right"
-              score={standings?.[rightOpponent.seat]}
-              stack
-            />
-          )}
-        </div>
-      </div>
-
-      {/* BOTTOM: action bar + human nameplate + rack (rendered by GameScreen). The
-          human's discard spot now lives in the action bar (MyDiscardTarget), so there
-          is no separate bottom discard pile here. */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
-        <div style={{ width: '100%' }}>{children}</div>
-      </div>
+      {/* BOTTOM: action bar + rack (rendered by GameScreen). */}
+      <div style={{ width: '100%' }}>{children}</div>
     </div>
   )
 }
