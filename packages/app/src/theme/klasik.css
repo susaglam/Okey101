@@ -74,17 +74,17 @@ body { overflow-x: hidden; }
   transition: box-shadow 0.12s ease, transform 0.1s ease;
 }
 
-/* Küçük taş — yere serilen perler için (TableMelds) */
+/* Orta-boy taş — yere serilen perler için (CenterMelds ızgarası) */
 .okey-tile.sm {
-  width: 30px;
-  height: 40px;
-  font-size: 15px;
-  padding-top: 3px;
-  border-bottom-width: 2px;
+  width: 36px;
+  height: 48px;
+  font-size: 19px;
+  padding-top: 4px;
+  border-bottom-width: 3px;
   cursor: default;
 }
-.okey-tile.sm .hole { width: 8px; height: 8px; bottom: 4px; }
-.okey-tile.sm .rep-value { font-size: 7px; top: 2px; right: 3px; }
+.okey-tile.sm .hole { width: 10px; height: 10px; bottom: 5px; }
+.okey-tile.sm .rep-value { font-size: 8px; top: 2px; right: 3px; }
 
 /* Rakam kabartması — currentColor (button style={{color}}) rengini taşır */
 .okey-tile > span:first-child {

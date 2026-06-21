@@ -32,12 +32,15 @@ export function DiscardPile({
     ...glowStyle,
   }
 
+  const isEmpty = count === 0 && !topTile
   const emptyStyle: React.CSSProperties = {
-    width: 36,
-    height: 48,
+    width: 'var(--tile-w, 36px)',
+    height: 'var(--tile-h, 48px)',
     borderRadius: 6,
-    border: '1px dashed rgba(255,255,255,0.25)',
-    background: 'rgba(0,0,0,0.15)',
+    // An empty pile is subtle — barely-there outline, no fill, dimmed.
+    border: '1px dashed rgba(255,255,255,0.12)',
+    background: 'transparent',
+    opacity: 0.5,
   }
 
   const badgeStyle: React.CSSProperties = {
@@ -72,7 +75,8 @@ export function DiscardPile({
       ) : (
         <div style={emptyStyle} />
       )}
-      <span style={badgeStyle}>{count}</span>
+      {/* Hide the count entirely when the pile is empty (no "0" clutter). */}
+      {!isEmpty && <span style={badgeStyle}>{count}</span>}
     </div>
   )
 }

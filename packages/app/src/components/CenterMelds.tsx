@@ -7,8 +7,8 @@ import { orderMeldForDisplay, meldRepresentedValues } from '../rack/slots'
 
 type Meld = { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }
 
-const CELL_W = 30
-const CELL_H = 40
+const CELL_W = 40
+const CELL_H = 52
 const ROWS = 11
 
 function isRealOkey(t: Tile, okey: Tile): boolean {
@@ -138,7 +138,7 @@ export function CenterMelds({
   }
 
   return (
-    <div data-testid="center-melds" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'center' }}>
+    <div data-testid="center-melds" style={{ display: 'flex', alignItems: 'flex-start', gap: 6, justifyContent: 'center', maxWidth: '100%', overflowX: 'auto' }}>
       {/* AREA A — runs, number-aligned (col = represented number 1-13). */}
       <GridArea
         cols={13}
