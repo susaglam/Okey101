@@ -15,8 +15,8 @@ function isRealOkey(t: Tile, okey: Tile): boolean {
   return t.kind === 'NUMBER' && tilesEqual(t, okey)
 }
 
-/** A whole meld row, registered as a lay-off drop target (spans the area width). */
-function RowDropTarget({ gi, enabled, row, cols }: { gi: number; enabled: boolean; row: number; cols: number }) {
+/** A meld's lay-off drop target — spans `colSpan` columns starting at `colStart`. */
+function RowDropTarget({ gi, enabled, row, colStart = 1, colSpan }: { gi: number; enabled: boolean; row: number; colStart?: number; colSpan: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: `layoff:${gi}`, disabled: !enabled })
   return (
     <div
@@ -24,7 +24,7 @@ function RowDropTarget({ gi, enabled, row, cols }: { gi: number; enabled: boolea
       data-testid={enabled ? 'layoff-target' : undefined}
       data-meld-index={gi}
       style={{
-        gridColumn: `1 / ${cols + 1}`,
+        gridColumn: `${colStart} / ${colStart + colSpan}`,
         gridRow: `${row + 1} / ${row + 2}`,
         borderRadius: 4,
         background: isOver && enabled ? 'rgba(90,209,196,.18)' : 'transparent',
@@ -146,7 +146,7 @@ export function CenterMelds({
         badge={seriOpenValue > 0 ? <Badge>{seriOpenValue}</Badge> : undefined}
       >
         {runs.map((m, row) => (
-          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} cols={13} />
+          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} colSpan={13} />
         ))}
         {runs.flatMap((m, row) =>
           renderMeldTiles(m, row, (ti, reps) => {
@@ -156,12 +156,19 @@ export function CenterMelds({
         )}
       </GridArea>
 
-      {/* AREA B — same-number groups (4 cols, sequential). */}
-      <GridArea cols={4} title="Aynı sayı grupları">
-        {groups.map((m, row) => (
-          <RowDropTarget key={`g-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} cols={4} />
-        ))}
-        {groups.flatMap((m, row) => renderMeldTiles(m, row, (ti) => Math.min(ti + 1, 4)))}
+      {/* AREA B — same-number groups: 9 cols = 4 + 1 gap + 4, so TWO groups fit per
+          row (cols 1–4 and 6–9). Up to 22 groups across 11 rows. */}
+      <GridArea cols={9} title="Aynı sayı grupları">
+        {groups.map((m, idx) => {
+          const row = Math.floor(idx / 2)
+          const startCol = idx % 2 === 0 ? 1 : 6
+          return <RowDropTarget key={`g-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} colStart={startCol} colSpan={4} />
+        })}
+        {groups.flatMap((m, idx) => {
+          const row = Math.floor(idx / 2)
+          const startCol = idx % 2 === 0 ? 1 : 6
+          return renderMeldTiles(m, row, (ti) => startCol + Math.min(ti, 3))
+        })}
       </GridArea>
 
       {/* AREA C — pairs (4 cols → 2 pairs per row). */}

@@ -545,18 +545,30 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       >
         {/* LEFT: hand-count badge + game-action buttons */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-          {/* Which hand of the match + the player's running score. */}
-          <div
-            data-testid="hand-count"
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.15,
-              padding: '3px 10px', borderRadius: 8, background: 'rgba(0,0,0,.35)',
-              border: '1px solid rgba(255,255,255,.14)', fontFamily: 'system-ui', flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 700 }}>El {match.handNo}/{match.totalHands}</span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#ffd27a' }}>{standingsForSeat}</span>
-          </div>
+          {/* Which hand of the match + my hand total (the opening value before I open,
+              the running score after). When the opening value reaches the threshold
+              the box pulses green — no extra "açabilirsin" text needed. */}
+          {(() => {
+            const showOpenTotal = is101 && !view.you.hasOpened
+            const opensReady = showOpenTotal && handMeldValue >= openingThreshold
+            return (
+              <div
+                data-testid="hand-count"
+                className={opensReady ? 'open-ready' : undefined}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.15,
+                  padding: '3px 10px', borderRadius: 8, background: 'rgba(0,0,0,.35)',
+                  border: opensReady ? '1px solid #7BE38B' : '1px solid rgba(255,255,255,.14)',
+                  fontFamily: 'system-ui', flexShrink: 0,
+                }}
+              >
+                <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 700 }}>El {match.handNo}/{match.totalHands}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: opensReady ? '#7BE38B' : '#fff' }}>
+                  {showOpenTotal ? handMeldValue : standingsForSeat}
+                </span>
+              </div>
+            )
+          })()}
           {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
             <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
           )}
@@ -637,24 +649,6 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
 
         {/* CENTER: live hand total (101) + human nameplate */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {is101 && !view.you.hasOpened && (
-            <div
-              data-testid="hand-total"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '2px 12px', borderRadius: 999, fontFamily: 'system-ui', fontSize: 12,
-                background: 'rgba(0,0,0,.35)',
-                color: handMeldValue >= openingThreshold ? '#7BE38B' : '#ffe9b0',
-                border: handMeldValue >= openingThreshold ? '1px solid rgba(123,227,139,.6)' : '1px solid rgba(255,233,176,.3)',
-                fontWeight: 700,
-              }}
-            >
-              El toplamı: {handMeldValue}
-              <span style={{ opacity: 0.7, fontWeight: 500 }}>
-                {handMeldValue >= openingThreshold ? '✓ açabilirsin' : `/ ${openingThreshold}`}
-              </span>
-            </div>
-          )}
           <div
             data-testid="human-nameplate"
             style={{
