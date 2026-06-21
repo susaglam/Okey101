@@ -19,6 +19,43 @@ export function deriveOkey(indicator: Tile): Tile {
   return { number: next, color: indicator.color, kind: 'NUMBER' }
 }
 
+/**
+ * "İşlek taş" — could this tile be PLAYED onto an existing table meld right now?
+ * Two ways (PO 2026-06-21):
+ *   (a) Lay-off: appending it to a run/group keeps that meld valid.
+ *   (b) Okey-swap: a meld uses the real okey as a wild and substituting this tile
+ *       for that okey keeps the meld valid (i.e. you could TakeOkey with it).
+ * Used by the işlek-discard penalty: throwing a workable tile away wastes it.
+ * The okey tile itself is excluded (its own discard is the separate okey-discard
+ * penalty). Returns false when there is no okey or no table melds.
+ */
+function isWorkableDiscard(
+  tile: Tile,
+  tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[],
+  okey: Tile | undefined,
+  cfg: GameState['config'],
+): boolean {
+  if (!okey || tableMelds.length === 0) return false
+  if (tile.kind !== 'NUMBER' || tile.number == null || tile.color == null) return false
+  if (tilesEqual(tile, okey)) return false // okey's own discard handled separately
+
+  const isRealOkey = (t: Tile) => t.kind === 'NUMBER' && tilesEqual(t, okey)
+  const meldValid = (tiles: Tile[]) =>
+    tiles.length === 2 ? isValidPairSet([tiles], okey) : isValidMeldSet([tiles], okey, cfg)
+
+  for (const m of tableMelds) {
+    // (a) Lay-off onto a run/group (a pair can't be extended, only swapped).
+    if (m.tiles.length >= 3 && isValidMeldSet([[...m.tiles, tile]], okey, cfg)) return true
+    // (b) Okey-swap: replacing some real-okey slot with `tile` keeps the meld valid.
+    for (let i = 0; i < m.tiles.length; i++) {
+      if (!isRealOkey(m.tiles[i]!)) continue
+      const replaced = m.tiles.map((t, j) => (j === i ? tile : t))
+      if (meldValid(replaced)) return true
+    }
+  }
+  return false
+}
+
 function requireTurn(state: GameState, seat: number, phase: GameState['turn']['phase']): void {
   if (state.status !== 'PLAYING') throw new RuleError(`Game not in play (status=${state.status})`)
   if (state.turn.seat !== seat) throw new RuleError(`Not seat ${seat}'s turn`)
@@ -237,6 +274,16 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (cfg.requiresOpening && tile && tile.kind === 'NUMBER' && state.okey && tilesEqual(tile, state.okey)) {
         const already = penaltiesApplied.some((x) => x.seat === seat && x.type === 'okey-discard')
         if (!already) penaltiesApplied = [...penaltiesApplied, { seat, type: 'okey-discard' }]
+      }
+
+      // 101 penalty: discarding an "işlek" tile — one that could be PLAYED onto an
+      // existing table meld (laid off onto a run/group, or used to swap out an okey)
+      // — wastes a working tile and costs the discarder a flat +101 (PO 2026-06-21).
+      // Applies per discard (each thrown işlek tile is its own mistake). The okey
+      // itself is excluded above; a finishing discard already returned, so it can't
+      // be penalised here.
+      if (cfg.requiresOpening && isWorkableDiscard(tile!, state.tableMelds ?? [], state.okey, cfg)) {
+        penaltiesApplied = [...penaltiesApplied, { seat, type: 'islek-discard' }]
       }
 
       // Stock exhaustion: if there are no tiles left to draw, the hand ends NOW

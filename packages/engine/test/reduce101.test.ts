@@ -945,6 +945,113 @@ describe('DEFERRED işlek penalty — çift-declarer takes floor, opens later', 
   })
 })
 
+// ── İşlek-discard penalty: throwing a tile usable on the table costs +101 ─────
+//
+// PO 2026-06-21: if you discard a tile that could be PLAYED onto an existing table
+// meld — laid off onto a run/group, OR used to swap an okey out of a meld — you
+// "wasted a working tile" and eat a flat +101. The user's case: a çift opener laid
+// [13🟡 + okey] (okey standing in for the second 13🟡); discarding the real 13🟡
+// (which could reclaim the okey) is işlek → +101 to the discarder.
+describe('İşlek-discard penalty (101) — discarding a board-usable tile', () => {
+  const islekOf = (s: GameState) => (s.penaltiesApplied ?? []).filter((x) => x.type === 'islek-discard')
+
+  it("discarding a tile that can SWAP an okey on the table is işlek → discarder +101", () => {
+    const base = start101()
+    const okey = tileFromString('12R')
+    const s: GameState = {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      // A çift pair on the table: 13🟡 + okey (okey impersonates the second 13🟡).
+      tableMelds: [{ owner: 1, kind: 'pair', tiles: [tileFromString('13S'), tileFromString('12R')] }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('13S', '5K', '6K') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('13S') })
+    expect(islekOf(after)).toHaveLength(1)
+    expect(islekOf(after)[0]!.seat).toBe(0)
+  })
+
+  it('discarding a tile that EXTENDS a table run is işlek → +101', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1K'), // distinct from the run + discard tiles
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('4R', '5R', '6R') }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('7R', '9K', '10K') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('7R') })
+    expect(islekOf(after)).toHaveLength(1)
+  })
+
+  it('discarding a tile that fits NO table meld is NOT penalised', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1K'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('4R', '5R', '6R') }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('9K', '11M', '2S') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('9K') })
+    expect(islekOf(after)).toHaveLength(0)
+  })
+
+  it('with no melds on the table, nothing is işlek', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1K'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('4R', '5R', '6R') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('4R') })
+    expect(islekOf(after)).toHaveLength(0)
+  })
+
+  it('discarding the OKEY itself is the okey-discard penalty, NOT işlek-discard', () => {
+    const base = start101()
+    const okey = tileFromString('12R')
+    const s: GameState = {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('4R', '5R', '6R') }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('12R', '9K', '10K') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('12R') })
+    expect(islekOf(after)).toHaveLength(0)
+    expect((after.penaltiesApplied ?? []).filter((x) => x.type === 'okey-discard')).toHaveLength(1)
+  })
+
+  it('Klasik (no opening requirement) is unaffected — no işlek-discard penalty', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      config: { ...base.config, requiresOpening: false },
+      okey: tileFromString('1K'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('4R', '5R', '6R') }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: h('7R', '9K', '10K') } : p,
+      ),
+    }
+    const after = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('7R') })
+    expect(islekOf(after)).toHaveLength(0)
+  })
+})
+
 // ── Discard auto-finish: winType derives from the opening route ────────────────
 describe('Discard auto-finish (101) — winType derives from openRoute', () => {
   function finishState(route: 'cift' | 'seri'): GameState {
