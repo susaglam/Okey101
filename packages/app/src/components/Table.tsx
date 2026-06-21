@@ -123,7 +123,7 @@ export function Table({
         {/* TOP seat (Can) — centre; its discard at the TOP-LEFT corner. */}
         {topOpponent && (
           <>
-            <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)' }}>
+            <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 6 }}>
               <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack />
             </div>
             <div style={{ position: 'absolute', top: 6, left: 8 }}>
@@ -137,7 +137,9 @@ export function Table({
             <div style={{ position: 'absolute', right: 4, top: '46%', transform: 'translateY(-50%)' }}>
               <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} penalties={rightOpponent.penalties} stack />
             </div>
-            <div style={{ position: 'absolute', top: 6, right: 8 }}>
+            {/* Pushed below the fixed top-right UI buttons (stats/help/settings)
+                so they never overlap this discard pile. */}
+            <div style={{ position: 'absolute', top: 58, right: 8 }}>
               <DiscardPile topTile={rightOpponent.discardTop} count={rightOpponent.discardCount} takeable={false} seat={rightOpponent.seat} />
             </div>
           </>
@@ -162,9 +164,11 @@ export function Table({
         {humanDiscard && (
           <div style={{ position: 'absolute', bottom: 6, right: 8 }}>{humanDiscard}</div>
         )}
-        {/* CENTRE: opened melds (otherwise empty). */}
+        {/* CENTRE: opened melds (otherwise empty). Starts BELOW the top nameplate
+            (top:58) and leaves a bottom margin so it never sits under the top
+            seat card or the bottom corners. */}
         {tableMelds && (
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 96, right: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', top: 58, bottom: 12, left: 96, right: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
             {tableMelds}
           </div>
         )}
