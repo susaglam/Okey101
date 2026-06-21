@@ -539,7 +539,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       <div
         className="action-bar"
         style={{
-          display: 'flex', width: '100%', maxWidth: 920, margin: '2px auto 8px',
+          display: 'flex', width: '100%', maxWidth: 1320, margin: '2px auto 8px',
           alignItems: 'center', justifyContent: 'space-between', gap: 10,
         }}
       >
@@ -672,10 +672,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
             {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
-              <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                 {/* Always a numbered tile (never the gold false joker): a legacy
                     false-joker indicator falls back to the okey tile, and `plain`
                     forces an ivory body regardless. No yellow effect anywhere. */}

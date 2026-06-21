@@ -15,7 +15,7 @@ export function StockPile({ stockCount, enabled }: { stockCount: number; enabled
     <div
       data-testid="stock-count"
       data-stockcount={stockCount}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}
     >
       <div
         ref={enabled ? setNodeRef : undefined}
