@@ -1,8 +1,34 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
 import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
-import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
+
+/**
+ * Pointer-first collision detection.
+ *
+ * The rack registers ~32 slot droppables plus a full-rack droppable, all of which
+ * have large/near centres. With plain `closestCenter`, a rack tile dragged up onto
+ * a centre lay-off target almost always resolves to a nearer RACK slot's centre
+ * instead of the (visually narrow, left-aligned) run/group row — so the lay-off
+ * never registers. `pointerWithin` keys off the POINTER position, so dropping the
+ * cursor anywhere over a run row (or a take-okey cell) reliably targets THAT meld.
+ * Fallback to `closestCenter` only when the pointer is over no droppable (fast
+ * drags / dead space) so rack reordering and draw/discard drops keep working.
+ *
+ * When the pointer overlaps several droppables at once, prefer the centre-table
+ * targets in priority order take-okey > lay-off, so dropping a real tile onto an
+ * okey in a meld swaps the okey, and dropping anywhere else on a meld lays off.
+ */
+const collisionStrategy: CollisionDetection = (args) => {
+  const pointerHits = pointerWithin(args)
+  if (pointerHits.length === 0) return closestCenter(args)
+  const takeOkey = pointerHits.find((c) => String(c.id).startsWith('take-okey:'))
+  if (takeOkey) return [takeOkey]
+  const layoff = pointerHits.find((c) => String(c.id).startsWith('layoff:'))
+  if (layoff) return [layoff]
+  return pointerHits
+}
 import type { Tile } from '@cs-okey/engine'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { RejectionCode } from '../adapter/Adapter'
@@ -382,6 +408,25 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // Guard: only allow discard when human is in DISCARD phase
   const isDiscardPhase = isMyTurn && view.turn.phase === 'DISCARD'
 
+  // While a rack tile is being dragged, which table melds is it a LEGAL lay-off
+  // for? Those melds get a green "valid target" outline so the player can see
+  // exactly where to drop (drag-to-işle). Empty unless a layable rack tile is
+  // actively being dragged during the player's discard phase.
+  const dragLayoffTargets: Set<number> = (() => {
+    const targets = new Set<number>()
+    const dragTile = activeDrag?.kind === 'rack' ? activeDrag.tile : undefined
+    if (
+      !dragTile || !is101 || !view.okey || !view.you.hasOpened ||
+      !isDiscardPhase || view.you.rack.length <= 1
+    ) return targets
+    const okey = view.okey
+    view.tableMelds.forEach((m, i) => {
+      if (m.kind === 'pair') return // pairs are never lay-off targets
+      if (isValidMeldSet([[...m.tiles, dragTile]], okey, view.config)) targets.add(i)
+    })
+    return targets
+  })()
+
   // Discard the EXACT tile in `slotIdx` (not a duplicate the engine happens to
   // match first). We optimistically empty that precise slot so reconcile keeps
   // any identical tile in its own slot instead of reshuffling the rack.
@@ -485,7 +530,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   }
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDrag(null)}>
+    <DndContext
+      collisionDetection={collisionStrategy}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveDrag(null)}
+    >
     {/* Dragged tile floats above the rack/table (portal) — never clipped/hidden. */}
     <DragOverlay dropAnimation={null} zIndex={1000}>
       {activeDrag?.kind === 'stock' ? (
@@ -519,6 +570,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           okey={view.okey}
           takeOkeyEnabled={isDiscardPhase && view.you.hasOpened}
           layoffEnabled={isDiscardPhase && view.you.hasOpened && !!view.config.layOff && view.you.rack.length > 1}
+          validTargetIndices={dragLayoffTargets}
           seriOpenValue={seriOpenValue}
           pairOpenCount={pairOpenCount}
         />

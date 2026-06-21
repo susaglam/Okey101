@@ -62,6 +62,14 @@ function detectShape(meld: Tile[], okey: Tile): 'run' | 'group' | 'ambiguous' {
  * Compute the face value of a run meld.
  * Wilds fill gaps; their value is the slot number they occupy.
  *
+ * ⚠ ORDER-SENSITIVE: this infers the run start from the FIRST non-wild tile's
+ * POSITION, so it assumes `meld` is already in run order. `isValidRun` is order-
+ * insensitive, so a front-extended lay-off may store tiles out of order (e.g.
+ * [2,3,4,5,6,1] after laying 1 onto 2-3-4-5-6). Do NOT call runValue/openingValue
+ * on stored `tableMelds` without first run-ordering them (the UI re-orders via
+ * orderMeldForDisplay before rendering). Today it is only called on OpenMeld
+ * `event.melds` and rack-derived melds, which ARE in order.
+ *
  * Strategy: Use the positional order of the meld as the run order.
  * Find the run start by examining the first non-wild tile and its index;
  * then assign each slot its consecutive number.

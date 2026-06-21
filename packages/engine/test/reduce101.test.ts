@@ -1,6 +1,7 @@
 // packages/engine/test/reduce101.test.ts
 import { describe, it, expect } from 'vitest'
 import { reduce, RuleError } from '../src/reduce'
+import { isValidMeldSet } from '../src/open'
 import { KLASIK_101, KLASIK } from '../src/config'
 import { tileFromString, tilesEqual, tileToString } from '../src/tile'
 import type { Tile } from '../src/tile'
@@ -337,6 +338,29 @@ describe('LayOff', () => {
     const s3 = reduce(s2, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [extraTile] })
     expect(s3.players[0]!.rack).toHaveLength(before - 1)
     expect(s3.tableMelds![0]!.tiles.length).toBe(4) // was 3, now 4
+  })
+
+  it('lays a tile onto the FRONT of a run (prepend) — order-insensitive validity', () => {
+    // Repro of the reported case: a run 2R-3R-4R-5R-6R is on the table and the
+    // player lays 1R, which belongs at the FRONT. The engine appends to the end
+    // of the stored array ([2,3,4,5,6,1]) but isValidRun is order-insensitive, so
+    // the lay-off is accepted and the meld remains a valid run.
+    const base = start101()
+    const run = h('2R', '3R', '4R', '5R', '6R')
+    const one = tileFromString('1R')
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 0, kind: 'run', tiles: run }],
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, openRoute: 'seri' as const, rack: [one, tileFromString('9K')] } : p
+      ),
+    }
+    const s2 = reduce(s, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [one] })
+    expect(s2.tableMelds![0]!.tiles).toHaveLength(6)
+    // The stored meld is still a valid run regardless of physical tile order.
+    expect(isValidMeldSet([s2.tableMelds![0]!.tiles], s2.okey!, s2.config)).toBe(true)
+    expect(s2.players[0]!.rack).toHaveLength(1) // 1R laid off, 9K kept as finisher
   })
 
   it('throws RuleError when layoff tiles exceed cap (2 per run per turn)', () => {

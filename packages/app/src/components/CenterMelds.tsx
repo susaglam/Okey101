@@ -15,9 +15,19 @@ function isRealOkey(t: Tile, okey: Tile): boolean {
   return t.kind === 'NUMBER' && tilesEqual(t, okey)
 }
 
-/** A meld's lay-off drop target — spans `colSpan` columns starting at `colStart`. */
-function RowDropTarget({ gi, enabled, row, colStart = 1, colSpan }: { gi: number; enabled: boolean; row: number; colStart?: number; colSpan: number }) {
+/**
+ * A meld's lay-off drop target — spans `colSpan` columns starting at `colStart`.
+ * The span is sized to HUG the meld's tiles (not the full grid width) so the
+ * droppable's rect sits directly over the visible tiles — both pointer-based and
+ * distance-based collision then resolve to the meld the player is aiming at.
+ *
+ * `valid` (a legal target for the tile currently being dragged) shows a green
+ * dashed outline so the player sees where they may drop; `isOver` shows a solid
+ * turquoise highlight on the meld under the cursor.
+ */
+function RowDropTarget({ gi, enabled, valid, row, colStart = 1, colSpan }: { gi: number; enabled: boolean; valid?: boolean; row: number; colStart?: number; colSpan: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: `layoff:${gi}`, disabled: !enabled })
+  const active = isOver && enabled
   return (
     <div
       ref={setNodeRef}
@@ -27,8 +37,8 @@ function RowDropTarget({ gi, enabled, row, colStart = 1, colSpan }: { gi: number
         gridColumn: `${colStart} / ${colStart + colSpan}`,
         gridRow: `${row + 1} / ${row + 2}`,
         borderRadius: 4,
-        background: isOver && enabled ? 'rgba(90,209,196,.18)' : 'transparent',
-        outline: isOver && enabled ? '2px solid #5ad1c4' : 'none',
+        background: active ? 'rgba(90,209,196,.22)' : valid ? 'rgba(90,209,196,.10)' : 'transparent',
+        outline: active ? '2px solid #5ad1c4' : valid ? '2px dashed rgba(90,209,196,.85)' : 'none',
         outlineOffset: -1,
         zIndex: 0,
       }}
@@ -107,12 +117,14 @@ function Badge({ children }: { children: ReactNode }) {
  * showing the highest seri opening value and the çift-open count.
  */
 export function CenterMelds({
-  melds, okey, takeOkeyEnabled, layoffEnabled, seriOpenValue, pairOpenCount,
+  melds, okey, takeOkeyEnabled, layoffEnabled, validTargetIndices, seriOpenValue, pairOpenCount,
 }: {
   melds: Meld[]
   okey: Tile
   takeOkeyEnabled?: boolean
   layoffEnabled?: boolean
+  /** Global meld indices that are legal lay-off targets for the tile being dragged. */
+  validTargetIndices?: Set<number>
   /** Highest seri first-open value across players (0 → no seri opener yet). */
   seriOpenValue: number
   /** Çift first-open pair count (0 → no çift opener yet). */
@@ -164,7 +176,7 @@ export function CenterMelds({
         badge={seriOpenValue > 0 ? <Badge>{seriOpenValue}</Badge> : undefined}
       >
         {runs.map((m, row) => (
-          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} colSpan={13} />
+          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} valid={validTargetIndices?.has(m.gi)} row={row} colSpan={Math.min(m.tiles.length, 13)} />
         ))}
         {/* Each run is a contiguous left-aligned block in its OWN row (col = position),
             so a row is always exactly one run — no number-column overlap between
@@ -178,7 +190,7 @@ export function CenterMelds({
         {groups.map((m, idx) => {
           const row = Math.floor(idx / 2)
           const startCol = idx % 2 === 0 ? 1 : 6
-          return <RowDropTarget key={`g-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} colStart={startCol} colSpan={4} />
+          return <RowDropTarget key={`g-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} valid={validTargetIndices?.has(m.gi)} row={row} colStart={startCol} colSpan={Math.min(m.tiles.length, 4)} />
         })}
         {groups.flatMap((m, idx) => {
           const row = Math.floor(idx / 2)
