@@ -40,54 +40,31 @@ export function initLayout(tiles: Tile[], cols: number): SlotLayout {
  * the first empty slot — so drag-to-draw lands where the player aimed.
  */
 export function reconcile(prev: SlotLayout, tiles: Tile[], preferredSlotForNew?: number | null): SlotLayout {
-  // Build a count map keyed by tile identity
-  const remaining = new Map<Tile, number>()
-  for (const t of tiles) {
-    let found = false
-    for (const [key] of remaining) {
-      if (tilesEqual(key, t)) {
-        remaining.set(key, (remaining.get(key) ?? 0) + 1)
-        found = true
-        break
-      }
-    }
-    if (!found) {
-      remaining.set(t, 1)
-    }
-  }
+  // A POOL of the new tiles as DISTINCT object references (duplicates kept
+  // distinct). We consume one matching instance per kept prev tile. The old
+  // count-map collapsed value-equal duplicates onto ONE object, so two slots
+  // could end up holding the SAME Tile object → the same flip-id → GSAP Flip
+  // animating both copies as one. Keeping distinct objects fixes that.
+  const pool = tiles.slice()
 
   const next: SlotLayout = new Array<Tile | null>(prev.length).fill(null)
 
-  // Pass 1: keep existing tiles that are still in the multiset
+  // Pass 1: keep existing tiles still present (claim one matching instance from
+  // the pool; keep the PREV object so its flip-id stays stable across renders).
   for (let i = 0; i < prev.length; i++) {
     const t = prev[i]
     if (t == null) continue
-    // Try to claim one from remaining
-    let claimed = false
-    for (const [key, count] of remaining) {
-      if (tilesEqual(key, t)) {
-        next[i] = t
-        if (count <= 1) {
-          remaining.delete(key)
-        } else {
-          remaining.set(key, count - 1)
-        }
-        claimed = true
-        break
-      }
-    }
-    if (!claimed) {
-      next[i] = null // tile was removed
+    const idx = pool.findIndex((p) => tilesEqual(p, t))
+    if (idx >= 0) {
+      next[i] = t          // keep the prev object (stable identity)
+      pool.splice(idx, 1)  // consume one matching instance
+    } else {
+      next[i] = null       // tile was removed
     }
   }
 
-  // Pass 2: place unclaimed tiles (newly added) into first empty slots
-  const unclaimed: Tile[] = []
-  for (const [key, count] of remaining) {
-    for (let c = 0; c < count; c++) {
-      unclaimed.push(key)
-    }
-  }
+  // Pass 2: place the remaining (newly-added) tiles — genuine DISTINCT objects.
+  const unclaimed: Tile[] = pool
 
   let ui = 0
   // Place the first newly-added tile at the player's chosen drop slot. If that

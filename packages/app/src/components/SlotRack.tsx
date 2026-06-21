@@ -41,7 +41,11 @@ function DraggableTile({
     transformOrigin: 'center',
     zIndex: 1,
     opacity: isDragging ? 0.35 : 1,
-    transition: isDragging ? undefined : 'transform 0.12s ease',
+    // Only transition OPACITY — never `transform`. A CSS transform-transition
+    // fights GSAP Flip (Flip snaps the element to its old spot, the CSS transition
+    // then re-animates that snap), producing the "jump then animate back" double
+    // movement on Seri/Çift Diz. Flip and dnd-kit both drive transform directly.
+    transition: isDragging ? undefined : 'opacity 0.12s ease',
     cursor: isDragging ? 'grabbing' : 'grab',
     touchAction: 'none',
   }

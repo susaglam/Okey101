@@ -27,6 +27,12 @@ const collisionStrategy: CollisionDetection = (args) => {
   if (takeOkey) return [takeOkey]
   const layoff = pointerHits.find((c) => String(c.id).startsWith('layoff:'))
   if (layoff) return [layoff]
+  // Prefer a SPECIFIC rack slot (numeric id) over the full-rack 'rack' wrapper
+  // that overlaps every slot. Otherwise a tile dropped on a chosen slot resolves
+  // to 'rack' (no slot) and lands in the first empty slot instead of where the
+  // player aimed — breaking drag-to-draw-into-slot and precise reordering.
+  const slot = pointerHits.find((c) => /^\d+$/.test(String(c.id)))
+  if (slot) return [slot]
   return pointerHits
 }
 import type { Tile } from '@cs-okey/engine'
@@ -193,7 +199,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           for (let round = 0; round < 5; round++) {
             for (const tEl of seatEls) {
               if (!tEl) continue
-              void flyTile({ clone: stockTile, from: src, to: tEl, durationSec: 0.3, delaySec: k * 0.04, fadeOut: true })
+              void flyTile({ clone: stockTile, from: src, to: tEl, durationSec: 0.46, delaySec: k * 0.06, fadeOut: true })
               k++
             }
           }
@@ -226,6 +232,37 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         tileEls.forEach((tileEl, ti) => {
           void flyTile({ clone: tileEl, from: fromEl ?? meldEl, to: tileEl, durationSec: 0.34, delaySec: ti * 0.05 })
         })
+      }
+    }
+
+    // Draw animation: when any seat's rack grows by one, fly a tile to that seat
+    // FROM the source it drew — the stock pile (DrawFromStock) or its left
+    // neighbour's discard (DrawFromDiscard) — so it's visible WHERE each player
+    // (incl. the human, and every player in a future online build) drew from.
+    // Bots are paced one move per view, so a tick has exactly one such change.
+    {
+      const players = view.config.players
+      const rackOf = (v: PlayerView, s: number) =>
+        s === v.seat ? v.you.rack.length : (v.opponents.find((o) => o.seat === s)?.rackCount ?? 0)
+      const discOf = (v: PlayerView, s: number) =>
+        s === v.seat ? v.you.discard.length : (v.opponents.find((o) => o.seat === s)?.discardCount ?? 0)
+      const pileElOf = (s: number) =>
+        document.querySelector(`[data-seat="${s}"][data-testid="discard-pile"]`)
+        ?? (s === view.seat ? document.querySelector('[data-testid="discard-zone"]') : null)
+      for (let s = 0; s < players; s++) {
+        if (rackOf(view, s) !== rackOf(prev, s) + 1) continue // this seat didn't draw one
+        const toEl = s === view.seat
+          ? document.querySelector('[data-testid="slot-rack"]')
+          : document.querySelector(`[data-seat="${s}"][data-testid="seat"]`)
+        if (!toEl) continue
+        const leftS = (s + players - 1) % players
+        const tookFloor = discOf(view, leftS) < discOf(prev, leftS)
+        const fromEl = tookFloor
+          ? pileElOf(leftS)
+          : (view.stockCount < prev.stockCount
+            ? document.querySelector('[data-testid="stock-tile"], [data-testid="draw-stock"]')
+            : null)
+        if (fromEl) void flyTile({ clone: fromEl, from: fromEl, to: toEl, durationSec: 0.34 })
       }
     }
   }, [view])
