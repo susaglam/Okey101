@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
 import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
 
@@ -439,9 +439,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // A çift player (declared OR opened via pairs) may never lay new runs/groups.
   const isCiftPlayer = openRoute === 'cift' || view.you.declaredCift === true
 
-  // findLayableMeld result: post-opening meld laying (only for seri-route players)
-  const layableMeld101 = is101 && view.okey && view.you.hasOpened && !isCiftPlayer
-    ? findLayableMeld(view.you.rack, view.okey, view.config)
+  // Post-opening "Seri Aç" — LAYOUT-DRIVEN: lay exactly the valid runs/groups the
+  // player ARRANGED on the rack (validSeriMelds), never an auto-arrangement that
+  // would pull the okey or other tiles into the meld. The player decides what (and
+  // whether the okey) is laid by how they arrange the tiles. Only for seri-route
+  // players who have opened.
+  const layableSeriMelds = is101 && view.okey && view.you.hasOpened && !isCiftPlayer && validSeriMelds.length > 0
+    ? validSeriMelds
     : null
 
   // A çift route is open on the table once anyone has laid a pair. Once it is,
@@ -798,9 +802,9 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           {/* Post-open laying (seri açan: yeni seri/grup; masada çift varsa: çift) — left group */}
           {isMyTurn && isDiscardPhase && is101 && view.you.hasOpened && !isCiftPlayer && (
             <button
-              disabled={layableMeld101 === null}
-              title="Yere yeni bir seri/grup aç"
-              onClick={() => { if (layableMeld101) send({ type: 'OpenMeld', seat: view.seat, melds: [layableMeld101] }) }}
+              disabled={layableSeriMelds === null}
+              title="İstakada dizdiğin seri/grupları yere aç (okey nereye koyduysan o)"
+              onClick={() => { if (layableSeriMelds) send({ type: 'OpenMeld', seat: view.seat, melds: layableSeriMelds }) }}
             >
               Seri Aç
             </button>
