@@ -620,6 +620,31 @@ describe('RetractOpen — undo this turn’s open before discarding', () => {
     expect((r.penaltiesApplied ?? []).some((x) => x.type === 'islek')).toBe(false)
   })
 
+  it('also reverts lay-offs made onto OTHERS’ melds (and take-okey) this turn', () => {
+    const base = start101()
+    // seat 1 already has a run on the table; seat 0 opens, then lays 8R onto it.
+    const rack = [...openMelds().flat(), tileFromString('8R'), tileFromString('3S')]
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('5S'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: [tileFromString('5R'), tileFromString('6R'), tileFromString('7R')] }],
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack } : p)),
+    }
+    const opened = reduce(s, { type: 'OpenMeld', seat: 0, melds: openMelds() })
+    // meldIndex 0 is still seat 1's run (the opener's melds are appended after it).
+    const laid = reduce(opened, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('8R')] })
+    expect(laid.tableMelds![0]!.tiles).toHaveLength(4) // 5,6,7,8
+    expect(laid.tableMelds!).toHaveLength(4)           // seat 1's run + seat 0's three melds
+
+    const r = reduce(laid, { type: 'RetractOpen', seat: 0 })
+    expect(r.players[0]!.hasOpened).toBe(false)
+    expect(r.tableMelds!).toHaveLength(1)              // only seat 1's run remains
+    expect(r.tableMelds![0]!.tiles).toHaveLength(3)    // back to 5,6,7 (the 8R lay-off undone)
+    expect(r.players[0]!.rack.some((t) => tilesEqual(t, tileFromString('8R')))).toBe(true) // 8R returned
+    expect(r.players[0]!.rack).toHaveLength(11)        // full pre-open rack restored
+  })
+
   it('legalMoves101 offers RetractOpen only after opening this turn', () => {
     const base = start101()
     const rack = [...openMelds().flat(), tileFromString('2S'), tileFromString('3S')]
