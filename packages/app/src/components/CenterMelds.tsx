@@ -127,9 +127,27 @@ export function CenterMelds({
   const renderMeldTiles = (m: Meld & { gi: number }, row: number, colFor: (ti: number, reps: (number | null)[]) => number) => {
     const ordered = orderMeldForDisplay(m.tiles, okey)
     const reps = meldRepresentedValues(ordered, okey)
+    // For a RUN, a wild (okey / false joker) represents the run's own colour — so we
+    // render it AS that colour + its represented number, instead of its own face,
+    // so it blends into the run (no "wrong colour" tile appearing in a per).
+    const runColor = m.kind === 'run'
+      ? m.tiles.find((t) => t.kind === 'NUMBER' && !tilesEqual(t, okey))?.color
+      : undefined
     return ordered.map((tile, ti) => {
       const col = colFor(ti, reps)
-      const tileEl = <TileView tile={tile} testId="table-meld-tile" small repValue={isRealOkey(tile, okey) || tile.kind === 'FALSE_JOKER' ? (reps[ti] ?? undefined) : undefined} />
+      const isWild = isRealOkey(tile, okey) || tile.kind === 'FALSE_JOKER'
+      const rep = reps[ti]
+      const displayTile: Tile = isWild && runColor && rep != null
+        ? { kind: 'NUMBER', number: rep, color: runColor }
+        : tile
+      const tileEl = (
+        <TileView
+          tile={displayTile}
+          testId="table-meld-tile"
+          small
+          repValue={isWild && displayTile === tile ? (rep ?? undefined) : undefined}
+        />
+      )
       if (takeOkeyEnabled && isRealOkey(tile, okey)) {
         return <OkeyDropCell key={ti} id={`take-okey:${m.gi}:${ti}`} col={col} row={row}>{tileEl}</OkeyDropCell>
       }
@@ -142,18 +160,16 @@ export function CenterMelds({
       {/* AREA A — runs, number-aligned (col = represented number 1-13). */}
       <GridArea
         cols={13}
-        title="Seri perler (1–13)"
+        title="Seri perler"
         badge={seriOpenValue > 0 ? <Badge>{seriOpenValue}</Badge> : undefined}
       >
         {runs.map((m, row) => (
           <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} row={row} colSpan={13} />
         ))}
-        {runs.flatMap((m, row) =>
-          renderMeldTiles(m, row, (ti, reps) => {
-            const n = reps[ti]
-            return n != null && n >= 1 && n <= 13 ? n : ti + 1
-          }),
-        )}
+        {/* Each run is a contiguous left-aligned block in its OWN row (col = position),
+            so a row is always exactly one run — no number-column overlap between
+            different-coloured runs that made them look mixed. */}
+        {runs.flatMap((m, row) => renderMeldTiles(m, row, (ti) => Math.min(ti + 1, 13)))}
       </GridArea>
 
       {/* AREA B — same-number groups: 9 cols = 4 + 1 gap + 4, so TWO groups fit per
