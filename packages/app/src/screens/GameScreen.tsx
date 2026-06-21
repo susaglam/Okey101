@@ -127,6 +127,11 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // newly-drawn tile lands there (not the first empty slot). Consumed once.
   const pendingDrawSlot = useRef<number | null>(null)
 
+  // Slot where the human's just-drawn tile landed (object not present in the prev
+  // layout). The draw animation flies a ghost there and reveals the real tile on
+  // arrival ("animation first, then show"). -1 = no fresh draw this view.
+  const drawAnimSlotRef = useRef<number>(-1)
+
   // The hand number whose freshly-dealt rack we have already auto-arranged, so we
   // only auto-arrange ONCE per hand (and never clobber the player's manual layout).
   const autoArrangedHand = useRef<number | null>(null)
@@ -150,7 +155,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           if (!prev) return initLayout(v.you.rack, COLS)
           const pref = pendingDrawSlot.current
           pendingDrawSlot.current = null
-          return reconcile(prev, v.you.rack, pref)
+          const nextLayout = reconcile(prev, v.you.rack, pref)
+          // Record where a newly-drawn tile landed (an object not in the prev
+          // layout — reconcile keeps prev objects and appends genuinely-new ones).
+          // Exactly one on a draw; -1 after a discard/lay-off (nothing new).
+          const prevObjs = new Set(prev.filter((t): t is Tile => t !== null))
+          drawAnimSlotRef.current = nextLayout.findIndex((t) => t !== null && !prevObjs.has(t))
+          return nextLayout
         })
         setSelectedSlot(null)
         setMatch(adapter.getMatch())
@@ -189,17 +200,24 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         const fr = felt?.getBoundingClientRect()
         if (felt && stockTile && fr && fr.width) {
           const src = new DOMRect(fr.left + fr.width / 2 - 20, fr.top + fr.height / 2 - 26, 40, 52)
-          const seatEls = [
-            document.querySelector('[data-testid="slot-rack"]'),            // human (seat 0)
+          // Human: HIDE each rack tile, fly a face-down ghost from the centre to
+          // its slot, and reveal the real (face-up) tile only on arrival — so the
+          // tiles drop into place instead of being fully visible during the deal.
+          const humanTiles = Array.from(document.querySelectorAll('[data-testid="slot-rack"] [data-flip-id]'))
+          humanTiles.forEach((tileEl, i) => {
+            void flyTile({ clone: stockTile, from: src, to: tileEl, revealTarget: tileEl, durationSec: 0.5, delaySec: i * 0.05, fadeOut: false })
+          })
+          // Opponents: face-down flourish to each seat (no visible rack to reveal).
+          const oppSeatEls = [
             document.querySelector('[data-seat="1"][data-testid="seat"]'),
             document.querySelector('[data-seat="2"][data-testid="seat"]'),
             document.querySelector('[data-seat="3"][data-testid="seat"]'),
           ]
           let k = 0
           for (let round = 0; round < 5; round++) {
-            for (const tEl of seatEls) {
+            for (const tEl of oppSeatEls) {
               if (!tEl) continue
-              void flyTile({ clone: stockTile, from: src, to: tEl, durationSec: 0.46, delaySec: k * 0.06, fadeOut: true })
+              void flyTile({ clone: stockTile, from: src, to: tEl, durationSec: 0.46, delaySec: k * 0.05, fadeOut: true })
               k++
             }
           }
@@ -249,10 +267,17 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       const pileElOf = (s: number) =>
         document.querySelector(`[data-seat="${s}"][data-testid="discard-pile"]`)
         ?? (s === view.seat ? document.querySelector('[data-testid="discard-zone"]') : null)
+      const drawnSlot = drawAnimSlotRef.current
+      drawAnimSlotRef.current = -1
       for (let s = 0; s < players; s++) {
         if (rackOf(view, s) !== rackOf(prev, s) + 1) continue // this seat didn't draw one
+        // For the human: fly to (and reveal) the exact slot the tile landed in, so
+        // it appears only when the ghost arrives. Opponents fly to their seat.
+        const slotTileEl = s === view.seat && drawnSlot >= 0
+          ? document.querySelector(`[data-slot="${drawnSlot}"] [data-flip-id]`)
+          : null
         const toEl = s === view.seat
-          ? document.querySelector('[data-testid="slot-rack"]')
+          ? (slotTileEl ?? document.querySelector('[data-testid="slot-rack"]'))
           : document.querySelector(`[data-seat="${s}"][data-testid="seat"]`)
         if (!toEl) continue
         const leftS = (s + players - 1) % players
@@ -262,7 +287,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           : (view.stockCount < prev.stockCount
             ? document.querySelector('[data-testid="stock-tile"], [data-testid="draw-stock"]')
             : null)
-        if (fromEl) void flyTile({ clone: fromEl, from: fromEl, to: toEl, durationSec: 0.34 })
+        if (fromEl) void flyTile({ clone: fromEl, from: fromEl, to: toEl, revealTarget: slotTileEl, durationSec: 0.34 })
       }
     }
   }, [view])

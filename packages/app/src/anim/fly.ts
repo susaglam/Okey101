@@ -58,6 +58,12 @@ export interface FlyOpts {
   ease?: string
   /** Uçuş sonunda ghost'u soldur (varsayılan: hayır — hedefte beliren gerçek taşa karışmasın diye genelde true iyi). */
   fadeOut?: boolean
+  /**
+   * Verilirse: uçuş boyunca bu gerçek hedef elemanı GİZLE (opacity 0) ve ghost
+   * inince GÖSTER. Böylece "önce animasyon, sonra göster" olur — taş zaten yerinde
+   * görünürken üstünden hayalet uçmaz; taş, hayalet inince belirir.
+   */
+  revealTarget?: Element | null
 }
 
 /**
@@ -71,6 +77,11 @@ export function flyTile(opts: FlyOpts): Promise<void> {
     const to = rectOf(opts.to)
     const cloneSrc = opts.clone
     if (!from || !to || !cloneSrc || !from.width || !to.width) { resolve(); return }
+
+    // "Animation first, then show": hide the real destination tile for the flight
+    // so the ghost lands AS the tile, instead of flying over an already-visible one.
+    const reveal = (opts.revealTarget ?? null) as HTMLElement | null
+    if (reveal) reveal.style.opacity = '0'
 
     const ghost = cloneSrc.cloneNode(true) as HTMLElement
     stripIds(ghost)
@@ -98,7 +109,7 @@ export function flyTile(opts: FlyOpts): Promise<void> {
       duration: opts.durationSec ?? 0.3,
       delay: opts.delaySec ?? 0,
       ease: opts.ease ?? 'power2.inOut',
-      onComplete: () => { ghost.remove(); resolve() },
+      onComplete: () => { ghost.remove(); if (reveal) reveal.style.opacity = ''; resolve() },
     })
   })
 }
