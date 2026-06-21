@@ -1,0 +1,14 @@
+# Normalise line endings: store text as LF in the repo and check out as LF on all
+# platforms. Stops the CRLF/LF churn (the "X insertions, X deletions" line-ending
+# diffs) when editing on Windows.
+* text=auto eol=lf
+
+# Binary assets — never touched as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
