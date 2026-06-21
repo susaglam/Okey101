@@ -8,7 +8,7 @@ export function HelpContent({ variant }: { variant?: 'klasik' | 'yuzbir' }) {
   const show101 = variant !== 'klasik'
 
   return (
-    <section style={{ textAlign: 'left', maxWidth: 520, margin: '0 auto', lineHeight: 1.6 }}>
+    <section className="help-content" style={{ maxWidth: 520, margin: '0 auto' }}>
       <h2>Taşlar</h2>
       <p>
         106 taş: 4 renk (kırmızı, sarı, mavi, siyah) × 1–13 sayı, 2'şer kopya, + 2 sahte okey (♣).

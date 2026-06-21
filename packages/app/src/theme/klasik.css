@@ -15,10 +15,10 @@ body { overflow-x: hidden; }
      Sayı fontu + delik + ıstaka boşluğu da bu ölçekle orantılı sürülür. */
   --tile-w: clamp(26px, 4.2vw, 56px);
   --tile-h: clamp(36px, 5.8vw, 76px);
-  --tile-radius: clamp(5px, 0.6vw, 9px);
-  --tile-font: clamp(16px, 2.2vw, 30px);
-  --tile-hole: clamp(8px, 1.15vw, 15px);
-  --gap-rack: clamp(2px, 0.3vw, 4px);
+  --tile-radius: clamp(3px, 0.36vw, 5px);   /* daha az yuvarlatılmış köşe */
+  --tile-font: clamp(17px, 2.3vw, 32px);    /* biraz daha iri rakam */
+  --tile-hole: clamp(7px, 1.0vw, 13px);
+  --gap-rack: clamp(1px, 0.18vw, 2px);      /* taşlar arası daha az boşluk */
 
   /* Çuha (masa) */
   --felt: radial-gradient(ellipse at 50% 36%, #2f9d63 0%, #157a40 52%, #0c5b2f 100%);
@@ -63,8 +63,8 @@ body { overflow-x: hidden; }
   align-items: center;
   justify-content: flex-start;
   padding-top: clamp(6px, 0.95vw, 13px);
-  font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', 'Arial Black', system-ui, sans-serif;
-  font-weight: 800;
+  font-family: 'Arial Black', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+  font-weight: 900;
   font-size: var(--tile-font);
   letter-spacing: -0.5px;
   line-height: 1;
@@ -120,7 +120,8 @@ body { overflow-x: hidden; }
   background: radial-gradient(circle at 62% 35%, #cfc9b9 0%, #ada692 68%, #8d8472 100%);
   box-shadow: inset 1px 2px 2px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.55);
   position: absolute;
-  bottom: clamp(6px, 0.9vw, 11px);
+  /* Raised a bit so the rack's front ledge/notch never clips it. */
+  bottom: clamp(9px, 1.3vw, 16px);
 }
 /* "İşlek" taş: delik kırmızı yanar (yerdeki perlere işlenebilir). */
 .okey-tile .hole.islek {
@@ -201,8 +202,8 @@ body { overflow-x: hidden; }
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 11px 13px 13px;
+  gap: 5px;
+  padding: 10px 12px 12px;
   background:
     /* ince dikey damar */
     repeating-linear-gradient(91deg, rgba(95, 60, 22, 0.13) 0 2px, rgba(150, 99, 39, 0) 2px 7px),
@@ -236,30 +237,40 @@ body { overflow-x: hidden; }
 .okey-rack-wm b { font-size: 1.35rem; }
 .okey-rack-wm small { font-size: 0.62rem; letter-spacing: 5px; color: rgba(90, 55, 10, 0.12); }
 
-/* İki basamağı ayıran ahşap sırt (üstte highlight, altta gölge → kabarık çıta). */
+/* İki kat arası ince ahşap aralık (üst rayın altı / alt katın arkası). */
 .okey-rack-groove {
-  height: 5px;
+  height: 3px;
   margin: 0 2px;
-  border-radius: 3px;
-  background: linear-gradient(to bottom, rgba(255, 244, 215, 0.32) 0%, rgba(150, 99, 39, 0.2) 45%, rgba(40, 24, 6, 0.4) 100%);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(to bottom, rgba(40, 24, 6, 0.32) 0%, rgba(255, 244, 215, 0.14) 100%);
   z-index: 2;
 }
 
-/* Her kat, taşların oturduğu GİRİNTİLİ ahşap kanal: üstte arka-duvar gölgesi
-   (taşlar arkaya yaslanır), altta ön-dudak parlaması. Kutucuk YOK — gerçek ıstaka. */
+/* Her kat bir AHŞAP RAF: taşlar ahşabın üstünde oturur ve ÖN ÇENTİK RAYINA (::after)
+   yaslanır — gerçek Okey ıstakasındaki çıkıntılı çentik hissi. Gömük kanal/kutucuk YOK. */
 .okey-rack-row {
   display: flex;
   gap: var(--gap-rack);
   position: relative;
   z-index: 1;
-  padding: 5px 7px 7px;
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgba(45, 28, 8, 0.34) 0%, rgba(45, 28, 8, 0.12) 12%, rgba(255, 240, 210, 0.04) 62%, rgba(255, 246, 222, 0.12) 100%);
+  padding: 3px 6px 6px;
+}
+/* Ön çentik rayı — taşların alt kenarının arkasına geçtiği kabarık ahşap çıta.
+   Rakam ve delik bunun ÜSTÜNDE kalır (delik yukarı alındı), ray onları örtmez. */
+.okey-rack-row::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 0;
+  height: 7px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #e7be7d 0%, #cda05c 45%, #9a7036 100%);
   box-shadow:
-    inset 0 4px 6px rgba(35, 20, 5, 0.42),       /* kanal arka/üst gölge */
-    inset 0 -2px 2px rgba(255, 236, 200, 0.2),   /* ön dudak iç parlaması */
-    0 1px 0 rgba(255, 240, 210, 0.16);           /* dudak alt highlight */
+    0 -1px 2px rgba(0, 0, 0, 0.32),            /* taşın çentiğe oturma gölgesi */
+    inset 0 1px 0 rgba(255, 248, 228, 0.65),   /* ray üst parlaması */
+    0 1px 1px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 5;
 }
 
 /* Slot (taş yuvası) — dolu/boş ortak ölçü; boş slot ARTIK görünmez (çıplak ahşap). */
@@ -623,3 +634,25 @@ body { overflow-x: hidden; }
   border-radius: 7px;
   padding: 3px 6px;
 }
+
+/* "Nasıl Oynanır?" gövdesi — temaya uygun başlıklar + okunur metin. */
+.help-content { text-align: left; }
+.help-content h2 {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffd27a;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 16px 0 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 210, 122, 0.2);
+}
+.help-content h2:first-child { margin-top: 0; }
+.help-content p {
+  margin: 4px 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #e8dcc4;
+}
+.help-content strong { color: #fff7e9; font-weight: 700; }
+.help-content em { color: #9fe6da; font-style: normal; font-weight: 600; }

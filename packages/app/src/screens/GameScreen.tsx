@@ -857,8 +857,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             gösterge at the far right. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
           <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
-            {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
+            {/* Arrange buttons are LOCAL (rack-only) — keep them available even while
+                bots play, so the player can sort/check their hand any time. */}
+            {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
+            {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
             {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>

@@ -123,10 +123,12 @@ export function Table({
         {/* TOP seat (Can) — centre; its discard at the TOP-LEFT corner. */}
         {topOpponent && (
           <>
-            <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 6 }}>
+            {/* Top player card moved to the UPPER-LEFT so it never blocks the centre
+                meld-laying area; its discard sits just below it. */}
+            <div style={{ position: 'absolute', top: 6, left: 12, zIndex: 6 }}>
               <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack />
             </div>
-            <div style={{ position: 'absolute', top: 6, left: 8 }}>
+            <div style={{ position: 'absolute', top: 60, left: 14 }}>
               <DiscardPile topTile={topOpponent.discardTop} count={topOpponent.discardCount} takeable={false} seat={topOpponent.seat} />
             </div>
           </>

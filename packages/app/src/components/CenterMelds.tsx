@@ -9,7 +9,7 @@ type Meld = { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }
 
 const CELL_W = 40
 const CELL_H = 52
-const ROWS = 11
+const MIN_ROWS = 2 // keep a small board even when nearly empty
 
 function isRealOkey(t: Tile, okey: Tile): boolean {
   return t.kind === 'NUMBER' && tilesEqual(t, okey)
@@ -71,10 +71,12 @@ function cell(col: number, row: number): React.CSSProperties {
   }
 }
 
-/** One grid area (runs / groups / pairs) with a cell-grid backdrop. */
+/** One grid area (runs / groups / pairs) with a cell-grid backdrop.
+ *  `rows` is dynamic (only as many as the melds need) so the board never grows
+ *  taller than its content — no vertical overflow into the nameplate, no scroll. */
 function GridArea({
-  cols, children, badge, title,
-}: { cols: number; children: ReactNode; badge?: ReactNode; title?: string }) {
+  cols, rows, children, badge, title,
+}: { cols: number; rows: number; children: ReactNode; badge?: ReactNode; title?: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <div
@@ -82,7 +84,7 @@ function GridArea({
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, ${CELL_W}px)`,
-          gridTemplateRows: `repeat(${ROWS}, ${CELL_H}px)`,
+          gridTemplateRows: `repeat(${rows}, ${CELL_H}px)`,
           // Cell-grid backdrop.
           backgroundColor: 'rgba(0,0,0,.16)',
           backgroundImage:
@@ -136,6 +138,12 @@ export function CenterMelds({
   const groups = indexed.filter((m) => m.kind === 'group')
   const pairs = indexed.filter((m) => m.kind === 'pair')
 
+  // Dynamic row count — each area is only as tall as its melds need (runs: one per
+  // row; groups & pairs: two per row). Shared across the three areas so their tops
+  // align. No fixed 11-row board → it never overflows into the top nameplate, and
+  // no scroll is ever needed.
+  const rows = Math.max(MIN_ROWS, runs.length, Math.ceil(groups.length / 2), Math.ceil(pairs.length / 2))
+
   const renderMeldTiles = (m: Meld & { gi: number }, row: number, colFor: (ti: number, reps: (number | null)[]) => number) => {
     const ordered = orderMeldForDisplay(m.tiles, okey)
     const reps = meldRepresentedValues(ordered, okey)
@@ -176,6 +184,7 @@ export function CenterMelds({
       {/* AREA A — runs, number-aligned (col = represented number 1-13). */}
       <GridArea
         cols={13}
+        rows={rows}
         title="Seri perler"
         badge={seriOpenValue > 0 ? <Badge>{seriOpenValue}</Badge> : undefined}
       >
@@ -194,7 +203,7 @@ export function CenterMelds({
 
       {/* AREA B — same-number groups: 9 cols = 4 + 1 gap + 4, so TWO groups fit per
           row (cols 1–4 and 6–9). Up to 22 groups across 11 rows. */}
-      <GridArea cols={9} title="Aynı sayı grupları">
+      <GridArea cols={9} rows={rows} title="Aynı sayı grupları">
         {groups.map((m, idx) => {
           const row = Math.floor(idx / 2)
           const startCol = idx % 2 === 0 ? 1 : 6
@@ -210,6 +219,7 @@ export function CenterMelds({
       {/* AREA C — pairs (4 cols → 2 pairs per row). */}
       <GridArea
         cols={4}
+        rows={rows}
         title="Çiftler"
         badge={pairOpenCount > 0 ? <Badge>{`${pairOpenCount}${pairOpenCount}`}</Badge> : undefined}
       >
