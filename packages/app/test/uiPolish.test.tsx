@@ -71,6 +71,28 @@ describe('SlotRack with 16 cols', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────
+// 1b. The real okey in hand is shown BLANK (face-down) — nothing on the tile
+// ────────────────────────────────────────────────────────────────────────────
+describe('Okey in hand renders blank (face-down)', () => {
+  it('the real okey tile shows no numeral; a normal tile keeps its number', () => {
+    const okey: Tile = { color: 'RED', number: 12, kind: 'NUMBER' }
+    const okeyTile: Tile = { color: 'RED', number: 12, kind: 'NUMBER' } // == okey → blank
+    const normal: Tile = { color: 'BLUE', number: 5, kind: 'NUMBER' }
+    const layout = initLayout([okeyTile, normal], 4)
+    render(
+      <SlotRack layout={layout} okey={okey} selectedSlot={null} onSelectSlot={vi.fn()} />,
+    )
+    // The okey is a blank button: marked data-okey, aria-label "okey", no number text.
+    const okeyBtn = screen.getByLabelText('okey')
+    expect(okeyBtn.getAttribute('data-okey')).toBe('true')
+    expect(okeyBtn.className).toContain('back')
+    expect(okeyBtn.textContent).toBe('')
+    // A normal numbered tile still shows its number.
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
 // 2. Empty slots not visible as boxes — they still have testid but no inset style
 //    (We test that the slot-rack container still renders when empty)
 // ────────────────────────────────────────────────────────────────────────────
@@ -110,26 +132,6 @@ describe('Stock indicator', () => {
     const stockTile = screen.getByTestId('stock-tile')
     expect(stockTile).toBeInTheDocument()
     expect(stockTile.textContent).toContain('22')
-  })
-})
-
-// ────────────────────────────────────────────────────────────────────────────
-// 3b. Okey shown FACE-DOWN: open gösterge tile + a closed (blank) okey tile
-// ────────────────────────────────────────────────────────────────────────────
-describe('Gösterge + kapalı okey', () => {
-  it('renders the OPEN gösterge tile AND a face-down (blank) okey tile', async () => {
-    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
-    render(<GameScreen adapter={adapter} />)
-    await waitFor(() => {
-      expect(screen.getByTestId('gosterge-tile')).toBeInTheDocument()
-    })
-    const okeyBack = screen.getByTestId('okey-back')
-    expect(okeyBack).toBeInTheDocument()
-    // It's the .tile-back element (a blank ivory back), not a numbered TileView.
-    expect(okeyBack.className).toContain('tile-back')
-    expect(okeyBack.textContent).toBe('') // no numeral shown — it's "closed"
-    // The okey value is carried in the aria-label for accessibility.
-    expect(okeyBack.getAttribute('aria-label') ?? '').toMatch(/^okey:/)
   })
 })
 

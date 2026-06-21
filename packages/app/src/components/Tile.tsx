@@ -20,6 +20,7 @@ export function TileView({
   small,
   layable,
   plain,
+  isOkey,
 }: {
   tile: Tile
   selected?: boolean
@@ -34,12 +35,33 @@ export function TileView({
   /** Render as a normal ivory tile even for a FALSE_JOKER (no gold body). Used by
    *  the gösterge, which must always look like a normal okey tile. */
   plain?: boolean
+  /** This tile is the real okey (the wild). In hand it is shown FACE-DOWN — a blank
+   *  ivory tile with nothing on it (no numeral, no hole) — so the player instantly
+   *  spots the okey instead of mistaking it for a normal numbered tile. */
+  isOkey?: boolean
 }) {
   const isJoker = tile.kind === 'FALSE_JOKER'
   const label = isJoker ? 'sahte okey' : tileToString(tile)
   const color = tile.color ? COLOR_CLASS[tile.color] : '#7a4a1c'
   const glyph = colorblind && tile.color ? COLORBLIND_GLYPH[tile.color] : null
   const showRepValue = repValue !== undefined
+
+  // Real okey in hand → blank face-down tile (nothing on it). Stays a normal
+  // draggable/selectable button, just with no face content.
+  if (isOkey) {
+    return (
+      <button
+        type="button"
+        className={`okey-tile back${selected ? ' sel' : ''}${small ? ' sm' : ''}`}
+        data-testid={testId ?? undefined}
+        data-okey="true"
+        aria-label="okey"
+        onClick={onClick}
+      >
+        <span className="tile-edge" aria-hidden="true" />
+      </button>
+    )
+  }
 
   return (
     <button

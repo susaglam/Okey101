@@ -16,6 +16,7 @@ function DraggableTile({
   colorblind,
   repValue,
   layable,
+  isOkey,
   onSelectSlot,
 }: {
   slotIndex: number
@@ -24,6 +25,7 @@ function DraggableTile({
   colorblind?: boolean
   repValue?: number
   layable?: boolean
+  isOkey?: boolean
   onSelectSlot: (slot: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -58,6 +60,7 @@ function DraggableTile({
         colorblind={colorblind}
         repValue={repValue}
         layable={layable}
+        isOkey={isOkey}
         onClick={() => onSelectSlot(slotIndex)}
       />
     </div>
@@ -74,6 +77,7 @@ function RackSlot({
   colorblind,
   repValue,
   layable,
+  isOkey,
   onSelectSlot,
 }: {
   slotIndex: number
@@ -82,6 +86,7 @@ function RackSlot({
   colorblind?: boolean
   repValue?: number
   layable?: boolean
+  isOkey?: boolean
   onSelectSlot: (slot: number) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: String(slotIndex) })
@@ -102,6 +107,7 @@ function RackSlot({
           colorblind={colorblind}
           repValue={repValue}
           layable={layable}
+          isOkey={isOkey}
           onSelectSlot={onSelectSlot}
         />
       )}
@@ -145,6 +151,12 @@ export function SlotRack({
 
     const layable = tile !== null && !!layableKeys && layableKeys.has(tileToString(tile))
 
+    // The real okey wild (number+colour == okey) is shown blank/face-down in hand.
+    // The sahte okey (FALSE_JOKER) keeps its ♣ mark so the two wilds stay distinct.
+    const isOkey =
+      tile !== null && okey != null && tile.kind === 'NUMBER' &&
+      tile.number === okey.number && tile.color === okey.color
+
     return (
       <RackSlot
         key={slotIndex}
@@ -154,6 +166,7 @@ export function SlotRack({
         colorblind={colorblind}
         repValue={tileRepValue}
         layable={layable}
+        isOkey={isOkey}
         onSelectSlot={onSelectSlot}
       />
     )
