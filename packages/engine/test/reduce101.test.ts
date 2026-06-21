@@ -858,29 +858,90 @@ describe('DrawFromDiscard — sets tookFromLeft', () => {
   })
 })
 
-// ── çift-declarer floor-take carries no penalty ──────────────────────────────
+// ── DEFERRED işlek penalty for a çift-declarer (PO 2026-06-21) ────────────────
+//
+// A seri taker MUST open the same turn they take the floor, so their işlek penalty
+// always lands on that turn (covered above). A çift-declarer is special: they may
+// take the floor, DEFER (discard without opening), and only open on a LATER turn.
+// The penalty must still reach the fed (left) neighbour — it just lands when they
+// finally open, not when they took the tile. The take records `pendingIslekSeat`;
+// the eventual open consumes it.
 
-describe('çift-declarer floor-take — no işlek penalty (Kural 11)', () => {
-  it('records NO penalty when a çift-declarer who took from the floor opens later', () => {
-    const bigRackTiles = [
-      ...h('11R', '12R', '13R', '11K', '12K', '13K', '11M', '12M', '13M'),
-      ...h('1R', '2R', '3R'),
-    ]
-    const bigMelds = [
-      h('11R', '12R', '13R'),
-      h('11K', '12K', '13K'),
-      h('11M', '12M', '13M'),
-    ]
+describe('DEFERRED işlek penalty — çift-declarer takes floor, opens later', () => {
+  const fivePairs = () => [h('3R', '3R'), h('6K', '6K'), h('8M', '8M'), h('11S', '11S'), h('13R', '13R')]
+
+  it('taking + DEFERRING (discard, no open) records pendingIslekSeat but no penalty yet', () => {
     const base = start101()
     const s: GameState = {
       ...base,
-      turn: { seat: 1, phase: 'DISCARD' },
+      okey: tileFromString('5S'),
+      // Floor-take this turn, çift-declarer, has NOT opened.
+      turn: { seat: 1, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: tileFromString('9K') },
       players: base.players.map((p) =>
-        p.seat === 1 ? { ...p, rack: bigRackTiles, declaredCift: true } : p
+        p.seat === 1 ? { ...p, hasOpened: false, declaredCift: true, rack: h('9K', '2M', '3M') } : p,
       ),
     }
-    const s2 = reduce(s, { type: 'OpenMeld', seat: 1, melds: bigMelds })
-    expect((s2.penaltiesApplied ?? []).filter((pe) => pe.type === 'islek-floor-open').length).toBe(0)
+    const after = reduce(s, { type: 'Discard', seat: 1, tile: tileFromString('2M') })
+    // No penalty has landed yet — it is only "pending".
+    expect((after.penaltiesApplied ?? []).filter((x) => x.type === 'islek')).toHaveLength(0)
+    // The fed (left) neighbour is remembered so the penalty can land on the open.
+    expect(after.players[1]!.pendingIslekSeat).toBe(0) // leftSeat(1, 4) = 0
+  })
+
+  it('opening (çift) on a LATER turn applies the deferred penalty to the fed seat and clears it', () => {
+    const base = start101()
+    const pairs = fivePairs()
+    const rack = [...pairs.flat(), tileFromString('2M')] // +filler so a tile remains after the open
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('5S'),
+      turn: { seat: 1, phase: 'DISCARD' }, // NOT a floor-take this turn — the take was earlier
+      players: base.players.map((p) =>
+        p.seat === 1
+          ? { ...p, hasOpened: false, declaredCift: true, pendingIslekSeat: 0, rack }
+          : p,
+      ),
+    }
+    const opened = reduce(s, { type: 'OpenMeld', seat: 1, melds: pairs })
+    const islek = (opened.penaltiesApplied ?? []).filter((x) => x.type === 'islek')
+    expect(islek).toHaveLength(1)
+    expect(islek[0]!.seat).toBe(0) // the seat whose discard was taken earlier
+    // The pending marker is consumed so it can't double-apply.
+    expect(opened.players[1]!.pendingIslekSeat).toBeUndefined()
+  })
+
+  it('end-to-end: take floor → defer → open çift later → left neighbour gets +101', () => {
+    const base = start101()
+    const pairs = fivePairs()
+    // seat 1 will end up holding the 5 pairs once it picks up seat 0's discard.
+    // Start it one tile short of the 9K it takes from the floor.
+    const rackBeforeTake = [...pairs.flat(), tileFromString('2M')] // 11 tiles; takes 9K → 12, discards → 11
+    let s: GameState = {
+      ...base,
+      okey: tileFromString('5S'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      stock: base.stock,
+      players: base.players.map((p) => {
+        if (p.seat === 0) return { ...p, rack: [...p.rack, tileFromString('9K')] }
+        if (p.seat === 1) return { ...p, hasOpened: false, declaredCift: true, rack: rackBeforeTake }
+        return p
+      }),
+    }
+    // seat 0 discards the 9K; seat 1 takes it from the floor (left neighbour = seat 0).
+    s = reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('9K') })
+    s = reduce(s, { type: 'DrawFromDiscard', seat: 1 })
+    expect((s.turn as { tookFromLeft?: boolean }).tookFromLeft).toBe(true)
+    // seat 1 DEFERS: discards the filler without opening.
+    s = reduce(s, { type: 'Discard', seat: 1, tile: tileFromString('2M') })
+    expect(s.players[1]!.pendingIslekSeat).toBe(0)
+    expect((s.penaltiesApplied ?? []).filter((x) => x.type === 'islek')).toHaveLength(0)
+    // Later, seat 1's turn comes round again and it opens çift.
+    s = { ...s, turn: { seat: 1, phase: 'DISCARD' } }
+    s = reduce(s, { type: 'OpenMeld', seat: 1, melds: pairs })
+    const islek = (s.penaltiesApplied ?? []).filter((x) => x.type === 'islek')
+    expect(islek).toHaveLength(1)
+    expect(islek[0]!.seat).toBe(0)
+    expect(s.players[1]!.pendingIslekSeat).toBeUndefined()
   })
 })
 

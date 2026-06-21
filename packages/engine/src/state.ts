@@ -42,6 +42,10 @@ export interface PlayerState {
    *  'cift' = opened via 5 identical pairs route.
    *  Governs which subsequent meld-laying is allowed. */
   openRoute?: 'seri' | 'cift'
+  /** A çift-declarer who took a floor tile but DEFERRED opening carries the pending
+   *  işlek penalty here (the fed seat). It lands when they finally open — a çift
+   *  route lets the take + open span different turns, unlike a seri taker. */
+  pendingIslekSeat?: number
 }
 
 export interface Terminal {

@@ -248,9 +248,23 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         return { ...state, players, penaltiesApplied, status: 'ENDED', terminal: { reason: exhaustionReason } }
       }
 
+      // İşlek deferral: a çift-declarer who took the floor THIS turn but is now
+      // discarding without opening (çift route lets them defer) carries the pending
+      // işlek penalty on their player state. It lands on the fed seat when they
+      // eventually open. (A non-çift taker can't reach here — Discard above forces
+      // them to open or return.)
+      let playersOut = players
+      const discarder = players.find((x) => x.seat === event.seat)!
+      if (
+        cfg.requiresOpening && (state.turn as TurnState).tookFromLeft === true &&
+        discarder.declaredCift === true && !discarder.hasOpened && discarder.pendingIslekSeat == null
+      ) {
+        playersOut = replacePlayer(players, event.seat, (pp) => ({ ...pp, pendingIslekSeat: leftSeat(event.seat, cfg.players) }))
+      }
+
       // tookFromLeft resets on turn advance
       const turn: TurnState = { seat: nextSeat(event.seat, state.config.players), phase: 'DRAW' }
-      return { ...state, players, turn, penaltiesApplied }
+      return { ...state, players: playersOut, turn, penaltiesApplied }
     }
 
     case 'DeclareWin': {
@@ -381,15 +395,20 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         hasOpened: true,
         openedValue: value,
         openRoute: openedRoute,
+        pendingIslekSeat: undefined, // resolved here (penalty applied below)
       }))
 
-      // İşlek penalty (PO 2026-06-21): if the opener TOOK a tile from the floor
-      // (their left neighbour's discard) this turn AND this is their FIRST open,
-      // the left neighbour "fed a working tile" (işlek taş) → flat +101, once per
-      // hand. scoreHand101 sums penaltiesApplied as flat +101 (never multiplied).
+      // İşlek penalty (PO 2026-06-21): on the player's FIRST open, if they took the
+      // floor tile that enabled it, the fed (left) neighbour gets a flat +101 (once
+      // per hand). Two ways the take counts:
+      //  - SAME turn (turn.tookFromLeft) — a seri taker must open the turn they take.
+      //  - DEFERRED (player.pendingIslekSeat) — a çift-declarer took it on an earlier
+      //    turn and is only opening now. scoreHand101 sums penaltiesApplied flatly.
       let penaltiesApplied = state.penaltiesApplied ?? []
-      if (wasFirstOpen && (state.turn as TurnState).tookFromLeft === true) {
-        const fedSeat = leftSeat(event.seat, cfg.players)
+      const tookFloorNow = (state.turn as TurnState).tookFromLeft === true
+      const deferredFed = player.pendingIslekSeat
+      if (wasFirstOpen && (tookFloorNow || deferredFed != null)) {
+        const fedSeat = tookFloorNow ? leftSeat(event.seat, cfg.players) : deferredFed!
         const already = penaltiesApplied.some((x) => x.seat === fedSeat && x.type === 'islek')
         if (!already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
       }
