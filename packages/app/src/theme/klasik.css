@@ -16,8 +16,8 @@ body { overflow-x: hidden; }
   --tile-w: clamp(26px, 4.2vw, 56px);
   --tile-h: clamp(36px, 5.8vw, 76px);
   --tile-radius: clamp(3px, 0.36vw, 5px);   /* daha az yuvarlatılmış köşe */
-  --tile-font: clamp(21px, 2.9vw, 40px);    /* iri, kalın rakam (referans gibi) */
-  --tile-hole: clamp(8px, 1.12vw, 15px);    /* alt-orta içbükey oyuk */
+  --tile-font: clamp(20px, 2.7vw, 37px);    /* iri, kalın rakam (referans gibi) */
+  --tile-hole: clamp(7px, 1.0vw, 13px);     /* alt-orta içbükey oyuk */
   --gap-rack: clamp(1px, 0.18vw, 2px);      /* taşlar arası daha az boşluk */
 
   /* Çuha (masa) */
@@ -143,48 +143,26 @@ body { overflow-x: hidden; }
   z-index: 20;
 }
 
-/* Gömme delik — taşın alt-ortasındaki oyuk (işlek olunca kırmızı yanar). */
+/* Gömme delik — taşın ALT kenarına yakın, MAT içbükey oyuk (parlama yok).
+   Referans fiziksel taştaki gibi: üstte yumuşak gölge, içi mat fildişi. */
 .okey-tile .hole {
-  width: calc(var(--tile-hole) * 1.24);
-  height: calc(var(--tile-hole) * 1.24);
+  width: calc(var(--tile-hole) * 1.12);
+  height: calc(var(--tile-hole) * 1.12);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 72%, rgba(255, 248, 230, 0.30) 0%, rgba(255, 248, 230, 0.12) 34%, transparent 48%),
-    radial-gradient(circle at 50% 34%, #ad9a73 0%, #c9b894 42%, #eadfc8 72%, #fff7e8 100%);
-  border: 1px solid rgba(120, 96, 58, 0.18);
-  box-shadow:
-    inset 0 2px 4px rgba(52, 36, 16, 0.42),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.34),
-    0 1px 0 rgba(255, 255, 255, 0.34);
+  /* Mat: üst-merkez koyu (oyuk gölgesi) → alta doğru hafif açılır. Parlama YOK. */
+  background: radial-gradient(circle at 50% 36%, #b3a37e 0%, #c7b793 52%, #ddd0b4 100%);
+  border: 1px solid rgba(120, 96, 58, 0.16);
+  box-shadow: inset 0 2px 3px rgba(58, 42, 18, 0.46); /* sadece içbükey üst gölge */
   position: absolute;
-  /* Gerçek taşta oyuk sayıya değil alt kenara daha yakındır; çıta üstünde kalacak kadar pay bırak. */
-  bottom: clamp(5px, 0.82vw, 10px);
+  bottom: clamp(3px, 0.5vw, 6px);  /* alt kenara daha yakın */
   z-index: 3;
 }
-.okey-tile .hole::before {
-  content: '';
-  position: absolute;
-  left: 20%;
-  right: 20%;
-  top: 18%;
-  height: 18%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.20);
-  filter: blur(0.5px);
-}
-.okey-tile .hole::after {
-  content: '';
-  display: none;
-}
-/* "İşlek" taş: delik kırmızı yanar (yerdeki perlere işlenebilir). */
+/* "İşlek" taş: delik kırmızı yanar (yerdeki perlere işlenebilir) — yine mat. */
 .okey-tile .hole.islek {
-  background:
-    radial-gradient(circle at 50% 72%, rgba(255, 220, 212, 0.24) 0%, rgba(255, 220, 212, 0.10) 34%, transparent 48%),
-    radial-gradient(circle at 50% 34%, #931914 0%, #c9342d 42%, #fa8277 74%, #ffd0c9 100%);
+  background: radial-gradient(circle at 50% 36%, #a01d16 0%, #c9342d 52%, #e8615a 100%);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.38),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.20),
-    0 0 7px 2px rgba(255, 59, 48, 0.72);
+    inset 0 2px 3px rgba(0, 0, 0, 0.4),
+    0 0 7px 2px rgba(255, 59, 48, 0.7);
 }
 .okey-tile.sm .hole.islek { box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.4), 0 0 4px 1px rgba(255, 59, 48, 0.8); }
 
@@ -353,7 +331,7 @@ body { overflow-x: hidden; }
   left: 2px;
   right: 2px;
   bottom: 0;
-  height: 7px;
+  height: 5px;
   border-radius: 2px;
   background:
     repeating-linear-gradient(91deg, rgba(67, 35, 13, 0.18) 0 1px, transparent 1px 9px),
