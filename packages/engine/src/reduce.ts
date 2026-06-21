@@ -1,5 +1,5 @@
 import type { GameEvent } from './events'
-import type { GameState, PlayerState, TurnState } from './state'
+import type { GameState, PlayerState, TurnState, OpenSnapshot } from './state'
 import { nextSeat, leftSeat } from './state'
 import type { Tile, TileColor } from './tile'
 import { tilesEqual } from './tile'
@@ -27,6 +27,26 @@ function requireTurn(state: GameState, seat: number, phase: GameState['turn']['p
 
 function replacePlayer(players: PlayerState[], seat: number, fn: (p: PlayerState) => PlayerState): PlayerState[] {
   return players.map((p) => (p.seat === seat ? fn(p) : p))
+}
+
+/**
+ * Capture the pre-action state for "Geri Al" (retract). Taken once, on the FIRST
+ * board action of a turn (open / lay-off / take-okey), so a retract undoes
+ * everything the player did on the table THIS turn — back to the clean post-draw
+ * state — but never touches earlier turns. The snapshot rides on the turn, so it
+ * vanishes when the turn advances (after a discard): an action+discard is final.
+ */
+function captureTurnSnapshot(state: GameState, seat: number): OpenSnapshot {
+  const p = state.players.find((x) => x.seat === seat)!
+  return {
+    rack: p.rack,
+    hasOpened: p.hasOpened,
+    openRoute: p.openRoute,
+    openedValue: p.openedValue,
+    declaredCift: p.declaredCift,
+    tableMelds: state.tableMelds ?? [],
+    penaltiesApplied: state.penaltiesApplied ?? [],
+  }
 }
 
 /**
@@ -374,26 +394,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         if (!already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
       }
 
-      // Snapshot the PRE-open state on the FIRST open this turn, so the player can
-      // retract ("Taşları Geri Al") before discarding. Captured before this open's
-      // changes (rack still full, no melds laid, no işlek penalty). Subsequent
-      // same-turn lays keep the original snapshot, so a retract undoes the whole
-      // turn's board work back to before the open. The snapshot rides on the turn,
-      // so it's gone the instant the turn advances (after discard) — open+discard
-      // is final.
+      // Snapshot the pre-action state on the FIRST board action of the turn (here:
+      // an open), so the player can retract it before discarding. Re-uses any
+      // existing snapshot from an earlier action this turn, so a retract reverts
+      // the whole turn's board work. (See captureTurnSnapshot.)
       const prevTurn = state.turn as TurnState
-      const openSnapshot = wasFirstOpen
-        ? {
-            rack: player.rack,
-            hasOpened: false,
-            openRoute: player.openRoute,
-            openedValue: player.openedValue,
-            declaredCift: player.declaredCift,
-            tableMelds: state.tableMelds ?? [],
-            penaltiesApplied: state.penaltiesApplied ?? [],
-          }
-        : prevTurn.openSnapshot
-      const turn: TurnState = { ...prevTurn, openSnapshot }
+      const turn: TurnState = { ...prevTurn, openSnapshot: prevTurn.openSnapshot ?? captureTurnSnapshot(state, event.seat) }
       return { ...state, players, tableMelds, penaltiesApplied, turn }
     }
 
@@ -450,7 +456,10 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
 
       const players = replacePlayer(state.players, event.seat, (p) => ({ ...p, rack: newRack }))
 
-      return { ...state, players, tableMelds: newTableMelds }
+      // Snapshot for "Geri Al" (first board action of the turn).
+      const prevTurn = state.turn as TurnState
+      const turn: TurnState = { ...prevTurn, openSnapshot: prevTurn.openSnapshot ?? captureTurnSnapshot(state, event.seat) }
+      return { ...state, players, tableMelds: newTableMelds, turn }
     }
 
     case 'TakeOkey': {
@@ -536,7 +545,10 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const newRack = [...afterRemove, takenOkey]
       const players = replacePlayer(state.players, event.seat, (p) => ({ ...p, rack: newRack }))
 
-      return { ...state, players, tableMelds: newTableMelds }
+      // Snapshot for "Geri Al" (first board action of the turn).
+      const prevTurn = state.turn as TurnState
+      const turn: TurnState = { ...prevTurn, openSnapshot: prevTurn.openSnapshot ?? captureTurnSnapshot(state, event.seat) }
+      return { ...state, players, tableMelds: newTableMelds, turn }
     }
 
     case 'RetractOpen': {
@@ -544,7 +556,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       requireTurn(state, event.seat, 'DISCARD')
       const snap = (state.turn as TurnState).openSnapshot
       if (!snap) {
-        throw new RuleError('nothing to retract — you have not opened this turn (open+discard is final)')
+        throw new RuleError('nothing to retract — no board action this turn (a move+discard is final)')
       }
       // Restore the opener's rack + open flags, and the table + penalties, to the
       // pre-open snapshot. Clearing the snapshot makes a second retract a no-op.

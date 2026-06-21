@@ -44,8 +44,8 @@ export function legalMoves101(state: GameState, seat: number): GameEvent['type']
     moves.push('ReturnFloorTile')
   }
 
-  // RetractOpen: this turn's open can be undone until the discard (snapshot lives
-  // on the turn, so it's gone once the turn has advanced).
+  // RetractOpen: this turn's board actions (open / lay-off / take-okey) can be
+  // undone until the discard (snapshot lives on the turn → gone once it advances).
   if (state.turn.openSnapshot != null) {
     moves.push('RetractOpen')
   }

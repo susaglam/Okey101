@@ -645,6 +645,45 @@ describe('RetractOpen — undo this turn’s open before discarding', () => {
     expect(r.players[0]!.rack).toHaveLength(11)        // full pre-open rack restored
   })
 
+  it('an ALREADY-opened player can retract a lay-off made on a later turn (prior open kept)', () => {
+    const base = start101()
+    // seat 0 opened on a previous turn (hasOpened). Fresh turn, no snapshot yet.
+    // The table has seat 1's run [5R,6R,7R]; seat 0 lays 8R onto it this turn.
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1S'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('5R', '6R', '7R') }],
+      players: base.players.map((p) => (p.seat === 0
+        ? { ...p, hasOpened: true, openRoute: 'seri' as const, rack: h('8R', '9K', '2M') }
+        : p)),
+    }
+    const laid = reduce(s, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('8R')] })
+    expect(laid.tableMelds![0]!.tiles).toHaveLength(4)
+    expect((laid.turn as { openSnapshot?: unknown }).openSnapshot).toBeTruthy() // captured on the lay-off
+    const r = reduce(laid, { type: 'RetractOpen', seat: 0 })
+    expect(r.tableMelds![0]!.tiles).toHaveLength(3)                              // lay-off undone
+    expect(r.players[0]!.rack.some((t) => tilesEqual(t, tileFromString('8R')))).toBe(true) // 8R back
+    expect(r.players[0]!.hasOpened).toBe(true)                                  // STILL opened
+  })
+
+  it('a lay-off cannot be undone after the discard (snapshot cleared on turn advance)', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1S'),
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind: 'run', tiles: h('5R', '6R', '7R') }],
+      players: base.players.map((p) => (p.seat === 0
+        ? { ...p, hasOpened: true, openRoute: 'seri' as const, rack: h('8R', '9K', '2M') }
+        : p)),
+    }
+    const laid = reduce(s, { type: 'LayOff', seat: 0, meldIndex: 0, tiles: [tileFromString('8R')] })
+    const afterDiscard = reduce(laid, { type: 'Discard', seat: 0, tile: tileFromString('2M') })
+    expect((afterDiscard.turn as { openSnapshot?: unknown }).openSnapshot).toBeUndefined()
+    expect(() => reduce(afterDiscard, { type: 'RetractOpen', seat: 0 })).toThrow(RuleError)
+  })
+
   it('legalMoves101 offers RetractOpen only after opening this turn', () => {
     const base = start101()
     const rack = [...openMelds().flat(), tileFromString('2S'), tileFromString('3S')]

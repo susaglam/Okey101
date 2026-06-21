@@ -814,14 +814,15 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               Çift Aç
             </button>
           )}
-          {/* Açmayı Geri Al — undo THIS turn's open (only before discarding; gone
-              once the turn ends, so an open+discard can never be reverted). */}
+          {/* Geri Al — undo THIS turn's board moves (open / işle / okey-swap).
+              Only before discarding; the snapshot is gone once the turn ends, so a
+              move+discard can never be reverted (and earlier turns are untouched). */}
           {isMyTurn && isDiscardPhase && is101 && view.turn.canRetract && (
             <button
-              title="Bu turda açtıklarını geri al — taşlar istakana döner (taş atmadan önce geçerli)"
+              title="Bu turda yaptıklarını geri al — açma/işleme/okey alma istakana döner (taş atmadan önce geçerli)"
               onClick={() => send({ type: 'RetractOpen', seat: view.seat })}
             >
-              ↩ Açmayı Geri Al
+              ↩ Geri Al
             </button>
           )}
         </div>
