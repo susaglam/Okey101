@@ -59,59 +59,70 @@ function detectShape(meld: Tile[], okey: Tile): 'run' | 'group' | 'ambiguous' {
 // ─── Run value computation ────────────────────────────────────────────────────
 
 /**
- * Compute the face value of a run meld.
- * Wilds fill gaps; their value is the slot number they occupy.
+ * Compute the face value of a run meld. Wilds fill gaps; their value is the slot
+ * they occupy in the run.
  *
- * ⚠ ORDER-SENSITIVE: this infers the run start from the FIRST non-wild tile's
- * POSITION, so it assumes `meld` is already in run order. `isValidRun` is order-
- * insensitive, so a front-extended lay-off may store tiles out of order (e.g.
- * [2,3,4,5,6,1] after laying 1 onto 2-3-4-5-6). Do NOT call runValue/openingValue
- * on stored `tableMelds` without first run-ordering them (the UI re-orders via
- * orderMeldForDisplay before rendering). Today it is only called on OpenMeld
- * `event.melds` and rack-derived melds, which ARE in order.
+ * ORDER-INSENSITIVE: the value is derived from the run's WINDOW (the consecutive
+ * span the non-wild numbers occupy), not from where tiles physically sit, so a
+ * mis-ordered meld (e.g. [12,13,okey] or a front-extended lay-off [2,3,4,5,6,1])
+ * is valued correctly. A wild that would extend the run PAST 13 is instead placed
+ * at the low end (e.g. [12,13]+wild → 11,12,13 = 36, never 12,13,1 = 26), since a
+ * 13→1 wrap is only valued when the real numbers genuinely span the wrap.
  *
- * Strategy: Use the positional order of the meld as the run order.
- * Find the run start by examining the first non-wild tile and its index;
- * then assign each slot its consecutive number.
- *
- * Example: [10R, X, 12R]  → indices 0,1,2 → slots start, start+1, start+2
- *   10R at index 0 → start = 10 → slots are 10,11,12. Sum = 33.
- * Example: [10R, 11R, X]  → 10R at index 0 → start=10 → 10,11,12. Sum=33.
- * Example: [X, 11R, 12R]  → 11R at index 1 → start = 11-1=10 → 10,11,12. Sum=33.
+ * Examples: [10R, X, 12R] → 10,11,12 = 33.  [12R, 13R, X] → 11,12,13 = 36.
  */
 function runValue(meld: Tile[], okey: Tile): number {
   const len = meld.length
 
-  // Find the inferred start from the first non-wild tile's position.
-  // The meld is assumed to be in RUN ORDER (each array position = one consecutive
-  // slot), which is how the player arranges melds on the rack and how the engine
-  // emits them. A wild therefore takes the value of the slot it physically occupies.
-  // FALSE_JOKER contributes its concrete okey value; real okey-NUMBER tiles are wild.
+  // Non-wild effective numbers + the start implied by the FIRST non-wild tile's
+  // position (a wild's slot follows from where the player physically placed it).
+  const nums: number[] = []
   let inferredStart: number | null = null
   for (let i = 0; i < len; i++) {
     const tile = meld[i]!
-    if (!isWild(tile, okey)) {
-      const ev = effectiveValue(tile, okey)
-      if (ev !== null) {
-        inferredStart = ev.number - i
-        break
-      }
-    }
+    if (isWild(tile, okey)) continue
+    const ev = effectiveValue(tile, okey)
+    if (ev === null) continue
+    nums.push(ev.number)
+    if (inferredStart === null) inferredStart = ev.number - i
+  }
+  if (inferredStart === null) return 0 // all wilds — cannot infer
+
+  const min = Math.min(...nums)
+  const max = Math.max(...nums)
+  const end = inferredStart + len - 1
+
+  // HONOUR the player's wild placement when the implied window is valid — fits
+  // 1..13 and contains every real number. This is what lets [7M,11,12] mean
+  // 10-11-12 (wild low) while [11,12,7M] means 11-12-13 (wild high).
+  if (inferredStart >= 1 && end <= 13 && nums.every((n) => n >= inferredStart && n <= end)) {
+    let total = 0
+    for (let k = 0; k < len; k++) total += inferredStart + k
+    return total
   }
 
-  if (inferredStart === null) {
-    // All wilds — cannot infer
+  // Genuine 13→1 wrap: the reals span more than `len` → find the wrapping window.
+  if (max - min + 1 > len) {
+    for (let s = 1; s <= 13; s++) {
+      const window = new Set<number>()
+      for (let k = 0; k < len; k++) window.add(((s - 1 + k) % 13) + 1)
+      if (window.size !== len) continue
+      if (nums.every((n) => window.has(n))) {
+        let total = 0
+        for (const f of window) total += f
+        return total
+      }
+    }
     return 0
   }
 
-  // Sum the FACE value of each slot. Normalize into 1..13 so that 13→1 wrap runs
-  // (e.g. 13,1,2) sum to real face values (13+1+2=16), not slot indices (>13).
+  // The physical placement overflows 1..13 (e.g. [12,13,okey] → 12,13,14): the
+  // wild can't extend the run above 13, so anchor on the reals and shift the
+  // window DOWN to fit (→ 11,12,13 = 36, not the wrapped 12,13,1 = 26).
+  let start = min
+  if (start + len - 1 > 13) start = 13 - len + 1
   let total = 0
-  for (let i = 0; i < len; i++) {
-    const n = inferredStart + i
-    const face = (((n - 1) % 13) + 13) % 13 + 1
-    total += face
-  }
+  for (let k = 0; k < len; k++) total += start + k
   return total
 }
 

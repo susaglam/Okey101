@@ -366,6 +366,12 @@ export function orderMeldForDisplay(meld: Tile[], okey: Tile): Tile[] {
         if (window.size !== len) continue
         if (nums.every((n) => window.has(n))) { startNum = s; break }
       }
+    } else if (startNum + len - 1 > 13) {
+      // No wrap needed (reals fit a non-wrapping window), but extending UP from
+      // `min` would pass 13 — e.g. [12,13] + wild → 12,13,14. Anchor the window so
+      // it ENDS at 13, placing the wild in the low slot (→ 11,12,13) instead of
+      // wrapping it to 1 (which is invalid in 101 and undervalues the run).
+      startNum = 13 - len + 1
     }
 
     const out: Tile[] = []

@@ -82,6 +82,16 @@ describe('openingValue', () => {
     expect(openingValue(melds, OKEY)).toBe(33)
   })
 
+  it('wild after 12,13 fills the LOW slot (11) — no 13→1 wrap: [12,13,okey] = 36', () => {
+    // The okey can't extend above 13, so it stands in for 11 → 11+12+13 = 36
+    // (NOT the wrapped 12+13+1 = 26). Distinct from a run with a REAL 1.
+    expect(openingValue([h('12R', '13R', '7M')], OKEY)).toBe(36)
+  })
+
+  it('wild before 12,13 is also valued 36 (placement honoured either way)', () => {
+    expect(openingValue([h('7M', '12R', '13R')], OKEY)).toBe(36)
+  })
+
   it('values a 13→1 wrap run with REAL face values (13+1+2 = 16, not slot indices)', () => {
     const melds = [h('13R', '1R', '2R')]
     expect(openingValue(melds, OKEY)).toBe(16)

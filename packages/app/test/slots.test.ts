@@ -9,6 +9,8 @@ import {
   autoArrangePairs,
   layoutToTiles,
   parseMeldSegments,
+  orderMeldForDisplay,
+  meldRepresentedValues,
 } from '../src/rack/slots'
 
 // Helper: build an array of tiles from shorthand strings
@@ -314,6 +316,31 @@ describe('autoArrange', () => {
     const segs = parseMeldSegments(layout)
     expect(segs.length).toBe(2)
     expect(segs.every((s) => isValidMeldSet([s], okey, KLASIK))).toBe(true)
+  })
+})
+
+describe('orderMeldForDisplay — okey near the top of a run (no 13→1 wrap)', () => {
+  const ok = tileFromString('10M') // okey = blue 10
+
+  it('places the wild at 11 (→ 11,12,13), not wrapping to 1 (→ 12,13,1)', () => {
+    // [12R, 13R, okey] must read 11-12-13, with the wild standing in for 11.
+    const ordered = orderMeldForDisplay([tileFromString('12R'), tileFromString('13R'), ok], ok)
+    const reps = meldRepresentedValues(ordered, ok)
+    expect(reps).toEqual([11, 12, 13])
+    // the wild sits at the FRONT (represents the low/11 slot)
+    expect(tilesEqual(ordered[0]!, ok)).toBe(true)
+  })
+
+  it('handles a 4-tile run [11,12,13]+wild as 10-11-12-13 (wild at the bottom)', () => {
+    const ordered = orderMeldForDisplay(
+      [tileFromString('11R'), tileFromString('12R'), tileFromString('13R'), ok], ok,
+    )
+    expect(meldRepresentedValues(ordered, ok)).toEqual([10, 11, 12, 13])
+  })
+
+  it('still extends upward when there is room (e.g. [5,6]+wild → 5,6,7)', () => {
+    const ordered = orderMeldForDisplay([tileFromString('5R'), tileFromString('6R'), ok], ok)
+    expect(meldRepresentedValues(ordered, ok)).toEqual([5, 6, 7])
   })
 })
 
