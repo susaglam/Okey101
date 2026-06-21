@@ -1,0 +1,21 @@
+# Keep the build context small and never ship dev cruft into the image.
+.git
+.gitignore
+node_modules
+**/node_modules
+dist
+**/dist
+.remember
+docs
+.vscode
+.idea
+*.log
+npm-debug.log*
+# Test files aren't needed for a production build.
+**/test
+**/*.test.ts
+**/*.test.tsx
+# Local scratch / tooling
+scratchpad
+coverage
+**/coverage
