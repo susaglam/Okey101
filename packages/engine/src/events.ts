@@ -18,3 +18,7 @@ export type GameEvent =
   // Return the tile taken from the left floor this turn (a non-çift taker who
   // can't open): puts it back on the left pile and draws from stock instead.
   | { type: 'ReturnFloorTile'; seat: number }
+  // Retract THIS turn's open (before discarding): the laid tiles return to the
+  // rack and hasOpened/route/value + table melds + penalties are restored to the
+  // pre-open snapshot. Rejected once the turn has ended (no snapshot).
+  | { type: 'RetractOpen'; seat: number }

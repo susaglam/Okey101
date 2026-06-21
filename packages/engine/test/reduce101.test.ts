@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { reduce, RuleError } from '../src/reduce'
 import { isValidMeldSet } from '../src/open'
 import { scoreHand101 } from '../src/scoring/yuzbir'
+import { legalMoves101 } from '../src/rules/yuzbir'
 import { KLASIK_101, KLASIK } from '../src/config'
 import { tileFromString, tilesEqual, tileToString } from '../src/tile'
 import type { Tile } from '../src/tile'
@@ -575,6 +576,60 @@ describe('TakeOkey', () => {
     const meld = s2.tableMelds![0]!.tiles
     expect(meld.some((t) => tilesEqual(t, okey))).toBe(false)
     expect(meld.some((t) => tilesEqual(t, tileFromString('7K')))).toBe(true)
+  })
+})
+
+describe('RetractOpen — undo this turn’s open before discarding', () => {
+  const openMelds = () => [h('11R', '12R', '13R'), h('11K', '12K', '13K'), h('11M', '12M', '13M')]
+  // seat 0 opens (108 ≥ 101) this turn, keeping two fillers so a later discard
+  // does not finish the hand.
+  function openedState(extraTurn: Partial<{ tookFromLeft: boolean; floorTileTaken: Tile }> = {}): GameState {
+    const base = start101()
+    const rack = [...openMelds().flat(), tileFromString('2S'), tileFromString('3S')]
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('5S'),
+      turn: { seat: 0, phase: 'DISCARD', ...extraTurn },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack } : p)),
+    }
+    return reduce(s, { type: 'OpenMeld', seat: 0, melds: openMelds() })
+  }
+
+  it('restores the rack, open flags and table on retract', () => {
+    const opened = openedState()
+    expect(opened.players[0]!.hasOpened).toBe(true)
+    expect(opened.tableMelds!).toHaveLength(3)
+    const r = reduce(opened, { type: 'RetractOpen', seat: 0 })
+    expect(r.players[0]!.hasOpened).toBe(false)
+    expect(r.players[0]!.rack).toHaveLength(11) // 9 meld tiles + 2 fillers back
+    expect(r.tableMelds ?? []).toHaveLength(0)
+    expect((r.turn as { openSnapshot?: unknown }).openSnapshot).toBeUndefined()
+  })
+
+  it('is FINAL once the open is followed by a discard (turn advances)', () => {
+    const opened = openedState()
+    const afterDiscard = reduce(opened, { type: 'Discard', seat: 0, tile: tileFromString('2S') })
+    expect((afterDiscard.turn as { openSnapshot?: unknown }).openSnapshot).toBeUndefined()
+    expect(() => reduce(afterDiscard, { type: 'RetractOpen', seat: 0 })).toThrow(RuleError)
+  })
+
+  it('reverts the işlek penalty when a floor-take open is retracted', () => {
+    const opened = openedState({ tookFromLeft: true, floorTileTaken: tileFromString('11R') })
+    expect((opened.penaltiesApplied ?? []).some((x) => x.type === 'islek')).toBe(true)
+    const r = reduce(opened, { type: 'RetractOpen', seat: 0 })
+    expect((r.penaltiesApplied ?? []).some((x) => x.type === 'islek')).toBe(false)
+  })
+
+  it('legalMoves101 offers RetractOpen only after opening this turn', () => {
+    const base = start101()
+    const rack = [...openMelds().flat(), tileFromString('2S'), tileFromString('3S')]
+    const s: GameState = {
+      ...base, okey: tileFromString('5S'), turn: { seat: 0, phase: 'DISCARD' },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack } : p)),
+    }
+    expect(legalMoves101(s, 0)).not.toContain('RetractOpen')
+    const opened = reduce(s, { type: 'OpenMeld', seat: 0, melds: openMelds() })
+    expect(legalMoves101(opened, 0)).toContain('RetractOpen')
   })
 })
 

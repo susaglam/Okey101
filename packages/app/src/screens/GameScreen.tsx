@@ -814,6 +814,16 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               Çift Aç
             </button>
           )}
+          {/* Açmayı Geri Al — undo THIS turn's open (only before discarding; gone
+              once the turn ends, so an open+discard can never be reverted). */}
+          {isMyTurn && isDiscardPhase && is101 && view.turn.canRetract && (
+            <button
+              title="Bu turda açtıklarını geri al — taşlar istakana döner (taş atmadan önce geçerli)"
+              onClick={() => send({ type: 'RetractOpen', seat: view.seat })}
+            >
+              ↩ Açmayı Geri Al
+            </button>
+          )}
         </div>
 
         {/* CENTER: live hand total (101) + human nameplate */}

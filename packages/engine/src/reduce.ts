@@ -373,7 +373,28 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         const already = penaltiesApplied.some((x) => x.seat === fedSeat && x.type === 'islek')
         if (!already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
       }
-      return { ...state, players, tableMelds, penaltiesApplied }
+
+      // Snapshot the PRE-open state on the FIRST open this turn, so the player can
+      // retract ("Taşları Geri Al") before discarding. Captured before this open's
+      // changes (rack still full, no melds laid, no işlek penalty). Subsequent
+      // same-turn lays keep the original snapshot, so a retract undoes the whole
+      // turn's board work back to before the open. The snapshot rides on the turn,
+      // so it's gone the instant the turn advances (after discard) — open+discard
+      // is final.
+      const prevTurn = state.turn as TurnState
+      const openSnapshot = wasFirstOpen
+        ? {
+            rack: player.rack,
+            hasOpened: false,
+            openRoute: player.openRoute,
+            openedValue: player.openedValue,
+            declaredCift: player.declaredCift,
+            tableMelds: state.tableMelds ?? [],
+            penaltiesApplied: state.penaltiesApplied ?? [],
+          }
+        : prevTurn.openSnapshot
+      const turn: TurnState = { ...prevTurn, openSnapshot }
+      return { ...state, players, tableMelds, penaltiesApplied, turn }
     }
 
     case 'LayOff': {
@@ -516,6 +537,27 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const players = replacePlayer(state.players, event.seat, (p) => ({ ...p, rack: newRack }))
 
       return { ...state, players, tableMelds: newTableMelds }
+    }
+
+    case 'RetractOpen': {
+      if (!state) throw new RuleError('No game')
+      requireTurn(state, event.seat, 'DISCARD')
+      const snap = (state.turn as TurnState).openSnapshot
+      if (!snap) {
+        throw new RuleError('nothing to retract — you have not opened this turn (open+discard is final)')
+      }
+      // Restore the opener's rack + open flags, and the table + penalties, to the
+      // pre-open snapshot. Clearing the snapshot makes a second retract a no-op.
+      const players = replacePlayer(state.players, event.seat, (p) => ({
+        ...p,
+        rack: snap.rack,
+        hasOpened: snap.hasOpened,
+        openRoute: snap.openRoute,
+        openedValue: snap.openedValue,
+        declaredCift: snap.declaredCift,
+      }))
+      const turn: TurnState = { ...(state.turn as TurnState), openSnapshot: undefined }
+      return { ...state, players, tableMelds: snap.tableMelds, penaltiesApplied: snap.penaltiesApplied, turn }
     }
 
     case 'ReturnFloorTile': {

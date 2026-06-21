@@ -4,6 +4,19 @@ import type { WinKind } from './evaluator'
 
 export type Phase = 'DRAW' | 'DISCARD'
 
+/** State captured just before a player's FIRST open of a turn, so the open can be
+ *  retracted ("Taşları Geri Al") any time before that turn's discard. Lives on the
+ *  turn, so it vanishes the moment the turn advances — an open+discard is final. */
+export interface OpenSnapshot {
+  rack: Tile[]
+  hasOpened: boolean
+  openRoute?: 'seri' | 'cift'
+  openedValue?: number
+  declaredCift?: boolean
+  tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
+  penaltiesApplied: { seat: number; type: string }[]
+}
+
 export interface TurnState {
   seat: number
   phase: Phase
@@ -12,6 +25,8 @@ export interface TurnState {
   /** The exact tile taken from the floor this turn (so it can be returned if the
    *  non-çift taker can't open). Set together with tookFromLeft. */
   floorTileTaken?: Tile
+  /** Pre-open snapshot for retracting THIS turn's open (cleared when the turn ends). */
+  openSnapshot?: OpenSnapshot
 }
 
 export interface PlayerState {

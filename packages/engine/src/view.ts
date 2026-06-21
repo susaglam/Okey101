@@ -27,7 +27,8 @@ export interface PlayerView {
   okey?: Tile
   // tookFromLeft is public (taking the floor is an observable move); the UI uses
   // it to offer "return the floor tile" to a non-çift taker who can't open.
-  turn: { seat: number; phase: Phase; tookFromLeft?: boolean }
+  // canRetract: the current seat opened THIS turn and can still undo it (pre-discard).
+  turn: { seat: number; phase: Phase; tookFromLeft?: boolean; canRetract?: boolean }
   scores: number[]
   status: GameState['status']
   terminal?: Terminal
@@ -62,7 +63,15 @@ export function redactFor(state: GameState, seat: number, version: number): Play
     opponents,
     stockCount: state.stock.length,
     indicator: state.indicator, okey: state.okey,
-    turn: state.turn, scores: state.scores.slice(), status: state.status,
+    // Redact the turn: expose only public fields (never the openSnapshot, which
+    // holds the opener's rack) and a boolean canRetract derived from it.
+    turn: {
+      seat: state.turn.seat,
+      phase: state.turn.phase,
+      tookFromLeft: state.turn.tookFromLeft,
+      canRetract: state.turn.openSnapshot != null ? true : undefined,
+    },
+    scores: state.scores.slice(), status: state.status,
     terminal: state.terminal,
     tableMelds: state.tableMelds ?? [],
     rizikoActive: state.rizikoActive ?? false,
