@@ -24,7 +24,7 @@ describe('arrange UI buttons', () => {
     })
   })
 
-  it('Sırala reorders tiles (same multiset, possibly different sequence)', async () => {
+  it('Seri Diz (arrange) reorders tiles (same multiset, possibly different sequence)', async () => {
     const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
     render(<GameScreen adapter={adapter} />)
 
@@ -34,8 +34,8 @@ describe('arrange UI buttons', () => {
     // Capture aria-labels before
     const before = screen.getAllByTestId('tile').map(t => t.getAttribute('aria-label'))
 
-    // Click Sırala (use first match in case of duplicate renders)
-    const arrangeBtns = screen.getAllByRole('button', { name: /Sırala/i })
+    // Click the arrange button (renamed "Sırala" → "↺ Seri Diz")
+    const arrangeBtns = screen.getAllByRole('button', { name: /Seri Diz/i })
     fireEvent.click(arrangeBtns[0]!)
 
     // After arrange, tiles should be a permutation of the same multiset

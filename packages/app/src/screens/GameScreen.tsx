@@ -722,7 +722,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
             {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
-            {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡</button>}
+            {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />

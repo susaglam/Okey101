@@ -49,12 +49,13 @@ describe('GameScreen', () => {
     })
   })
 
-  it('still renders Sırala (arrange) button during human turn', async () => {
+  it('still renders the arrange (Seri Diz) button during human turn', async () => {
     const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
     render(<GameScreen adapter={adapter} />)
-    // seed 9 starts human in DISCARD phase — Sırala should always be visible during isMyTurn
+    // seed 9 starts the human in DISCARD phase — the arrange button (renamed
+    // "Sırala" → "↺ Seri Diz") should be visible whenever it is the human's turn.
     await waitFor(() => {
-      const buttons = screen.getAllByRole('button', { name: /sırala/i })
+      const buttons = screen.getAllByRole('button', { name: /seri diz/i })
       expect(buttons.length).toBeGreaterThanOrEqual(1)
     })
   })
