@@ -182,21 +182,43 @@ describe('okey-finish — finisher ×2', () => {
     expect(deltas[0]).toBe(-202)
   })
 
-  it('non-finishers are NOT multiplied by finish-type', () => {
+  it('non-finishers ARE multiplied by the finish type (okey → everyone ×2)', () => {
     const okey = tileFromString('7M')
     const s = endedState({
       okey,
       terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', finishingTile: okey },
       players: [
         { rack: [] },
-        { rack: h('5R', '6R', '7R'), hasOpened: true }, // sum=18, no multiplier
-        { rack: [], hasOpened: false }, // +202 flat, no multiplier
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // sum=18 → ×2 = 36
+        { rack: [], hasOpened: false }, // 202 → ×2 = 404
         { rack: [], hasOpened: false },
       ],
     })
     const deltas = scoreHand101(s)
-    expect(deltas[1]).toBe(18)
-    expect(deltas[2]).toBe(202)
+    expect(deltas[1]).toBe(36)
+    expect(deltas[2]).toBe(404)
+  })
+})
+
+// ── Çift + okey finish → everyone ×4 ────────────────────────────────────────────
+
+describe('çift + okey finish — multiplier ×4 applies to the whole table', () => {
+  it('finisher −404, opened-18 → 72, never-opened → 808', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'pairs', finishingTile: okey },
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 18 → ×4 = 72
+        { rack: [], hasOpened: false },                  // 202 → ×4 = 808
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[0]).toBe(-404)
+    expect(deltas[1]).toBe(72)
+    expect(deltas[2]).toBe(808)
   })
 })
 

@@ -30,25 +30,30 @@ function rackSum(rack: Tile[], okey: Tile | undefined): number {
  *
  * Rules (PO-approved):
  *
- * Finish-type multiplier (applies ONLY to finisher's base −101):
+ * Finish-type multiplier — applies to EVERY player's amount (finisher AND the
+ * non-finishers' leftover), because "the winner finished with okey/çift, so the
+ * whole table pays at that multiplier":
  *   - okey-finish (finishingTile === okey) → ×2
  *   - çift finish (winType === 'pairs') → ×2
  *   - both → ×4
+ *   (No finisher / exhaustion → ×1.)
  *
- * Riziko multiplier (×2, orthogonal to finish-type):
- *   Applied to: finisher credit, non-finisher ladder amounts (face-sum, +202).
- *   NOT applied to: flat penalties.
+ * Riziko multiplier (×2, orthogonal) and the finish multiplier MULTIPLY together
+ * for both the finisher credit and the non-finisher amounts. NOT applied to flat
+ * penalties.
  *
- * Non-finisher base (before riziko):
- *   - hasOpened, not çift: +rackSum (×2 if riziko)
- *   - !hasOpened, not çift: +202 (×2 if riziko = +404)
- *   - declaredCift && !hasOpened: 2×202 = +404 (×2 if riziko = +808)
- *   - declaredCift && hasOpened: 2×rackSum (×2 if riziko = 4×sum)
+ * Per-seat (m = finishMultiplier × riziko):
+ *   - finisher:                 −101 × m
+ *   - hasOpened, not çift:      +rackSum × m
+ *   - !hasOpened, not çift:     +202 × m
+ *   - declaredCift && !opened:  +2×202 × m
+ *   - declaredCift && opened:   +2×rackSum × m
  *
- * Flat penalties (from state.penaltiesApplied):
- *   Each entry adds +101 to that seat. NEVER multiplied.
+ * e.g. çift+okey finish (×4): finisher −404, never-opened +808, opened-55 +220.
  *
- * Exhaustion (reason === 'exhausted'): no finisher; everyone pays non-finisher rules.
+ * Flat penalties (from state.penaltiesApplied): +101 each. NEVER multiplied.
+ *
+ * Exhaustion (reason === 'exhausted'): no finisher; finishMultiplier = 1.
  */
 export function scoreHand101(state: GameState): number[] {
   const n = state.config.players
@@ -86,23 +91,26 @@ export function scoreHand101(state: GameState): number[] {
       deltas[seat] = -101 * finishMultiplier * riziko
     } else {
       // Non-finisher (or exhaustion — all seats are non-finishers).
+      // The FINISH multiplier (okey ×2 / çift ×2 / both ×4) now applies to the
+      // non-finishers' amounts TOO — "I finished with the okey, so everyone pays
+      // double their leftover" (PO 2026-06-21). On exhaustion there is no finisher
+      // so finishMultiplier === 1 and amounts are unchanged.
       const opened = player.hasOpened === true
       const cift = player.declaredCift === true
+      const m = finishMultiplier * riziko
 
       if (cift && !opened) {
-        // Çift declared, never opened: 2 × 202, then × riziko
-        deltas[seat] = 2 * 202 * riziko
+        // Çift declared, never opened: 2 × 202
+        deltas[seat] = 2 * 202 * m
       } else if (cift && opened) {
-        // Çift declared, opened but didn't finish: 2 × rackSum, then × riziko
-        const sum = rackSum(player.rack, okey)
-        deltas[seat] = 2 * sum * riziko
+        // Çift declared, opened but didn't finish: 2 × rackSum
+        deltas[seat] = 2 * rackSum(player.rack, okey) * m
       } else if (opened) {
-        // Opened non-finisher: rackSum × riziko
-        const sum = rackSum(player.rack, okey)
-        deltas[seat] = sum * riziko
+        // Opened non-finisher: rackSum
+        deltas[seat] = rackSum(player.rack, okey) * m
       } else {
-        // Never-opened, no çift: 202 × riziko
-        deltas[seat] = 202 * riziko
+        // Never-opened, no çift: 202
+        deltas[seat] = 202 * m
       }
     }
   }
