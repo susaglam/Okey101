@@ -3,7 +3,7 @@ import type { Tile } from '@cs-okey/engine'
 import { tilesEqual } from '@cs-okey/engine'
 import { useDroppable } from '@dnd-kit/core'
 import { TileView } from './Tile'
-import { orderMeldForDisplay, meldRepresentedValues } from '../rack/slots'
+import { orderMeldForDisplay, meldRepresentedValues, meldRepresentedColors } from '../rack/slots'
 
 type Meld = { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }
 
@@ -147,17 +147,43 @@ export function CenterMelds({
   const renderMeldTiles = (m: Meld & { gi: number }, row: number, colFor: (ti: number, reps: (number | null)[]) => number) => {
     const ordered = orderMeldForDisplay(m.tiles, okey)
     const reps = meldRepresentedValues(ordered, okey)
-    // For a RUN, a wild (okey / false joker) represents the run's own colour — so we
-    // render it AS that colour + its represented number, instead of its own face,
-    // so it blends into the run (no "wrong colour" tile appearing in a per).
+    const repColors = meldRepresentedColors(ordered, okey)
+    // A FALSE_JOKER is a fixed-value tile (not a true wild); in a run it blends in as
+    // the run's own colour so no "wrong colour" tile appears in a per.
     const runColor = m.kind === 'run'
       ? m.tiles.find((t) => t.kind === 'NUMBER' && !tilesEqual(t, okey))?.color
       : undefined
     return ordered.map((tile, ti) => {
       const col = colFor(ti, reps)
-      const isWild = isRealOkey(tile, okey) || tile.kind === 'FALSE_JOKER'
+      // Key MUST be unique across the whole GridArea: every meld's tiles are
+      // flat-mapped into the SAME grid parent, so a bare `ti` (0,1,2…) collides
+      // between melds. Prefix with the global meld index.
+      const key = `${m.gi}-${ti}`
       const rep = reps[ti]
-      const displayTile: Tile = isWild && runColor && rep != null
+
+      // REAL OKEY laid on the table → blank (face-down) ivory tile + a badge showing
+      // the value it stands in for, coloured by that value's colour.
+      if (isRealOkey(tile, okey)) {
+        const repColor = repColors[ti] ?? runColor
+        const tileEl = (
+          <TileView
+            tile={tile}
+            testId="table-meld-tile"
+            small
+            isOkey
+            okeyRep={rep != null ? { number: rep, color: repColor ?? undefined } : undefined}
+          />
+        )
+        if (takeOkeyEnabled) {
+          return <OkeyDropCell key={key} id={`take-okey:${m.gi}:${ti}`} col={col} row={row}>{tileEl}</OkeyDropCell>
+        }
+        return <div key={key} style={cell(col, row)}>{tileEl}</div>
+      }
+
+      // FALSE_JOKER blends into a run as the run's colour; elsewhere shows its own
+      // face + represented number. Normal tiles render as themselves.
+      const isFalse = tile.kind === 'FALSE_JOKER'
+      const displayTile: Tile = isFalse && runColor && rep != null
         ? { kind: 'NUMBER', number: rep, color: runColor }
         : tile
       const tileEl = (
@@ -165,16 +191,9 @@ export function CenterMelds({
           tile={displayTile}
           testId="table-meld-tile"
           small
-          repValue={isWild && displayTile === tile ? (rep ?? undefined) : undefined}
+          repValue={isFalse && displayTile === tile ? (rep ?? undefined) : undefined}
         />
       )
-      // Key MUST be unique across the whole GridArea: every meld's tiles are
-      // flat-mapped into the SAME grid parent, so a bare `ti` (0,1,2…) collides
-      // between melds. Prefix with the global meld index.
-      const key = `${m.gi}-${ti}`
-      if (takeOkeyEnabled && isRealOkey(tile, okey)) {
-        return <OkeyDropCell key={key} id={`take-okey:${m.gi}:${ti}`} col={col} row={row}>{tileEl}</OkeyDropCell>
-      }
       return <div key={key} style={cell(col, row)}>{tileEl}</div>
     })
   }

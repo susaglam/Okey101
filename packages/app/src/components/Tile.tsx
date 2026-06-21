@@ -1,4 +1,4 @@
-import type { Tile } from '@cs-okey/engine'
+import type { Tile, TileColor } from '@cs-okey/engine'
 import { tileToString } from '@cs-okey/engine'
 
 const COLOR_CLASS: Record<string, string> = { RED: 'var(--c-red)', BLACK: 'var(--c-black)', BLUE: 'var(--c-blue)', YELLOW: 'var(--c-yellow)' }
@@ -21,6 +21,7 @@ export function TileView({
   layable,
   plain,
   isOkey,
+  okeyRep,
 }: {
   tile: Tile
   selected?: boolean
@@ -39,6 +40,9 @@ export function TileView({
    *  ivory tile with nothing on it (no numeral, no hole) — so the player instantly
    *  spots the okey instead of mistaking it for a normal numbered tile. */
   isOkey?: boolean
+  /** When the okey is laid in a table meld, the value it STANDS IN FOR. Shown as a
+   *  small badge (number in that colour) on the blank face — "okey = red 13". */
+  okeyRep?: { number: number; color?: TileColor }
 }) {
   const isJoker = tile.kind === 'FALSE_JOKER'
   const label = isJoker ? 'sahte okey' : tileToString(tile)
@@ -46,8 +50,9 @@ export function TileView({
   const glyph = colorblind && tile.color ? COLORBLIND_GLYPH[tile.color] : null
   const showRepValue = repValue !== undefined
 
-  // Real okey in hand → blank face-down tile (nothing on it). Stays a normal
-  // draggable/selectable button, just with no face content.
+  // Real okey → blank face-down tile (nothing on it). In hand it stays fully blank;
+  // on the table (okeyRep set) it shows a small badge with the value it stands in
+  // for, coloured by that value's colour ("okey = red 13"). Still a normal button.
   if (isOkey) {
     return (
       <button
@@ -55,9 +60,17 @@ export function TileView({
         className={`okey-tile back${selected ? ' sel' : ''}${small ? ' sm' : ''}`}
         data-testid={testId ?? undefined}
         data-okey="true"
-        aria-label="okey"
+        aria-label={okeyRep ? `okey = ${okeyRep.number}` : 'okey'}
         onClick={onClick}
       >
+        {okeyRep && (
+          <span
+            className="okey-rep-badge"
+            style={{ color: okeyRep.color ? COLOR_CLASS[okeyRep.color] : '#6b5a2e' }}
+          >
+            {okeyRep.number}
+          </span>
+        )}
         <span className="tile-edge" aria-hidden="true" />
       </button>
     )

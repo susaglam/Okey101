@@ -207,6 +207,30 @@ body { overflow-x: hidden; }
     linear-gradient(132deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.08) 52%, rgba(110, 76, 35, 0.05) 100%);
 }
 
+/* Yere serilen okey'in "neyin yerine geçtiği" rozeti — boş beyaz taşın üstünde,
+   temsil ettiği RENKTE sayı. (Elde okey rozetsiz/bomboştur; rozet yalnız tahtada.)
+   Gerçek bir taşa benzemesin diye hafif italik + parantezli, oyuk da yok. */
+.okey-tile.back .okey-rep-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  font-family: 'Arial Black', 'Trebuchet MS', system-ui, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -1px;
+  opacity: 0.9;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+.okey-tile.back .okey-rep-badge::before { content: '('; opacity: 0.5; }
+.okey-tile.back .okey-rep-badge::after { content: ')'; opacity: 0.5; }
+/* Orta-boy (yere serilen perler — .sm) için küçült. */
+.okey-tile.back.sm .okey-rep-badge { font-size: 15px; }
+
 .okey-tile .cb-glyph {
   opacity: 0.85;
   margin-top: 1px;

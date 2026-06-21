@@ -12,6 +12,7 @@ import {
   orderMeldForDisplay,
   orderLeftovers,
   meldRepresentedValues,
+  meldRepresentedColors,
 } from '../src/rack/slots'
 
 // Helper: build an array of tiles from shorthand strings
@@ -33,6 +34,24 @@ function multisetEqual(a: Tile[], b: Tile[]): boolean {
   }
   return true
 }
+
+describe('meldRepresentedColors — the colour a table okey stands in for', () => {
+  const o = tileFromString('7M') // okey = blue 7
+
+  it('RUN: the wild okey takes the run colour', () => {
+    // 9R (okey=10R) 11R — the okey fills the 10 slot → run colour RED
+    expect(meldRepresentedColors(h('9R', '7M', '11R'), o)).toEqual(['RED', 'RED', 'RED'])
+  })
+  it('PAIR: the wild okey takes its partner colour', () => {
+    expect(meldRepresentedColors(h('13K', '7M'), o)).toEqual(['BLACK', 'BLACK'])
+  })
+  it('GROUP with one missing colour: the wild is pinned to it', () => {
+    expect(meldRepresentedColors(h('5R', '5K', '5S', '7M'), o)).toEqual(['RED', 'BLACK', 'YELLOW', 'BLUE'])
+  })
+  it('GROUP with two missing colours: the wild colour is ambiguous → null', () => {
+    expect(meldRepresentedColors(h('5R', '5K', '7M'), o)).toEqual(['RED', 'BLACK', null])
+  })
+})
 
 describe('orderLeftovers — per-potential clustering (101)', () => {
   // okey = 13K, not present among the leftovers below (so nothing is a wild).

@@ -430,6 +430,44 @@ export function meldRepresentedValues(orderedMeld: Tile[], okey: Tile): (number 
 }
 
 /**
+ * Companion to meldRepresentedValues: the COLOUR each gap-filling wild (real okey)
+ * stands in for, so a table okey can be shown blank with a coloured "what it is"
+ * badge. Non-wild positions return their own colour.
+ * - RUN (one colour, many numbers): the run's colour.
+ * - PAIR (2 tiles, same number): the partner tile's colour.
+ * - GROUP (same number, 3-4 tiles): the single missing colour — or null when more
+ *   than one colour is still missing (the okey's colour isn't pinned yet).
+ */
+export function meldRepresentedColors(orderedMeld: Tile[], okey: Tile): (TileColor | null)[] {
+  const resolved = orderedMeld.map((t) => concreteTile(t, okey))
+  const isWild = orderedMeld.map((t) => isWildTile(t, okey))
+  const reals = resolved.filter((_, i) => !isWild[i])
+  if (reals.length === 0) return orderedMeld.map(() => null)
+
+  const colors = new Set(reals.map((r) => r.color))
+  const numbers = new Set(reals.map((r) => r.number))
+  const ownColor = (i: number): TileColor | null => resolved[i]!.color ?? null
+
+  // RUN: single colour, multiple numbers → every wild is that colour.
+  if (colors.size === 1 && numbers.size > 1) {
+    const runColor = reals[0]!.color ?? null
+    return orderedMeld.map((_, i) => (isWild[i] ? runColor : ownColor(i)))
+  }
+
+  // PAIR (2 tiles, same value): the wild matches its partner's colour.
+  if (orderedMeld.length === 2) {
+    const partner = reals[0]!.color ?? null
+    return orderedMeld.map((_, i) => (isWild[i] ? partner : ownColor(i)))
+  }
+
+  // GROUP (same number): the wild fills a missing colour; unique → that colour.
+  const ALL: TileColor[] = ['RED', 'BLACK', 'BLUE', 'YELLOW']
+  const missing = ALL.filter((c) => !colors.has(c))
+  const wildColor = missing.length === 1 ? missing[0]! : null
+  return orderedMeld.map((_, i) => (isWild[i] ? wildColor : ownColor(i)))
+}
+
+/**
  * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
  * FALSE_JOKER is NOT wild — it is a plain tile fixed to okey's value.
  * Used for display ordering and represented-value computation.
