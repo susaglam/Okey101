@@ -1,5 +1,5 @@
 import { tilesEqual, arrange, openingValue, findLayablePairs } from '@cs-okey/engine'
-import type { Tile } from '@cs-okey/engine'
+import type { Tile, TileColor } from '@cs-okey/engine'
 import type { VariantConfig } from '@cs-okey/engine'
 
 /**
@@ -203,6 +203,120 @@ function packIntoLayout(melds: Tile[][], leftovers: Tile[], cols: number): SlotL
   return layout
 }
 
+// ─── Leftover ordering (per-potential clustering) ───────────────────────────
+//
+// The engine's arrange() returns leftovers in canonical sort order (colour then
+// number). On the rack that scatters near-melds: two 11s of different colours (a
+// potential same-number GROUP) end up far apart, while a 4 and an 11 of the same
+// colour sit adjacent for no reason. orderLeftovers reorders the un-melded tail
+// so tiles that could COMPLETE a meld together sit adjacent, and the most
+// promising / highest-value clusters lead (101 favours high tiles). Pure display
+// — it never changes WHICH tiles are melded, only the order of the leftovers.
+// (Colour tie-break reuses the shared COLOR_ORDER defined further below.)
+
+function effVal(t: Tile, okey: Tile): { n: number; c: TileColor } | null {
+  if (t.kind === 'FALSE_JOKER') {
+    return okey.number != null && okey.color != null ? { n: okey.number, c: okey.color } : null
+  }
+  if (t.number != null && t.color != null) return { n: t.number, c: t.color }
+  return null
+}
+
+/** A real okey wild: a NUMBER tile whose number+colour equal the okey. */
+function isOkeyWild(t: Tile, okey: Tile): boolean {
+  return t.kind === 'NUMBER' && t.number === okey.number && t.color === okey.color
+}
+
+/** Circular run distance (13↔1 are adjacent when wrap is on). */
+function numGap(a: number, b: number, wrap: boolean): number {
+  const d = Math.abs(a - b)
+  return wrap ? Math.min(d, 13 - d) : d
+}
+
+/**
+ * Affinity = how strongly two leftover tiles hint at the SAME future meld:
+ *   3  same number, different colour  → 2/3 of a GROUP (one colour away)
+ *   3  same colour, consecutive       → 2/3 of a RUN (one tile away)
+ *   1  same colour, one-gap (Δ2)      → a RUN needing the middle tile / a wild
+ *   0  otherwise (only an incidental colour or number match — no real potential)
+ */
+function affinity(a: Tile, b: Tile, okey: Tile, wrap: boolean): number {
+  const ea = effVal(a, okey)
+  const eb = effVal(b, okey)
+  if (!ea || !eb) return 0
+  if (ea.n === eb.n && ea.c !== eb.c) return 3
+  if (ea.c === eb.c) {
+    const g = numGap(ea.n, eb.n, wrap)
+    if (g === 1) return 3
+    if (g === 2) return 1
+  }
+  return 0
+}
+
+/**
+ * Order un-melded leftovers for the rack so potential-meld partners sit adjacent.
+ *
+ * 1. Real okey wilds lead (the most precious, most flexible tile).
+ * 2. The rest are grouped into connected CLUSTERS under affinity>0 (union-find),
+ *    so a near-run / near-group reads as one block. Within a cluster, tiles sort
+ *    by (number, colour): runs read low→high and same-number partners sit together.
+ * 3. Real clusters (size ≥ 2) lead, by descending total value (101 favours high
+ *    tiles); lone "dead" tiles trail in descending value so the lowest, most-
+ *    disposable tile lands rightmost — the natural discard.
+ *
+ * Object identity is preserved (tiles are re-ordered, never cloned), so the rack
+ * reconcile/animation logic keeps working.
+ */
+export function orderLeftovers(leftovers: Tile[], okey: Tile, config: VariantConfig): Tile[] {
+  if (leftovers.length <= 1) return [...leftovers]
+  const wrap = config.runWrap13to1 === true
+
+  const wilds = leftovers.filter((t) => isOkeyWild(t, okey))
+  const rest = leftovers.filter((t) => !isOkeyWild(t, okey))
+
+  // Union-find: link any pair of leftovers with affinity > 0.
+  const parent = rest.map((_, i) => i)
+  const find = (x: number): number => {
+    let r = x
+    while (parent[r] !== r) r = parent[r]!
+    return r
+  }
+  const union = (a: number, b: number) => {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent[ra] = rb
+  }
+  for (let i = 0; i < rest.length; i++) {
+    for (let j = i + 1; j < rest.length; j++) {
+      if (affinity(rest[i]!, rest[j]!, okey, wrap) > 0) union(i, j)
+    }
+  }
+
+  const valOf = (t: Tile) => effVal(t, okey)?.n ?? 0
+  const sortKey = (t: Tile) => {
+    const e = effVal(t, okey)
+    return e ? e.n * 10 + (COLOR_ORDER[e.c] ?? 0) : 999
+  }
+
+  // Bucket indices into clusters and sort each cluster internally.
+  const clusters = new Map<number, number[]>()
+  for (let i = 0; i < rest.length; i++) {
+    const r = find(i)
+    const bucket = clusters.get(r)
+    if (bucket) bucket.push(i)
+    else clusters.set(r, [i])
+  }
+  const blocks = [...clusters.values()].map((idxs) => {
+    const tiles = idxs.map((i) => rest[i]!).sort((a, b) => sortKey(a) - sortKey(b))
+    return { tiles, total: tiles.reduce((s, t) => s + valOf(t), 0), size: tiles.length }
+  })
+
+  const multi = blocks.filter((b) => b.size >= 2).sort((a, b) => b.total - a.total || b.size - a.size)
+  const singles = blocks.filter((b) => b.size === 1).sort((a, b) => b.total - a.total)
+
+  return [...wilds, ...multi.flatMap((b) => b.tiles), ...singles.flatMap((b) => b.tiles)]
+}
+
 /**
  * Auto-arrange tiles into RUN/GROUP melds (the engine's `arrange()`), packed row
  * by row. In 101 the opening VALUE is maximized; in Klasik the melded count.
@@ -212,7 +326,7 @@ export function autoArrange(tiles: Tile[], okey: Tile, config: VariantConfig, co
     ? arrange(tiles, okey, config, (melds) => openingValue(melds, okey))
     : arrange(tiles, okey, config)
   const orderedMelds = result.melds.map((m) => orderMeldForDisplay(m, okey))
-  return packIntoLayout(orderedMelds, result.leftovers, cols)
+  return packIntoLayout(orderedMelds, orderLeftovers(result.leftovers, okey, config), cols)
 }
 
 /**
@@ -223,7 +337,7 @@ export function autoArrangePairs(tiles: Tile[], okey: Tile, config: VariantConfi
   const pairs = findLayablePairs(tiles, okey, config) ?? []
   const pairsFlat = pairs.flat()
   const leftovers = tiles.filter((t) => !pairsFlat.includes(t)) // pairs hold original refs
-  return packIntoLayout(pairs, leftovers, cols)
+  return packIntoLayout(pairs, orderLeftovers(leftovers, okey, config), cols)
 }
 
 /**

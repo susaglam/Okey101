@@ -146,8 +146,8 @@ body { overflow-x: hidden; }
 /* Gömme delik — taşın ALT kenarına yakın, MAT içbükey oyuk (parlama yok).
    Referans fiziksel taştaki gibi: üstte yumuşak gölge, içi mat fildişi. */
 .okey-tile .hole {
-  width: calc(var(--tile-hole) * 1.12);
-  height: calc(var(--tile-hole) * 1.12);
+  width: calc(var(--tile-hole) * 1.75);
+  height: calc(var(--tile-hole) * 1.75);
   border-radius: 50%;
   /* Mat: üst-merkez koyu (oyuk gölgesi) → alta doğru hafif açılır. Parlama YOK. */
   background: radial-gradient(circle at 50% 36%, #b3a37e 0%, #c7b793 52%, #ddd0b4 100%);

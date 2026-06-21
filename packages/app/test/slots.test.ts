@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { tileFromString, tilesEqual, KLASIK, isValidMeldSet } from '@cs-okey/engine'
+import { tileFromString, tileToString, tilesEqual, KLASIK, KLASIK_101, isValidMeldSet } from '@cs-okey/engine'
 import type { Tile } from '@cs-okey/engine'
 import {
   initLayout,
@@ -10,6 +10,7 @@ import {
   layoutToTiles,
   parseMeldSegments,
   orderMeldForDisplay,
+  orderLeftovers,
   meldRepresentedValues,
 } from '../src/rack/slots'
 
@@ -32,6 +33,43 @@ function multisetEqual(a: Tile[], b: Tile[]): boolean {
   }
   return true
 }
+
+describe('orderLeftovers — per-potential clustering (101)', () => {
+  // okey = 13K, not present among the leftovers below (so nothing is a wild).
+  const o = tileFromString('13K')
+
+  it('reproduces the screenshot rack: near-melds clustered, dead tile last', () => {
+    // The exact leftovers from the user's screenshot (no melds found):
+    // 4⚫ 11⚫ 1🔵 4🔵 6🔵 9🔵 10🔵 12🔵 5🔴 10🔴 5🟡 11🟡  (K=black M=blue R=red S=yellow)
+    const leftovers = h('4K', '11K', '1M', '4M', '6M', '9M', '10M', '12M', '5R', '10R', '5S', '11S')
+    const out = orderLeftovers(leftovers, o, KLASIK_101).map(tileToString)
+    // Clusters by descending value:
+    //   {9🔵 10🔵 12🔵 10🔴}=41, {11🔵?no→11⚫ 11🟡}=22, {4⚫ 4🔵 6🔵}=14, {5🔴 5🟡}=10
+    // then the lone dead tile 1🔵 last (lowest value, the natural discard).
+    expect(out).toEqual(['9M', '10R', '10M', '12M', '11S', '11K', '4M', '4K', '6M', '5R', '5S', '1M'])
+  })
+
+  it('puts same-number partners (a future GROUP) next to each other', () => {
+    const out = orderLeftovers(h('11K', '3M', '11S'), o, KLASIK_101).map(tileToString)
+    const i1 = out.indexOf('11K')
+    const i2 = out.indexOf('11S')
+    expect(Math.abs(i1 - i2)).toBe(1) // the two 11s are adjacent
+    expect(out[out.length - 1]).toBe('3M') // the lone low tile trails
+  })
+
+  it('keeps a consecutive same-colour run (a future RUN) together', () => {
+    const out = orderLeftovers(h('9M', '2R', '10M'), o, KLASIK_101).map(tileToString)
+    expect(out.slice(0, 2).sort()).toEqual(['10M', '9M']) // 9🔵 10🔵 lead as a block
+    expect(out[2]).toBe('2R') // unrelated low tile last
+  })
+
+  it('preserves tile object identity (re-orders, never clones)', () => {
+    const leftovers = h('9M', '10M', '2R')
+    const out = orderLeftovers(leftovers, o, KLASIK_101)
+    for (const t of out) expect(leftovers.includes(t)).toBe(true)
+    expect(out).toHaveLength(leftovers.length)
+  })
+})
 
 describe('initLayout', () => {
   it('places N tiles in first N slots and leaves rest null', () => {
