@@ -327,11 +327,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         ? ((isCiftOpen || player.declaredCift === true) ? 'cift' : 'seri')
         : (player.openRoute ?? 'seri')
 
-      // Build new table meld entries
-      // For çift-route melds: kind = 'pair'
-      // For seri-route melds: detect run vs group
+      // Build new table meld entries. The display KIND is derived from each meld's
+      // SHAPE, not the player's route: a 2-tile meld is a pair (→ çift area), a 3+
+      // meld is a run/group (→ seri area). This way a seri-route player who lays
+      // pairs ("Çift Aç") gets them shown in the çift area, not the seri area.
       const newTableMelds = event.melds.map((meld) => {
-        if (openedRoute === 'cift') {
+        if (meld.length === 2) {
           return { owner: event.seat, kind: 'pair' as const, tiles: meld }
         }
         // Use effective values for non-wild tiles to determine meld shape.

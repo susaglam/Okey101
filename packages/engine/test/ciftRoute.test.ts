@@ -248,6 +248,24 @@ describe('OpenMeld — openRoute detection', () => {
     const pairMelds = s2.tableMelds!.filter((m) => m.kind === 'pair')
     expect(pairMelds.length).toBe(5)
   })
+
+  it('a SERI-route player laying a pair (Çift Aç) tags it kind="pair" (shown in the çift area)', () => {
+    let base = reduce(null, { type: 'CreateGame', gameId: 'g-seri-pair', seed: 1, config: KLASIK_101 })
+    base = reduce(base, { type: 'StartHand' })
+    const s: GameState = {
+      ...base,
+      okey: tileFromString('1S'), // okey distinct from the 5R pair so it stays a concrete tile
+      turn: { seat: 0, phase: 'DISCARD' },
+      // A çift route is already open on the table (a bot laid a pair).
+      tableMelds: [{ owner: 1, kind: 'pair', tiles: [tileFromString('9K'), tileFromString('9K')] }],
+      players: base.players.map((p) => (p.seat === 0
+        ? { ...p, hasOpened: true, openRoute: 'seri' as const, rack: [tileFromString('5R'), tileFromString('5R'), tileFromString('2M')] }
+        : p)),
+    }
+    const s2 = reduce(s, { type: 'OpenMeld', seat: 0, melds: [[tileFromString('5R'), tileFromString('5R')]] })
+    const last = s2.tableMelds![s2.tableMelds!.length - 1]!
+    expect(last.kind).toBe('pair')
+  })
 })
 
 // ── OpenMeld: already-opened route restrictions ──────────────────────────────
