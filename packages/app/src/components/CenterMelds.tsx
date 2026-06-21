@@ -179,13 +179,17 @@ export function CenterMelds({
         title="Seri perler"
         badge={seriOpenValue > 0 ? <Badge>{seriOpenValue}</Badge> : undefined}
       >
+        {/* Full-row drop target (cols 1-13): one run per row, so dropping anywhere
+            on the row extends THAT run — the empty columns before/after the tiles
+            are exactly the valid front/back işle spots. pointerWithin keeps it precise. */}
         {runs.map((m, row) => (
-          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} valid={validTargetIndices?.has(m.gi)} row={row} colSpan={Math.min(m.tiles.length, 13)} />
+          <RowDropTarget key={`r-${m.gi}`} gi={m.gi} enabled={!!layoffEnabled} valid={validTargetIndices?.has(m.gi)} row={row} colSpan={13} />
         ))}
-        {/* Each run is a contiguous left-aligned block in its OWN row (col = position),
-            so a row is always exactly one run — no number-column overlap between
-            different-coloured runs that made them look mixed. */}
-        {runs.flatMap((m, row) => renderMeldTiles(m, row, (ti) => Math.min(ti + 1, 13)))}
+        {/* NUMBER-ALIGNED: each tile sits in the COLUMN of the number it represents
+            (1→col1 … 13→col13), one run per row. So 8-9-10 sits under columns 8-10
+            and the gaps show exactly where a tile can be işle'd. Two runs never share
+            a row, so different colours never visually merge. */}
+        {runs.flatMap((m, row) => renderMeldTiles(m, row, (ti, reps) => Math.min(Math.max(reps[ti] ?? ti + 1, 1), 13)))}
       </GridArea>
 
       {/* AREA B — same-number groups: 9 cols = 4 + 1 gap + 4, so TWO groups fit per

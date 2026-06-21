@@ -831,15 +831,19 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           <div
             data-testid="human-nameplate"
             style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 10,
-              background: 'linear-gradient(180deg,#c08a44,#7a4a1c)', color: '#fff',
-              boxShadow: isMyTurn ? '0 0 12px #5ad1c4' : '0 2px 4px rgba(0,0,0,.4)',
+              display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 12,
+              background: 'linear-gradient(180deg, #caa063 0%, #9a6a30 52%, #774719 100%)',
+              border: '1px solid rgba(72,44,16,0.85)', color: '#fff7e9', fontFamily: 'system-ui',
+              boxShadow: isMyTurn
+                ? '0 0 0 2px rgba(90,209,196,0.95), 0 0 16px 3px rgba(90,209,196,0.5), inset 0 1px 0 rgba(255,238,205,0.5)'
+                : '0 3px 9px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,238,205,0.38)',
+              transition: 'box-shadow .2s ease',
             }}
           >
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3a4570', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>S</div>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{seatName(view.seat)}</span>
-            <span style={{ background: 'rgba(0,0,0,.3)', borderRadius: 8, padding: '2px 7px', fontSize: 12 }}>{view.you.rack.length}</span>
-            <span style={{ background: 'rgba(0,0,0,.45)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700, color: '#ffd27a' }}>{standingsForSeat}</span>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, #5e6fb0 0%, #2c3768 100%)', border: '1.5px solid rgba(255,238,205,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.45)' }}>S</div>
+            <span style={{ fontWeight: 700, fontSize: 14, textShadow: '0 1px 1px rgba(0,0,0,0.4)', letterSpacing: 0.2 }}>{seatName(view.seat)}</span>
+            <span style={{ background: 'linear-gradient(180deg, #fbf6ea, #e8dcc4)', color: '#5a4420', borderRadius: 7, padding: '2px 8px', fontSize: 12, fontWeight: 800, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 1px rgba(0,0,0,0.25)' }}>{view.you.rack.length}</span>
+            <span style={{ background: 'rgba(0,0,0,.42)', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 800, color: '#ffd27a', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.3)' }}>{standingsForSeat}</span>
             {(view.penalties?.[view.seat] ?? 0) > 0 && (
               <span title={`${view.penalties![view.seat]} ceza (×101)`} style={{ background: 'rgba(200,40,40,.92)', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 11, fontWeight: 800 }}>
                 ⚠{view.penalties![view.seat]}
@@ -890,23 +894,29 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
       <button
+        className="hud-btn"
         aria-label="Skor Tabelası"
+        title="Skor Tabelası"
         onClick={() => { setHistory(adapter.getHistory()); setShowScores(true) }}
-        style={{ position: 'fixed', top: 12, right: 96, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+        style={{ position: 'fixed', top: 12, right: 104, zIndex: 210 }}
       >
         📊
       </button>
       <button
+        className="hud-btn"
         aria-label="Nasıl Oynanır?"
+        title="Nasıl Oynanır?"
         onClick={() => setShowHelp(true)}
-        style={{ position: 'fixed', top: 12, right: 54, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+        style={{ position: 'fixed', top: 12, right: 58, zIndex: 210 }}
       >
         ?
       </button>
       <button
+        className="hud-btn"
         aria-label="Ayarlar"
+        title="Ayarlar"
         onClick={() => setShowSettings(v => !v)}
-        style={{ position: 'fixed', top: 12, right: 12, zIndex: 210, fontSize: 18, padding: '6px 12px', borderRadius: 8 }}
+        style={{ position: 'fixed', top: 12, right: 12, zIndex: 210 }}
       >
         ⚙
       </button>
@@ -917,22 +927,12 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           role="dialog"
           aria-label="Nasıl Oynanır?"
           onClick={() => setShowHelp(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 320, background: 'rgba(0,0,0,.75)',
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px 12px',
-          }}
+          className="modal-overlay"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#13361f', color: '#fff', borderRadius: 12, padding: '18px 22px',
-              maxWidth: 580, width: '100%', fontFamily: 'system-ui',
-              boxShadow: '0 10px 40px rgba(0,0,0,.6)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>Nasıl Oynanır? {is101 ? '(101)' : '(Klasik)'}</h2>
-              <button onClick={() => setShowHelp(false)} aria-label="Kapat">Kapat</button>
+          <div onClick={(e) => e.stopPropagation()} className="modal-card" style={{ maxWidth: 580 }}>
+            <div className="modal-head">
+              <h2>Nasıl Oynanır? {is101 ? '(101)' : '(Klasik)'}</h2>
+              <button className="modal-close" onClick={() => setShowHelp(false)} aria-label="Kapat">Kapat</button>
             </div>
             <HelpContent variant={is101 ? 'yuzbir' : 'klasik'} />
           </div>
@@ -945,24 +945,14 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           role="dialog"
           aria-label="Skor Tabelası"
           onClick={() => setShowScores(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 320, background: 'rgba(0,0,0,.75)',
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '24px 12px',
-          }}
+          className="modal-overlay"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#13361f', color: '#fff', borderRadius: 12, padding: '18px 22px',
-              maxWidth: 620, width: '100%', fontFamily: 'system-ui',
-              boxShadow: '0 10px 40px rgba(0,0,0,.6)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>📊 Skor Tabelası</h2>
-              <button onClick={() => setShowScores(false)} aria-label="Kapat">Kapat</button>
+          <div onClick={(e) => e.stopPropagation()} className="modal-card" style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h2>📊 Skor Tabelası</h2>
+              <button className="modal-close" onClick={() => setShowScores(false)} aria-label="Kapat">Kapat</button>
             </div>
-            <ScoreTable history={history} standings={match.standings} names={[...SEAT_NAMES]} />
+            <ScoreTable history={history} standings={match.standings} names={[...SEAT_NAMES]} lowerWins={is101} />
           </div>
         </div>
       )}
@@ -1034,7 +1024,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <option value="hard">Zor</option>
             </select>
           </label>
-          <button onClick={() => setShowSettings(false)} style={{ marginTop: 4 }}>Kapat</button>
+          <button className="modal-close" onClick={() => setShowSettings(false)} style={{ marginTop: 4, alignSelf: 'flex-start' }}>Kapat</button>
         </div>
       )}
 
@@ -1056,6 +1046,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             names={[...SEAT_NAMES]}
             handNo={match.handNo}
             totalHands={match.totalHands}
+            lowerWins={is101}
           />
 
           {match.over ? (

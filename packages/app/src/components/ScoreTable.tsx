@@ -1,7 +1,8 @@
 import type { HandRecord } from '../match'
 
 const PENALTY_LABEL: Record<string, string> = {
-  'islek-floor-open': 'işlek',
+  'islek': 'işlek',
+  'islek-floor-open': 'işlek', // legacy
   'okey-discard': 'okey attı',
 }
 
@@ -9,15 +10,25 @@ function penaltyLabel(type: string): string {
   return PENALTY_LABEL[type] ?? type
 }
 
+/** Green when the delta is GOOD for that seat (negative in 101, positive in Klasik). */
+function goodColor(delta: number, lowerWins?: boolean): string {
+  if (delta === 0) return '#ddd'
+  const good = lowerWins ? delta < 0 : delta > 0
+  return good ? '#7BE38B' : '#f08a8a'
+}
+
 /**
  * Per-hand score table: one row per hand, one column per seat, each cell showing
  * that seat's net score for the hand plus any flat penalties (by type). A footer
  * row shows the running match totals.
  */
-export function ScoreTable({ history, standings, names }: {
+export function ScoreTable({ history, standings, names, lowerWins }: {
   history: HandRecord[]
   standings: number[]
   names: string[]
+  /** 101: a NEGATIVE delta is good (finisher credit), positive is a penalty —
+   *  flip the green/red so green always means "good for that seat". */
+  lowerWins?: boolean
 }) {
   const seats = standings.map((_, i) => i)
   const th: React.CSSProperties = { padding: '6px 10px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.25)' }
@@ -47,7 +58,7 @@ export function ScoreTable({ history, standings, names }: {
                   const isWinner = h.winnerSeat === s
                   return (
                     <td key={s} style={td}>
-                      <div style={{ fontWeight: 800, color: delta > 0 ? '#7BE38B' : delta < 0 ? '#f08a8a' : '#ddd' }}>
+                      <div style={{ fontWeight: 800, color: goodColor(delta, lowerWins) }}>
                         {delta > 0 ? `+${delta}` : delta}{isWinner ? ' 🏆' : ''}
                       </div>
                       {pens.map((p, i) => (

@@ -3,13 +3,16 @@ export function Scoreboard({
   names,
   handNo,
   totalHands,
+  lowerWins,
 }: {
   standings: number[]
   names: string[]
   handNo: number
   totalHands: number
+  /** 101: the LOWEST total leads/wins. Klasik: the highest. */
+  lowerWins?: boolean
 }) {
-  const maxScore = Math.max(...standings)
+  const bestScore = lowerWins ? Math.min(...standings) : Math.max(...standings)
 
   return (
     <div
@@ -37,9 +40,11 @@ export function Scoreboard({
         <tbody>
           {names.map((name, i) => {
             const score = standings[i] ?? 0
-            const isLeader = score === maxScore
-            const scoreColor =
-              score > 0 ? '#6ee86e' : score < 0 ? '#f07070' : '#ccc'
+            const isLeader = score === bestScore
+            // The leader (best total in this variant's direction) is green; the
+            // rest are neutral — avoids the "high = green" confusion in 101 where
+            // a LOWER total is better.
+            const scoreColor = isLeader ? '#6ee86e' : '#d8cdb8'
             return (
               <tr
                 key={name}
