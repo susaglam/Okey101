@@ -446,7 +446,10 @@ body { overflow-x: hidden; }
   box-shadow: 0 3px 0 #2c5a2c, 0 5px 12px rgba(0, 0, 0, 0.3);
 }
 
-.act button, .action-bar button {
+/* Action buttons — but NOT the tile buttons (gösterge TileView is a <button> that
+   lives in the action bar; without :not(.okey-tile) this rule would override its
+   font/background/padding and make it look like a small gold button). */
+.act button:not(.okey-tile), .action-bar button:not(.okey-tile) {
   background: linear-gradient(180deg, #f0b53e, #d2811a);
   color: #3a2400;
   font-weight: 800;
@@ -459,9 +462,9 @@ body { overflow-x: hidden; }
   box-shadow: 0 3px 0 #9a5e12, 0 4px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-.act button:hover:not(:disabled), .action-bar button:hover:not(:disabled) { transform: translateY(-1px); }
-.act button:active:not(:disabled), .action-bar button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #9a5e12; }
-.act button:disabled, .action-bar button:disabled { opacity: 0.45; cursor: default; box-shadow: 0 2px 0 #8a7340; filter: grayscale(0.4); }
+.act button:not(.okey-tile):hover:not(:disabled), .action-bar button:not(.okey-tile):hover:not(:disabled) { transform: translateY(-1px); }
+.act button:not(.okey-tile):active:not(:disabled), .action-bar button:not(.okey-tile):active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #9a5e12; }
+.act button:not(.okey-tile):disabled, .action-bar button:not(.okey-tile):disabled { opacity: 0.45; cursor: default; box-shadow: 0 2px 0 #8a7340; filter: grayscale(0.4); }
 
 /* Action bar wraps gracefully on narrow screens */
 .action-bar { flex-wrap: wrap; row-gap: 8px; }
