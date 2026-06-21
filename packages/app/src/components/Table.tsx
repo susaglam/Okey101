@@ -29,9 +29,11 @@ function DraggableFloorPile({
       ref={setNodeRef}
       data-testid="draw-floor"
       style={{
-        transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.75 : 1,
-        zIndex: isDragging ? 100 : 1,
+        // Moving copy is rendered in GameScreen's DragOverlay; keep the original in
+        // place (dimmed), no drag transform — so it isn't clipped under the rack.
+        transform: isDragging ? undefined : CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.35 : 1,
+        zIndex: 1,
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}

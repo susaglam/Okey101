@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
 import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
-import { DndContext } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
+import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { Tile } from '@cs-okey/engine'
 import type { LocalAdapter } from '../adapter/LocalAdapter'
 import type { RejectionCode } from '../adapter/Adapter'
 import type { MatchState } from '../match'
@@ -58,6 +59,9 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   const [showScores, setShowScores] = useState(false)
   const [history, setHistory] = useState<HandRecord[]>(() => adapter.getHistory())
   const [toast, setToast] = useState<string | null>(null)
+  // The tile currently being dragged — rendered in a <DragOverlay> portal so it
+  // floats ABOVE the rack/table instead of being clipped by them.
+  const [activeDrag, setActiveDrag] = useState<{ kind: 'rack' | 'stock' | 'floor'; tile?: Tile } | null>(null)
 
   // Reddetme bildirimi (toast) — engine bir hamleyi reddederse kullanıcı sebebini görür.
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -404,7 +408,21 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       })
   }
 
+  // Track the dragged tile for the DragOverlay (so it floats above everything).
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = String(event.active.id)
+    if (/^\d+$/.test(id)) {
+      setActiveDrag({ kind: 'rack', tile: currentLayout[Number(id)] ?? undefined })
+    } else if (id === 'draw-stock') {
+      setActiveDrag({ kind: 'stock' })
+    } else if (id === 'draw-floor') {
+      const left = view.opponents.find((o) => (o.seat - view.seat + 4) % 4 === 3)
+      setActiveDrag({ kind: 'floor', tile: left?.discardTop })
+    }
+  }
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDrag(null)
     const { active, over } = event
     const activeId = String(active.id)
     const overId = over ? String(over.id) : null
@@ -467,7 +485,15 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   }
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveDrag(null)}>
+    {/* Dragged tile floats above the rack/table (portal) — never clipped/hidden. */}
+    <DragOverlay dropAnimation={null} zIndex={1000}>
+      {activeDrag?.kind === 'stock' ? (
+        <div className="stock-deste" style={{ width: 'var(--tile-w)', height: 'var(--tile-h)' }}><span className="count" /></div>
+      ) : activeDrag?.tile ? (
+        <TileView tile={activeDrag.tile} colorblind={settings.colorblind} />
+      ) : null}
+    </DragOverlay>
     {toast && (
       <div
         role="alert"

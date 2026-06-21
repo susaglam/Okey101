@@ -24,9 +24,10 @@ export function StockPile({ stockCount, enabled }: { stockCount: number; enabled
         style={enabled ? {
           cursor: isDragging ? 'grabbing' : 'grab',
           touchAction: 'none',
-          transform: CSS.Translate.toString(transform),
-          zIndex: isDragging ? 100 : 1,
-          boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,.8), 0 0 0 2px #e8c87a' : undefined,
+          // Moving copy is in GameScreen's DragOverlay; dim the original, no transform.
+          transform: isDragging ? undefined : CSS.Translate.toString(transform),
+          opacity: isDragging ? 0.35 : 1,
+          zIndex: 1,
         } : undefined}
         {...(enabled ? listeners : {})}
         {...(enabled ? attributes : {})}

@@ -30,16 +30,19 @@ function DraggableTile({
     id: String(slotIndex),
   })
 
+  // The moving copy is rendered in the GameScreen <DragOverlay> (so it floats above
+  // everything, never clipped by the rack). Here we leave the original in place and
+  // just dim it as a placeholder — do NOT apply the drag transform.
   const t = CSS.Translate.toString(transform)
   const style: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
-    transform: isDragging ? `${t ?? ''} scale(1.12) rotate(2deg)` : t,
+    transform: isDragging ? undefined : t,
     transformOrigin: 'center',
-    zIndex: isDragging ? 1000 : 1,
+    zIndex: 1,
+    opacity: isDragging ? 0.35 : 1,
     transition: isDragging ? undefined : 'transform 0.12s ease',
     cursor: isDragging ? 'grabbing' : 'grab',
-    filter: isDragging ? 'drop-shadow(0 14px 24px rgba(0,0,0,0.55))' : undefined,
     touchAction: 'none',
   }
 

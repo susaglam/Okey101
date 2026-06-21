@@ -126,6 +126,15 @@ describe('StartHand — 101 deal', () => {
     expect(s.players[2]!.rack).toHaveLength(22)
   })
 
+  it('clears the previous hand’s table melds on a new StartHand', () => {
+    let s = reduce(null, { type: 'CreateGame', gameId: 'g-clear', seed: 4, config: KLASIK_101 })
+    s = reduce(s, { type: 'StartHand' })
+    // Simulate melds laid during the hand.
+    s = { ...s, tableMelds: [{ owner: 0, kind: 'run', tiles: h('5R', '6R', '7R') }] }
+    const s2 = reduce(s, { type: 'StartHand' })
+    expect(s2.tableMelds).toEqual([])
+  })
+
   // Klasik still deals 15/14/14/14 (regression guard)
   it('Klasik StartHand still deals 15 to starter and 14 to others', () => {
     let s = reduce(null, { type: 'CreateGame', gameId: 'gk', seed: 99, config: KLASIK })
