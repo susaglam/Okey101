@@ -12,6 +12,8 @@ export interface OpponentView {
   openedValue?: number
   openRoute?: 'seri' | 'cift'
   declaredCift?: boolean
+  /** Flat penalties applied to this seat THIS hand (işlek, okey-discard, …). */
+  penalties: number
 }
 
 export interface PlayerView {
@@ -31,12 +33,16 @@ export interface PlayerView {
   terminal?: Terminal
   tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
   rizikoActive: boolean
+  /** Flat penalty count per seat (index = seat) applied THIS hand. */
+  penalties: number[]
   version: number
 }
 
 export function redactFor(state: GameState, seat: number, version: number): PlayerView {
   const you = state.players.find((p) => p.seat === seat)
   if (!you) throw new Error(`No player at seat ${seat}`)
+  const applied = state.penaltiesApplied ?? []
+  const penaltyCount = (s: number) => applied.reduce((acc, p) => (p.seat === s ? acc + 1 : acc), 0)
   const opponents: OpponentView[] = state.players
     .filter((p) => p.seat !== seat)
     .map((p) => ({
@@ -48,6 +54,7 @@ export function redactFor(state: GameState, seat: number, version: number): Play
       openedValue: p.openedValue,
       openRoute: p.openRoute,
       declaredCift: p.declaredCift,
+      penalties: penaltyCount(p.seat),
     }))
   return {
     seat, config: state.config, handNo: state.handNo,
@@ -59,6 +66,7 @@ export function redactFor(state: GameState, seat: number, version: number): Play
     terminal: state.terminal,
     tableMelds: state.tableMelds ?? [],
     rizikoActive: state.rizikoActive ?? false,
+    penalties: Array.from({ length: state.config.players }, (_, s) => penaltyCount(s)),
     version,
   }
 }

@@ -7,6 +7,7 @@ export function Seat({
   chips,
   stack,
   seat,
+  penalties,
 }: {
   name: string
   count: number
@@ -18,6 +19,8 @@ export function Seat({
   stack?: boolean
   /** Oturma indeksi — animasyon çapası (data-seat) için. */
   seat?: number
+  /** Bu el alınan düz ceza sayısı (işlek/okey-atma) — >0 ise kırmızı rozet. */
+  penalties?: number
 }) {
   const isVertical = position === 'left' || position === 'right'
 
@@ -130,6 +133,19 @@ export function Seat({
       )}
       {score !== undefined && (
         <span style={scoreStyle}>{score}</span>
+      )}
+      {!!penalties && penalties > 0 && (
+        <span
+          title={`${penalties} ceza (×101)`}
+          aria-label={`${penalties} ceza`}
+          style={{
+            background: 'rgba(200,40,40,.92)', color: '#fff', borderRadius: 8,
+            padding: isVertical ? '1px 5px' : '2px 7px', fontSize: isVertical ? 9 : 11,
+            fontWeight: 800, lineHeight: 1.1,
+          }}
+        >
+          ⚠{penalties}
+        </span>
       )}
     </div>
   )

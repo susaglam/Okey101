@@ -267,6 +267,9 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const player = state.players.find((p) => p.seat === event.seat)!
       const cfg = state.config
       const okey = state.okey!
+      // Was this the player's FIRST open? (İşlek penalty only fires on the open
+      // that the floor tile enabled, not on later lay-downs.)
+      const wasFirstOpen = !player.hasOpened
 
       // Determine if this is a çift-route open: exactly `pairsCount` melds, all
       // valid pairs. Uses isValidPairSet so okey-backed pairs (the wild as a
@@ -360,10 +363,17 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         openRoute: openedRoute,
       }))
 
-      // Taking a tile from the floor carries NO penalty (Kural 11 Q1/Q3:
-      // "işlek cezası yok"). Opening simply lays the melds; the only floor-take
-      // consequence is the must-open-or-return restriction enforced in Discard.
-      return { ...state, players, tableMelds }
+      // İşlek penalty (PO 2026-06-21): if the opener TOOK a tile from the floor
+      // (their left neighbour's discard) this turn AND this is their FIRST open,
+      // the left neighbour "fed a working tile" (işlek taş) → flat +101, once per
+      // hand. scoreHand101 sums penaltiesApplied as flat +101 (never multiplied).
+      let penaltiesApplied = state.penaltiesApplied ?? []
+      if (wasFirstOpen && (state.turn as TurnState).tookFromLeft === true) {
+        const fedSeat = leftSeat(event.seat, cfg.players)
+        const already = penaltiesApplied.some((x) => x.seat === fedSeat && x.type === 'islek')
+        if (!already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
+      }
+      return { ...state, players, tableMelds, penaltiesApplied }
     }
 
     case 'LayOff': {

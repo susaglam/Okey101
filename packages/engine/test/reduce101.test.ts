@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { reduce, RuleError } from '../src/reduce'
 import { isValidMeldSet } from '../src/open'
+import { scoreHand101 } from '../src/scoring/yuzbir'
 import { KLASIK_101, KLASIK } from '../src/config'
 import { tileFromString, tilesEqual, tileToString } from '../src/tile'
 import type { Tile } from '../src/tile'
@@ -601,6 +602,49 @@ describe('Kural 11 (Q1) — floor-take must open or return', () => {
     // The player may now re-take the same floor tile to retry.
     const s3 = reduce(s2, { type: 'DrawFromDiscard', seat: 0 })
     expect(s3.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(true)
+  })
+})
+
+describe('İşlek penalty (Q1 reversal, PO 2026-06-21) — floor-take + open', () => {
+  // A ≥101 opening hand (three full top-runs = 36×3 = 108).
+  const openMelds = () => [h('11R', '12R', '13R'), h('11K', '12K', '13K'), h('11M', '12M', '13M')]
+  function floorTakerState(over: Partial<GameState> = {}, tookFromLeft = true): GameState {
+    const base = start101()
+    const rack = [...openMelds().flat(), tileFromString('2S')] // +filler so the open keeps a tile
+    return {
+      ...base,
+      okey: tileFromString('5S'), // distinct from the melds
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft, floorTileTaken: tileFromString('11R') },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack } : p)),
+      ...over,
+    }
+  }
+
+  it('penalizes the LEFT neighbour (seat 3) with +101 when seat 0 opens after a floor-take', () => {
+    const s2 = reduce(floorTakerState(), { type: 'OpenMeld', seat: 0, melds: openMelds() })
+    const islek = (s2.penaltiesApplied ?? []).filter((x) => x.type === 'islek')
+    expect(islek).toHaveLength(1)
+    expect(islek[0]!.seat).toBe(3) // leftSeat(0, 4) — the one who discarded the işlek tile
+    // scoreHand101 turns each penalty entry into a flat +101 for that seat.
+    const before = scoreHand101({ ...s2, status: 'ENDED', terminal: { reason: 'exhausted' } } as GameState)
+    const noPen = scoreHand101({ ...s2, penaltiesApplied: [], status: 'ENDED', terminal: { reason: 'exhausted' } } as GameState)
+    expect(before[3]! - noPen[3]!).toBe(101)
+  })
+
+  it('does NOT penalize when the open did not follow a floor-take', () => {
+    const s2 = reduce(floorTakerState({}, false), { type: 'OpenMeld', seat: 0, melds: openMelds() })
+    expect((s2.penaltiesApplied ?? []).filter((x) => x.type === 'islek')).toHaveLength(0)
+  })
+
+  it('applies the işlek penalty at most once per hand for a seat', () => {
+    const s2 = reduce(floorTakerState(), { type: 'OpenMeld', seat: 0, melds: openMelds() })
+    // A pre-existing işlek entry for seat 3 means the open must not add a duplicate.
+    const pre = reduce(
+      floorTakerState({ penaltiesApplied: [{ seat: 3, type: 'islek' }] }),
+      { type: 'OpenMeld', seat: 0, melds: openMelds() },
+    )
+    expect((s2.penaltiesApplied ?? []).filter((x) => x.type === 'islek' && x.seat === 3)).toHaveLength(1)
+    expect((pre.penaltiesApplied ?? []).filter((x) => x.type === 'islek' && x.seat === 3)).toHaveLength(1)
   })
 })
 

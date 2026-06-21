@@ -124,7 +124,7 @@ export function Table({
         {topOpponent && (
           <>
             <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)' }}>
-              <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} stack />
+              <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack />
             </div>
             <div style={{ position: 'absolute', top: 6, left: 8 }}>
               <DiscardPile topTile={topOpponent.discardTop} count={topOpponent.discardCount} takeable={false} seat={topOpponent.seat} />
@@ -135,7 +135,7 @@ export function Table({
         {rightOpponent && (
           <>
             <div style={{ position: 'absolute', right: 4, top: '46%', transform: 'translateY(-50%)' }}>
-              <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} stack />
+              <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} penalties={rightOpponent.penalties} stack />
             </div>
             <div style={{ position: 'absolute', top: 6, right: 8 }}>
               <DiscardPile topTile={rightOpponent.discardTop} count={rightOpponent.discardCount} takeable={false} seat={rightOpponent.seat} />
@@ -147,7 +147,7 @@ export function Table({
         {leftOpponent && (
           <>
             <div style={{ position: 'absolute', left: 4, top: '46%', transform: 'translateY(-50%)' }}>
-              <Seat name={seatName(leftOpponent.seat)} seat={leftOpponent.seat} count={leftOpponent.rackCount} isTurn={view.turn.seat === leftOpponent.seat} position="left" score={standings?.[leftOpponent.seat]} stack />
+              <Seat name={seatName(leftOpponent.seat)} seat={leftOpponent.seat} count={leftOpponent.rackCount} isTurn={view.turn.seat === leftOpponent.seat} position="left" score={standings?.[leftOpponent.seat]} penalties={leftOpponent.penalties} stack />
             </div>
             <div style={{ position: 'absolute', bottom: 6, left: 8 }}>
               {takeablePile ? (

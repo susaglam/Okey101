@@ -85,6 +85,7 @@ export type Sfx =
   | 'lose'      // hand ends without you winning (or exhaustion)
   | 'turn'      // it becomes your turn
   | 'deal'      // a fresh hand is dealt
+  | 'penalty'   // a flat penalty was applied to someone (işlek / okey-discard)
   | 'error'     // an illegal move was rejected
 
 /** Play a named sound effect (no-op when sound is disabled/unavailable). */
@@ -140,6 +141,13 @@ export function playSfx(name: Sfx): void {
       playNotes([0, 1, 2, 3].map((i) => ({
         freq: 300 + i * 45, start: i * 0.06, dur: 0.05, type: 'triangle' as OscillatorType, gain: 0.4,
       })))
+      break
+    case 'penalty':
+      // Descending "uh-oh" motif — distinct from the harsher 'error' buzz.
+      playNotes([
+        { freq: 466, start: 0, dur: 0.16, type: 'triangle', gain: 0.7 },
+        { freq: 349, start: 0.15, dur: 0.30, type: 'triangle', gain: 0.7 },
+      ])
       break
     case 'error':
       playNotes([{ freq: 150, start: 0, dur: 0.18, type: 'sawtooth', gain: 0.45 }])

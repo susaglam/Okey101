@@ -265,7 +265,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       const b = prev.opponents.find((x) => x.seat === o.seat)
       return b != null && o.discardCount > b.discardCount
     })
-    if (melds > prevMelds) playSfx('open')          // someone opened / laid a new meld
+    const prevPen = (prev.penalties ?? []).reduce((a, b) => a + b, 0)
+    const pen = (view.penalties ?? []).reduce((a, b) => a + b, 0)
+    if (pen > prevPen) playSfx('penalty')           // işlek / okey-discard penalty applied
+    else if (melds > prevMelds) playSfx('open')     // someone opened / laid a new meld
     else if (tiles > prevTiles) playSfx('layoff')   // someone laid onto a meld ("işle")
     else if (view.you.rack.length > prev.you.rack.length) playSfx('draw') // you drew
     else if (oppDiscarded) playSfx('discard')
@@ -762,6 +765,11 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             <span style={{ fontWeight: 700, fontSize: 14 }}>{seatName(view.seat)}</span>
             <span style={{ background: 'rgba(0,0,0,.3)', borderRadius: 8, padding: '2px 7px', fontSize: 12 }}>{view.you.rack.length}</span>
             <span style={{ background: 'rgba(0,0,0,.45)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700, color: '#ffd27a' }}>{standingsForSeat}</span>
+            {(view.penalties?.[view.seat] ?? 0) > 0 && (
+              <span title={`${view.penalties![view.seat]} ceza (×101)`} style={{ background: 'rgba(200,40,40,.92)', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 11, fontWeight: 800 }}>
+                ⚠{view.penalties![view.seat]}
+              </span>
+            )}
           </div>
         </div>
 
