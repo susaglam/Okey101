@@ -591,7 +591,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               title="5 çift ile aç"
               onClick={() => { if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds }) }}
             >
-              Çift Aç (5)
+              Çift Aç
             </button>
           )}
           {/* Çifte Git (binding) — left group, with confirm so it isn't hit by accident */}
@@ -668,18 +668,21 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             gösterge at the far right. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
           <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Sırala</button>}
-            {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Sırala</button>}
-            {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡 İpucu</button>}
+            {isMyTurn && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
+            {isMyTurn && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
+            {isMyTurn && isDiscardPhase && <button onClick={handleHint}>💡</button>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
               <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                {/* Always a numbered tile (never the gold false joker): a legacy
-                    false-joker indicator falls back to the okey tile, and `plain`
-                    forces an ivory body regardless. No yellow effect anywhere. */}
-                <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
+                {/* Identical structure to a rack tile: a `.okey-slot` (--tile-w/h)
+                    wrapping the TileView — so it renders at the exact rack tile size.
+                    Always a numbered tile (a legacy false-joker indicator falls back
+                    to the okey tile; `plain` forces an ivory body — no gold). */}
+                <div className="okey-slot" style={{ flexShrink: 0 }}>
+                  <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
+                </div>
                 <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
                   okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
                 </span>
