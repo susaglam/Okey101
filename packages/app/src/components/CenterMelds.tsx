@@ -160,10 +160,14 @@ export function CenterMelds({
           repValue={isWild && displayTile === tile ? (rep ?? undefined) : undefined}
         />
       )
+      // Key MUST be unique across the whole GridArea: every meld's tiles are
+      // flat-mapped into the SAME grid parent, so a bare `ti` (0,1,2…) collides
+      // between melds. Prefix with the global meld index.
+      const key = `${m.gi}-${ti}`
       if (takeOkeyEnabled && isRealOkey(tile, okey)) {
-        return <OkeyDropCell key={ti} id={`take-okey:${m.gi}:${ti}`} col={col} row={row}>{tileEl}</OkeyDropCell>
+        return <OkeyDropCell key={key} id={`take-okey:${m.gi}:${ti}`} col={col} row={row}>{tileEl}</OkeyDropCell>
       }
-      return <div key={ti} style={cell(col, row)}>{tileEl}</div>
+      return <div key={key} style={cell(col, row)}>{tileEl}</div>
     })
   }
 
