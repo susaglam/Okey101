@@ -1,7 +1,7 @@
 import type { GameEvent } from './events'
 import type { GameState, PlayerState, TurnState } from './state'
 import { nextSeat, leftSeat } from './state'
-import type { Tile } from './tile'
+import type { Tile, TileColor } from './tile'
 import { tilesEqual } from './tile'
 import { buildDeck } from './deck'
 import { makeRng, shuffle, deriveSeed } from './rng'
@@ -456,20 +456,50 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // false joker is a fixed plain tile, not a wild, so it cannot be reused.
       const isRealOkey = (t: Tile) => t.kind === 'NUMBER' && tilesEqual(t, okey)
 
-      // Find an okey in the meld whose slot the inserted tile can fill (the
-      // resulting meld must still be valid). The okey then returns to the rack.
+      // A meld stays the same shape after the swap: a 2-tile meld is a pair, a 3+
+      // meld is a run/group. Validate accordingly (the okey can be taken from a
+      // PAIR too, not just runs/groups — "per ya da çift olması fark etmez").
+      const meldValid = (tiles: Tile[]) =>
+        tiles.length === 2 ? isValidPairSet([tiles], okey) : isValidMeldSet([tiles], okey, cfg)
+
+      // Every NON-WILD concrete tile value that could validly fill `slot`. Excludes
+      // the okey's own value (that's another wild, not a "represented" tile).
+      const COLORS: TileColor[] = ['RED', 'BLACK', 'BLUE', 'YELLOW']
+      const fillsFor = (slot: number): Tile[] => {
+        const out: Tile[] = []
+        for (const color of COLORS) {
+          for (let n = 1; n <= 13; n++) {
+            const cand: Tile = { kind: 'NUMBER', number: n, color }
+            if (isRealOkey(cand)) continue
+            const test = targetMeld.tiles.map((t, j) => (j === slot ? cand : t))
+            if (meldValid(test)) out.push(cand)
+          }
+        }
+        return out
+      }
+
+      // Find an okey whose value is UNIQUELY pinned and equals the offered tile.
+      // If the offered tile fits an okey slot but the okey could be ≥2 different
+      // tiles (e.g. [7♦ 7♥ okey] → okey is yellow-7 OR black-7), the colour is not
+      // yet determined: the player must first complete the meld (lay the other
+      // colour) so only one option remains, THEN take the okey.
       let okeyPos = -1
       let candidate: Tile[] | null = null
+      let ambiguous = false
       for (let i = 0; i < targetMeld.tiles.length; i++) {
         if (!isRealOkey(targetMeld.tiles[i]!)) continue
-        const test = targetMeld.tiles.map((t, j) => (j === i ? event.tile : t))
-        if (isValidMeldSet([test], okey, cfg)) {
-          okeyPos = i
-          candidate = test
-          break
-        }
+        const fills = fillsFor(i)
+        const offeredFits = fills.some((t) => tilesEqual(t, event.tile))
+        if (!offeredFits) continue
+        if (fills.length > 1) { ambiguous = true; continue } // okey not pinned to one tile yet
+        okeyPos = i
+        candidate = targetMeld.tiles.map((t, j) => (j === i ? event.tile : t))
+        break
       }
       if (okeyPos === -1 || candidate === null) {
+        if (ambiguous) {
+          throw new RuleError('okey value is ambiguous here — complete the meld (lay the other colour) so only one tile fits, then take it')
+        }
         throw new RuleError('no okey in this meld can be replaced by the given tile')
       }
 

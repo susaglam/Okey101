@@ -537,6 +537,45 @@ describe('TakeOkey', () => {
       reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('2R') }),
     ).toThrow(RuleError)
   })
+
+  /** Build an opened seat-0 state with a single arbitrary table meld + rack. */
+  function meldState(meld: Tile[], kind: 'run' | 'group' | 'pair', rack: string[]): GameState {
+    const base = start101()
+    return {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      tableMelds: [{ owner: 1, kind, tiles: meld }],
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: true, rack: h(...rack) } : p)),
+    }
+  }
+
+  it('takes the okey from a PAIR (per ya da çift olması fark etmez)', () => {
+    const s = meldState([tileFromString('13K'), okey], 'pair', ['13K', '9R'])
+    const s2 = reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('13K') })
+    const meld = s2.tableMelds![0]!.tiles
+    expect(meld.some((t) => tilesEqual(t, okey))).toBe(false)
+    expect(meld.filter((t) => tilesEqual(t, tileFromString('13K')))).toHaveLength(2)
+    expect(s2.players[0]!.rack.some((t) => tilesEqual(t, okey))).toBe(true)
+  })
+
+  it('rejects taking the okey from an ambiguous same-number group (colour not pinned)', () => {
+    // [7♦blue 7♥red okey] — okey could be yellow-7 OR black-7. A single tile is
+    // not enough; the meld must be completed first so only one colour remains.
+    const s = meldState([tileFromString('7M'), tileFromString('7R'), okey], 'group', ['7S', '9R'])
+    expect(() =>
+      reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('7S') }),
+    ).toThrow(RuleError)
+  })
+
+  it('takes the okey from a 4-tile group once only one colour is missing', () => {
+    // blue/red/yellow present → okey is pinned to black-7 → 7K takes it.
+    const s = meldState([tileFromString('7M'), tileFromString('7R'), tileFromString('7S'), okey], 'group', ['7K', '9R'])
+    const s2 = reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('7K') })
+    const meld = s2.tableMelds![0]!.tiles
+    expect(meld.some((t) => tilesEqual(t, okey))).toBe(false)
+    expect(meld.some((t) => tilesEqual(t, tileFromString('7K')))).toBe(true)
+  })
 })
 
 describe('Discard — okey-discard penalty (Kural 11)', () => {
