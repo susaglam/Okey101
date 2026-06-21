@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, findLayablePairs, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, findLayableMeld, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
 import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
 
@@ -447,9 +447,12 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // A çift route is open on the table once anyone has laid a pair. Once it is,
   // ANY opened player may lay additional pairs (even a seri-route player).
   const tableHasPair = (view.tableMelds ?? []).some((m) => m.kind === 'pair')
-  // findLayablePairs result: post-opening pair laying (allowed when a çift route exists)
-  const layablePairs101 = is101 && view.okey && view.you.hasOpened && tableHasPair
-    ? findLayablePairs(view.you.rack, view.okey, view.config)
+  // Post-opening pair laying ("Çift Aç" after opening). LAYOUT-DRIVEN: lay exactly
+  // the pairs the player arranged on the rack (pairSegments) — never auto-pair the
+  // okey with some other tile. The player decides what the okey pairs with by where
+  // they place it. Allowed once a çift route is open on the table.
+  const layablePairs101 = is101 && view.okey && view.you.hasOpened && tableHasPair && pairSegments.length > 0
+    ? pairSegments
     : null
 
   // Find first rack tile + meld index that produces a legal LayOff

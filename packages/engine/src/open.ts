@@ -359,7 +359,10 @@ function _collectPairs(rack: Tile[], okey: Tile, minPairs: number): Tile[][] | n
   }
 
   // The okey is wild: pair each leftover single with a wild, then pair any
-  // remaining wilds with each other (a pair of two wilds is valid).
+  // remaining wilds with each other (a pair of two wilds is valid). Prefer the
+  // BIGGEST leftover singles first, so the okey stands in for a high tile — less
+  // value is left stranded in the rack (smaller penalty if it stays unopened).
+  singles.sort((a, b) => (effectiveValue(b, okey)?.number ?? 0) - (effectiveValue(a, okey)?.number ?? 0))
   let w = 0
   for (const single of singles) {
     if (w >= wilds.length) break
