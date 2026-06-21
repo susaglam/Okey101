@@ -39,6 +39,7 @@ import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
 import { StockPile } from '../components/StockPile'
 import { flyTile, animationsEnabled } from '../anim/fly'
+import { playSfx, setSoundEnabled } from '../anim/sound'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
 import { CenterMelds } from '../components/CenterMelds'
@@ -93,10 +94,14 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const showReject = (reason?: RejectionCode) => {
     setToast(REJECT_MSG[reason ?? 'unknown'])
+    playSfx('error')
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2600)
   }
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
+  // Keep the sound engine in sync with the user's "Ses" setting.
+  useEffect(() => { setSoundEnabled(settings.sound) }, [settings.sound])
 
   // GSAP Flip: ıstaka yeniden-dizilince taşları akıcı kaydır.
   // Konum durumu, layout değişmeden ÖNCE yakalanır; render sonrası oynatılır.
@@ -223,6 +228,47 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         })
       }
     }
+  }, [view])
+
+  // Sound effects: derive game events from the view diff (covers every seat
+  // uniformly). Separate from the animation effect so it fires even when
+  // animations are off (reduced-motion). playSfx itself no-ops when sound is
+  // disabled. The human's own discard plays in discardFromSlot for immediacy;
+  // okey-swap plays at its drag handler (rack length is unchanged by a swap).
+  const prevSoundViewRef = useRef<PlayerView | null>(null)
+  const soundMountRef = useRef(false)
+  useEffect(() => {
+    const prev = prevSoundViewRef.current
+    prevSoundViewRef.current = view
+    const firstRun = !soundMountRef.current
+    soundMountRef.current = true
+    if (!view) return
+    // Fresh hand dealt.
+    if (!firstRun && prev && prev.handNo !== view.handNo) { playSfx('deal'); return }
+    if (firstRun || !prev || prev.handNo !== view.handNo) return
+    // Hand ended.
+    if (!prev.terminal && view.terminal) {
+      const youWon = view.terminal.reason === 'win' && view.terminal.winnerSeat === view.seat
+      playSfx(youWon ? 'win' : 'lose')
+      return
+    }
+    // It just became the human's turn → priority cue (over the event that caused it).
+    const nowMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
+    const wasMyTurn = prev.turn.seat === view.seat && prev.status === 'PLAYING'
+    if (nowMyTurn && !wasMyTurn) { playSfx('turn'); return }
+    // Otherwise, the most salient board change this tick.
+    const prevMelds = prev.tableMelds.length
+    const melds = view.tableMelds.length
+    const prevTiles = prev.tableMelds.reduce((a, m) => a + m.tiles.length, 0)
+    const tiles = view.tableMelds.reduce((a, m) => a + m.tiles.length, 0)
+    const oppDiscarded = view.opponents.some((o) => {
+      const b = prev.opponents.find((x) => x.seat === o.seat)
+      return b != null && o.discardCount > b.discardCount
+    })
+    if (melds > prevMelds) playSfx('open')          // someone opened / laid a new meld
+    else if (tiles > prevTiles) playSfx('layoff')   // someone laid onto a meld ("işle")
+    else if (view.you.rack.length > prev.you.rack.length) playSfx('draw') // you drew
+    else if (oppDiscarded) playSfx('discard')
   }, [view])
 
   if (!view) return null
@@ -449,6 +495,8 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           showReject(res.reason)
           // Roll the optimistic removal back from the authoritative rack.
           setLayout(reconcile(optimistic, view.you.rack))
+        } else {
+          playSfx('discard') // immediate feedback for the human's own throw
         }
       })
   }
@@ -492,6 +540,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       const meldIndex = Number(overId.split(':')[1])
       const tile = currentLayout[Number(activeId)]
       if (tile != null && isDiscardPhase && view.you.hasOpened) {
+        playSfx('takeokey') // swap leaves rack length unchanged → not caught by the view diff
         send({ type: 'TakeOkey', seat: view.seat, meldIndex, tile })
       }
       return

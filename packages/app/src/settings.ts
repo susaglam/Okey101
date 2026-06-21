@@ -10,7 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'klasik',
   colorblind: false,
   repValue: true,
-  sound: false,
+  sound: true,
   difficulty: 'medium',
 }
 
