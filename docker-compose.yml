@@ -1,0 +1,24 @@
+# Local Docker Desktop kurulumu için.
+# Production (Coolify) için docker-compose.coolify.yml kullanılır; bu dosya sadece
+# yerel geliştirme/test içindir.
+#
+# Kullanım:
+#   docker compose up -d --build   # build + arkaplanda çalıştır
+#   docker compose logs -f         # logları izle
+#   docker compose down            # durdur
+#
+# Açıldıktan sonra: http://localhost:8080
+
+services:
+  okey:
+    build: .
+    container_name: cs-okey
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

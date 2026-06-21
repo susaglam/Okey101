@@ -35,4 +35,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/packages/app/dist /usr/share/nginx/html
 
 EXPOSE 80
+
+# Healthcheck — Coolify uses this to validate the deployment (busybox wget ships
+# with nginx:alpine).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1
+
 # nginx:alpine's base image already runs `nginx -g 'daemon off;'` in the foreground.

@@ -1,0 +1,53 @@
+# =====================================================================
+# CS Okey — Coolify Production Compose
+# =====================================================================
+#
+# Kullanım (Coolify):
+#   1. Coolify Dashboard → + New Resource → Docker Compose Empty
+#      (veya Git Repository seç: github.com/susaglam/Okey101, branch master)
+#   2. Build Pack = Docker Compose
+#   3. Compose Path = docker-compose.coolify.yml  (repo seçildiyse otomatik bulunur)
+#   4. Deploy.
+#
+# Oyun TAMAMEN istemci taraflı (saf motor + tarayıcıda çalışan botlar) — backend,
+# veritabanı, environment değişkeni YOK. Coolify repo'yu pull eder, Dockerfile'dan
+# build alır (Vite → statik dosyalar) ve nginx ile :80'de sunar.
+#
+# Coolify magic:
+#   SERVICE_FQDN_OKEY_80 → public domain'i otomatik atar + HTTPS terminate eder.
+#                          "Domain" sekmesinden override edilebilir.
+# =====================================================================
+
+services:
+  okey:
+    # Coolify repo'yu pull edip Dockerfile'dan otomatik build eder.
+    # Auto-deploy açıksa her commit'te yeniden build + run.
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Alternatif (advanced): registry'de hazır image kullanmak isterseniz üstteki
+    # `build` bloğunu kaldırıp aşağıyı açın (kendi GitHub hesabımız: susaglam).
+    # image: ${OKEY_IMAGE:-ghcr.io/susaglam/okey101:latest}
+
+    restart: unless-stopped
+
+    # Coolify proxy bu port'a yönlenir; SERVICE_FQDN_OKEY_80 magic'i 80 → public
+    # domain map'ler ve HTTPS'i terminate eder.
+    expose:
+      - "80"
+
+    environment:
+      # Coolify domain magic — SERVICE_FQDN_<SERVICE>_<PORT> formatı.
+      - SERVICE_FQDN_OKEY_80
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      # Coolify managed marker.
+      - coolify.managed=true
