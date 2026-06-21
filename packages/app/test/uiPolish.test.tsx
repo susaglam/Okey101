@@ -114,6 +114,26 @@ describe('Stock indicator', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────
+// 3b. Okey shown FACE-DOWN: open gösterge tile + a closed (blank) okey tile
+// ────────────────────────────────────────────────────────────────────────────
+describe('Gösterge + kapalı okey', () => {
+  it('renders the OPEN gösterge tile AND a face-down (blank) okey tile', async () => {
+    const adapter = new LocalAdapter({ seed: 9, humanSeat: 0 })
+    render(<GameScreen adapter={adapter} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('gosterge-tile')).toBeInTheDocument()
+    })
+    const okeyBack = screen.getByTestId('okey-back')
+    expect(okeyBack).toBeInTheDocument()
+    // It's the .tile-back element (a blank ivory back), not a numbered TileView.
+    expect(okeyBack.className).toContain('tile-back')
+    expect(okeyBack.textContent).toBe('') // no numeral shown — it's "closed"
+    // The okey value is carried in the aria-label for accessibility.
+    expect(okeyBack.getAttribute('aria-label') ?? '').toMatch(/^okey:/)
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
 // 4. Human nameplate (seat 0) — renders "Sen", chip count, score box
 // ────────────────────────────────────────────────────────────────────────────
 describe('Human nameplate', () => {

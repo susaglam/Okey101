@@ -870,17 +870,32 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
-              <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                {/* Identical structure to a rack tile: a `.okey-slot` (--tile-w/h)
-                    wrapping the TileView — so it renders at the exact rack tile size.
-                    Always a numbered tile (a legacy false-joker indicator falls back
-                    to the okey tile; `plain` forces an ivory body — no gold). */}
-                <div className="okey-slot" style={{ flexShrink: 0 }}>
-                  <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
+              <div data-testid="gosterge" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+                {/* GÖSTERGE — the face-up indicator tile. The okey is the tile one
+                    above it, so this is shown OPEN: it's how you read the okey value.
+                    Same structure as a rack tile (`.okey-slot` + TileView, `plain`
+                    forces an ivory body so a legacy false-joker indicator isn't gold). */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div className="okey-slot" style={{ flexShrink: 0 }}>
+                    <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
+                  </div>
+                  <span style={{ fontSize: 10, opacity: 0.8, color: '#fff' }}>gösterge</span>
                 </div>
-                <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
-                  okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
-                </span>
+                {/* OKEY — shown FACE-DOWN as a blank ivory tile, like other online
+                    Okey games: the okey itself stays a "closed" tile, recognised by
+                    its turned-back look. Its value is given by the label below. */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div className="okey-slot" style={{ flexShrink: 0 }}>
+                    <div
+                      className="tile-back"
+                      data-testid="okey-back"
+                      aria-label={view.okey ? `okey: ${tileToString(view.okey)} (kapalı)` : 'okey'}
+                    />
+                  </div>
+                  <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
+                    okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
+                  </span>
+                </div>
               </div>
             )}
           </div>
