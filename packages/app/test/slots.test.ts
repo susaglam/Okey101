@@ -245,6 +245,51 @@ describe('moveTile', () => {
     moveTile(layout, 0, 10)
     expect(layout[0]).toBe(orig0)
   })
+
+  it('drag RIGHT onto an occupied tile pushes it right (the 7-onto-8 case, NO swap)', () => {
+    // [5,7,8] at slots 0,1,2 (slot 3 empty). Drag 7 (slot 1) onto 8 (slot 2).
+    const layout = initLayout([], cols)
+    layout[0] = tileFromString('5S'); layout[1] = tileFromString('7S'); layout[2] = tileFromString('8S')
+    const out = moveTile(layout, 1, 2)
+    expect(tilesEqual(out[0]!, tileFromString('5S'))).toBe(true) // 5 unchanged
+    expect(out[1]).toBeNull()                                    // 7's old slot stays a gap (no swap)
+    expect(tilesEqual(out[2]!, tileFromString('7S'))).toBe(true) // 7 took 8's slot
+    expect(tilesEqual(out[3]!, tileFromString('8S'))).toBe(true) // 8 pushed one right
+  })
+
+  it('pushes a contiguous block (target + its right neighbours) right together', () => {
+    // slot0 = drag tile; [7,8,9] at 1,2,3; slot 4 is the gap.
+    const layout = initLayout([], cols)
+    layout[0] = tileFromString('1S')
+    layout[1] = tileFromString('7S'); layout[2] = tileFromString('8S'); layout[3] = tileFromString('9S')
+    const out = moveTile(layout, 0, 1) // drag 1 onto 7 (dir +1)
+    expect(out[0]).toBeNull()
+    expect(tilesEqual(out[1]!, tileFromString('1S'))).toBe(true)
+    expect(tilesEqual(out[2]!, tileFromString('7S'))).toBe(true)
+    expect(tilesEqual(out[3]!, tileFromString('8S'))).toBe(true)
+    expect(tilesEqual(out[4]!, tileFromString('9S'))).toBe(true)
+  })
+
+  it('drag LEFT onto an occupied tile pushes it left (symmetric)', () => {
+    // slot0 empty; [5,7,8] at 1,2,3. Drag 8 (slot 3) onto 7 (slot 2): dir -1.
+    const layout = initLayout([], cols)
+    layout[1] = tileFromString('5S'); layout[2] = tileFromString('7S'); layout[3] = tileFromString('8S')
+    const out = moveTile(layout, 3, 2)
+    expect(tilesEqual(out[0]!, tileFromString('5S'))).toBe(true)
+    expect(tilesEqual(out[1]!, tileFromString('7S'))).toBe(true)
+    expect(tilesEqual(out[2]!, tileFromString('8S'))).toBe(true)
+    expect(out[3]).toBeNull()
+  })
+
+  it('never loses a tile or crashes when the push direction is full (right edge)', () => {
+    const n = 2 * cols
+    const layout = initLayout([], cols)
+    layout[n - 1] = tileFromString('5S'); layout[n - 2] = tileFromString('6S'); layout[n - 3] = tileFromString('7S')
+    layout[n - 4] = tileFromString('8S')
+    const out = moveTile(layout, n - 4, n - 3) // push-right, but no gap to the right
+    expect(out.filter(Boolean).length).toBe(4) // nothing lost
+    expect(multisetEqual(out.filter((t): t is Tile => t !== null), h('5S', '6S', '7S', '8S'))).toBe(true)
+  })
 })
 
 describe('autoArrange', () => {

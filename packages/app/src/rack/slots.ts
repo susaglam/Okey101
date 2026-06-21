@@ -116,8 +116,12 @@ function shiftInsert(next: SlotLayout, to: number, tile: Tile): void {
  * Return a new layout with the tile at `from` moved to `to`.
  * - If from === to or from slot is empty, returns a copy unchanged.
  * - If `to` is empty, the tile moves there and `from` becomes null.
- * - If `to` is occupied, the tile is INSERTED at `to` and the neighbouring tiles
- *   shift toward the nearest gap to make room (no swap) — natural rack editing.
+ * - If `to` is occupied: INSERT at `to` and push the occupant (and any contiguous
+ *   tiles) one step AWAY from the drag origin — drag right ⇒ push right, drag left
+ *   ⇒ push left — into the first gap in that direction. The origin slot stays a
+ *   gap, so tiles never SWAP (dropping 7 onto 8 gives 7,8 — not 8,7). If the push
+ *   direction is full to the edge, fall back to the freed origin gap so a tile is
+ *   never lost (no out-of-space bug).
  */
 export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayout {
   const next = [...layout]
@@ -125,8 +129,28 @@ export function moveTile(layout: SlotLayout, from: number, to: number): SlotLayo
     return next
   }
   const tile = next[from]!
-  next[from] = null // freeing this slot may itself be the nearest gap
-  shiftInsert(next, to, tile)
+  next[from] = null // origin becomes a gap (preserved unless needed as fallback room)
+  if (next[to] === null) {
+    next[to] = tile // target empty → just place it
+    return next
+  }
+
+  const dir = to > from ? 1 : -1 // push the occupant away from the drag origin
+  // First gap strictly beyond `to` in the push direction (never `from`, which is
+  // on the opposite side).
+  let gap = -1
+  for (let i = to + dir; i >= 0 && i < next.length; i += dir) {
+    if (next[i] === null) { gap = i; break }
+  }
+  if (gap !== -1) {
+    // Slide the block [to..gap-dir] one step toward `gap`, opening up `to`.
+    for (let i = gap; i !== to; i -= dir) next[i] = next[i - dir] ?? null
+  } else {
+    // No room in the push direction → slide the block between `from` and `to`
+    // toward the freed origin gap instead (only happens when the far edge is full).
+    for (let i = from; i !== to; i += dir) next[i] = next[i + dir] ?? null
+  }
+  next[to] = tile
   return next
 }
 
