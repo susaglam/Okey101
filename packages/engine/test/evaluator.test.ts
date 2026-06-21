@@ -46,6 +46,12 @@ describe('evaluator', () => {
     const rack = h('9R','9K','9M','9S','2K','2M','2S','2R','12R','13R','1R','4S','5S','6S')
     expect(evaluateHand(rack, OKEY, noWrap).isWinning).toBe(false)
   })
+  it('rejects a hand needing an illegal 13,1,2 run (a wrap cannot continue past the 1)', () => {
+    // Same shape as the valid-wrap win, but the third meld is 13,1,2 (goes PAST the
+    // 1) instead of 12,13,1. There is no other cover → not winning. (PO 2026-06-21)
+    const rack = h('9R','9K','9M','9S','2K','2M','2S','2R','13R','1R','2R','4S','5S','6S')
+    expect(evaluateHand(rack, OKEY, KLASIK).isWinning).toBe(false)
+  })
   it('rejects a non-winning hand', () => {
     expect(evaluateHand(NOT_WINNING, OKEY, KLASIK).isWinning).toBe(false)
   })

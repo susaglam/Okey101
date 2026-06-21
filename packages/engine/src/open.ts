@@ -213,7 +213,10 @@ function isValidRun(meld: Tile[], okey: Tile, config: VariantConfig): boolean {
       let n = s + k
       if (n > 13) {
         if (!wrap) { fits = false; break }
-        n = ((n - 1) % 13) + 1
+        // A 13→1 wrap is legal ONLY as the final slot (…,12,13,1). 13,1,2,… is not
+        // a run, so reject any wrap past the 1 (n>14) or a non-final wrap.
+        if (n !== 14 || k !== len - 1) { fits = false; break }
+        n = 1
       }
       window.add(n)
     }

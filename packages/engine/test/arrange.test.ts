@@ -16,6 +16,25 @@ describe('arrange — value-maximizing objective (101 Sırala)', () => {
   })
 })
 
+describe('arrange — 13→1 wrap runs (Klasik)', () => {
+  const W = tileFromString('8K') // a wild not present in the racks below
+
+  it('does NOT form an illegal run that continues past the 1 (13,1,2,3)', () => {
+    // The only LEGAL run here is [1,2,3]; 13R must stay a leftover — never melded
+    // into a 13,1,2,3 "run". (Auto Seri Diz bug, PO 2026-06-21.)
+    const a = arrange(h('13R', '1R', '2R', '3R'), W, KLASIK)
+    expect(a.melds.some((m) => m.some((t) => t.number === 13))).toBe(false)
+    expect(a.leftovers.map(tileToString)).toContain('13R')
+    // [1,2,3] still melds.
+    expect(a.meldedCount).toBe(3)
+  })
+
+  it('still forms a LEGAL …,13,1 wrap run (1 as the top)', () => {
+    const a = arrange(h('11R', '12R', '13R', '1R'), W, KLASIK)
+    expect(a.meldedCount).toBe(4) // 11,12,13,1 is a valid wrap run
+  })
+})
+
 describe('arrange', () => {
   it('groups three obvious melds and reports leftovers', () => {
     const rack = h('1R','2R','3R','4K','5K','6K','9S','9R','9M','8M','2S') // 3 melds (9 tiles) + 8M,2S leftover

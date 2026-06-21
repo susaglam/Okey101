@@ -146,8 +146,17 @@ describe('isValidMeldSet', () => {
   })
 
   it('accepts a 13→1 wrap run when runWrap13to1 is true (Klasik) — matches the win-path validator', () => {
+    // The wrap is legal ONLY as the END of the run: …,12,13,1 (1 is the top).
     expect(isValidMeldSet([h('12R', '13R', '1R')], OKEY, KLASIK)).toBe(true)
-    expect(isValidMeldSet([h('13R', '1R', '2R')], OKEY, KLASIK)).toBe(true)
+    expect(isValidMeldSet([h('11R', '12R', '13R', '1R')], OKEY, KLASIK)).toBe(true)
+  })
+
+  it('rejects a run that continues PAST the 1 wrap (13,1,2 / 12,13,1,2) — Klasik', () => {
+    // Once a run wraps 13→1, it must stop: 1 cannot be followed by 2. The user''s
+    // auto-arrange bug produced 13,1,2,3 — these must all be invalid.
+    expect(isValidMeldSet([h('13R', '1R', '2R')], OKEY, KLASIK)).toBe(false)
+    expect(isValidMeldSet([h('13R', '1R', '2R', '3R')], OKEY, KLASIK)).toBe(false)
+    expect(isValidMeldSet([h('12R', '13R', '1R', '2R')], OKEY, KLASIK)).toBe(false)
   })
 
   it('rejects a group with duplicate colors', () => {

@@ -245,7 +245,10 @@ function runCandidates(
         let n = startNum + i
         if (n > 13) {
           if (!state.config.runWrap13to1) { validSeq = false; break }
-          n = ((n - 1) % 13) + 1
+          // A 13→1 wrap is legal ONLY as the final tile (…,12,13,1). Anything past
+          // the 1 (13,1,2,3 …) is not a run, so reject n>14 or a non-final wrap.
+          if (n !== 14 || i !== len - 1) { validSeq = false; break }
+          n = 1
         }
         if (seq.includes(n)) { validSeq = false; break }
         seq.push(n)
