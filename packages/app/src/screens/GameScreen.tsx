@@ -843,8 +843,8 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           )}
         </div>
 
-        {/* CENTER cluster: nameplate · gösterge · stock · draw buttons — all beside
-            the human's card. Order per PO: [nameplate][gösterge][stock][Stoktan Çek]. */}
+        {/* CENTER: the human's nameplate (stays centred). The gösterge/stock/draw
+            block moved to the RIGHT section, pinned to the rack's right edge. */}
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <div
             data-testid="human-nameplate"
@@ -868,8 +868,12 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               </span>
             )}
           </div>
+        </div>
 
-          {/* GÖSTERGE — face-up indicator, placed to the LEFT of the stock. */}
+        {/* RIGHT: gösterge + stock + Stoktan Çek, pinned to the rack's RIGHT edge
+            (flex:1 + flex-end). The action bar equals the rack width, so this block
+            never crosses the rack's right boundary (PO 2026-06-23). */}
+        <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 10, minWidth: 0 }}>
           {view.indicator && (
             <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
               <div className="okey-slot" style={{ flexShrink: 0 }}>
@@ -880,18 +884,11 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               </span>
             </div>
           )}
-
-          {/* STOCK — to the RIGHT of the gösterge. */}
           <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
-
-          {/* Stoktan Çek — immediately to the RIGHT of the stock (Yerden Çek stays left). */}
           {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
             <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
           )}
         </div>
-
-        {/* RIGHT spacer — balances the LEFT (flex:1) so the centre cluster stays centred. */}
-        <div style={{ flex: 1 }} />
       </div>
 
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
