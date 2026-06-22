@@ -752,9 +752,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               </div>
             )
           })()}
-          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
-            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
-          )}
+          {/* Stoktan Çek moved to the CENTER (beside the stock); Yerden Çek stays here. */}
           {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromDiscard') && (
             <button onClick={() => send({ type: 'DrawFromDiscard', seat: view.seat })}>Yerden Çek</button>
           )}
@@ -841,8 +839,9 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           )}
         </div>
 
-        {/* CENTER: live hand total (101) + human nameplate */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        {/* CENTER cluster: nameplate · gösterge · stock · draw buttons — all beside
+            the human's card. Order per PO: [nameplate][gösterge][stock][Stoktan Çek]. */}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <div
             data-testid="human-nameplate"
             style={{
@@ -865,32 +864,33 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               </span>
             )}
           </div>
+
+          {/* GÖSTERGE — face-up indicator, placed to the LEFT of the stock. */}
+          {view.indicator && (
+            <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              <div className="okey-slot" style={{ flexShrink: 0 }}>
+                <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
+              </div>
+              <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
+                okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* STOCK — to the RIGHT of the gösterge. */}
+          <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
+
+          {/* Stoktan Çek — immediately to the RIGHT of the stock (Yerden Çek stays left). */}
+          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
+            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
+          )}
         </div>
 
-        {/* RIGHT of the nameplate: the draw stock + gösterge (the diz/hint buttons
-            moved BELOW the rack — see the rack-tools row). */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
-            {view.indicator && (
-              <div data-testid="gosterge" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                {/* GÖSTERGE — the face-up indicator tile. The okey is the tile one
-                    above it; this tile shown OPEN is how you read the okey value.
-                    Same structure as a rack tile (`.okey-slot` + TileView, `plain`
-                    forces an ivory body so a legacy false-joker indicator isn't gold). */}
-                <div className="okey-slot" style={{ flexShrink: 0 }}>
-                  <TileView tile={view.indicator.kind === 'FALSE_JOKER' && view.okey ? view.okey : view.indicator} testId="gosterge-tile" plain />
-                </div>
-                <span style={{ fontSize: 10, opacity: 0.85, color: '#fff' }}>
-                  okey: <strong>{view.okey ? tileToString(view.okey) : '-'}</strong>
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* RIGHT spacer — balances the LEFT (flex:1) so the centre cluster stays centred. */}
+        <div style={{ flex: 1 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}
           okey={view.okey}
@@ -900,14 +900,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
         />
-      </div>
-
-      {/* Rack tools — BELOW the rack: arrange (diz) buttons + hint. Local/rack-only,
-          available even while bots play. (Stock + gösterge live above, top-right.) */}
-      <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', marginTop: 6, flexWrap: 'wrap' }}>
-        {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
-        {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
-        {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
+        {/* Rack tools — to the RIGHT of the rack, stacked vertically (PO 2026-06-23).
+            Local/rack-only, available even while bots play. */}
+        <div className="act" style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+          {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
+          {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
+          {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
+        </div>
       </div>
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
