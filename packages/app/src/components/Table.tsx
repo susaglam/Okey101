@@ -120,12 +120,13 @@ export function Table({
           opening layout). Each player discards toward the player on their right,
           so the pile sits in the corner between them. */}
       <div style={{ position: 'relative', flex: 1, width: '100%', minHeight: 340 }}>
-        {/* TOP seat (Can) — centre; its discard at the TOP-LEFT corner. */}
+        {/* TOP seat — card centred at the top; its discard stays in the TOP-LEFT
+            corner (out of the centre meld area). */}
         {topOpponent && (
           <>
-            {/* Top player card moved to the UPPER-LEFT so it never blocks the centre
-                meld-laying area; its discard sits just below it. */}
-            <div style={{ position: 'absolute', top: 6, left: 12, zIndex: 6 }}>
+            {/* Centred again now that the centre meld area sits lower (top:58) and no
+                longer collides with a top-centre card (PO 2026-06-23). */}
+            <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', zIndex: 6 }}>
               <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack />
             </div>
             <div style={{ position: 'absolute', top: 60, left: 14 }}>
