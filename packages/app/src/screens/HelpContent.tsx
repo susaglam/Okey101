@@ -71,8 +71,18 @@ export function HelpContent({ variant }: { variant?: 'klasik' | 'yuzbir' }) {
 
           <h2>101 — Puanlama</h2>
           <p>
-            Açamayan ağır ceza alır (ceza merdiveni −101 / −202 / −404 / −808; riziko bunu ikiye katlar).
-            Biten, bitiş tipine göre kazanır; elde kalan okey 101, sahte okey kendi yüz değeri kadar yazılır.
+            En düşük toplam kazanır. <strong>Biten −101</strong> (eksi = iyi) alır.
+            <strong>Hiç açamayan +202</strong>, çift ilan edip açamayan <strong>+404</strong> yer.
+          </p>
+          <p>
+            <strong>Açıp bitiremeyen</strong> elinde kalan taşların toplamını yer (çift açmışsa bu toplamın <strong>2 katı</strong>).
+            Elde her taş kendi sayısı kadar sayılır; <strong>gerçek okey 101</strong>; <strong>sahte okey ise o el okeyin denk geldiği sayı kadar</strong> (örn. okey 8 ise 8).
+          </p>
+          <p>
+            <strong>Bitiş çarpanı herkese işler:</strong> okeyle biten ×2, çiftle biten ×2, ikisi birden ×4 — o elde herkesin puanı katlanır. <em>Riziko</em> ayrıca ×2.
+          </p>
+          <p>
+            <strong>Düz cezalar (+101, çarpılmaz):</strong> işlek besleme · yerdeki pere işlenebilen taşı atma · okeyi atma · açtıktan sonra okeyi elinde tutma.
           </p>
         </>
       )}
