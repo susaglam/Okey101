@@ -887,9 +887,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             </div>
           )}
           <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
-          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
-            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
-          )}
+          {/* Stoktan Çek moved to the right-side button column (below). */}
         </div>
       </div>
 
@@ -906,6 +904,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         {/* Rack tools — absolutely placed at the rack's RIGHT edge (out of flow, so
             they don't widen the shared column), vertically centred on the rack. */}
         <div className="act" style={{ position: 'absolute', left: '100%', top: 0, bottom: 0, marginLeft: 10, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+          {/* Stoktan Çek at the TOP of the right column (shown on the player's draw). */}
+          {isMyTurn && view.turn.phase === 'DRAW' && legal.includes('DrawFromStock') && (
+            <button onClick={() => send({ type: 'DrawFromStock', seat: view.seat })}>Stoktan Çek</button>
+          )}
           {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
           {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
           {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
