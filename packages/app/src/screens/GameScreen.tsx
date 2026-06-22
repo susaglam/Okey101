@@ -718,11 +718,15 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         />
       }
     >
-      {/* ── ACTION BAR (above the rack): açma (left) · nameplate+total (center) · git/diz (right) ── */}
+      {/* Centred column sized to the RACK, so the action bar's left/right edges line
+          up with the rack's edges (PO 2026-06-23). The diz buttons are placed
+          absolutely at the rack's right, so they don't widen this column. */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', width: 'fit-content', maxWidth: '100%', margin: '2px auto 0' }}>
+      {/* ── ACTION BAR (above the rack): açma (left) · nameplate+stock (center) · spacer (right) ── */}
       <div
         className="action-bar"
         style={{
-          display: 'flex', width: '100%', maxWidth: 1320, margin: '2px auto 8px',
+          display: 'flex', width: '100%', margin: '0 0 8px',
           alignItems: 'center', justifyContent: 'space-between', gap: 10,
         }}
       >
@@ -890,7 +894,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
         <div style={{ flex: 1 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
         <SlotRack
           layout={currentLayout}
           okey={view.okey}
@@ -900,14 +904,15 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
         />
-        {/* Rack tools — to the RIGHT of the rack, stacked vertically (PO 2026-06-23).
-            Local/rack-only, available even while bots play. */}
-        <div className="act" style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+        {/* Rack tools — absolutely placed at the rack's RIGHT edge (out of flow, so
+            they don't widen the shared column), vertically centred on the rack. */}
+        <div className="act" style={{ position: 'absolute', left: '100%', top: 0, bottom: 0, marginLeft: 10, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
           {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
           {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
           {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
         </div>
       </div>
+      </div>{/* /centred rack-width column */}
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
       <button
