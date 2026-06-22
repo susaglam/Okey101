@@ -435,7 +435,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   const canOpenCift = is101 && !view.you.hasOpened && pairSegments.length >= pairsNeeded
   const standingsForSeat = match.standings[view.seat] ?? 0
   const openSeriMelds = validSeriMelds
-  const openCiftMelds = pairSegments.slice(0, pairsNeeded)
+  // "Çift Aç" lays ALL the pairs the player arranged adjacently (not just the first
+  // 5) in one press — pairs scattered elsewhere are left untouched. Keep ≥1 tile to
+  // discard: if every rack tile is paired, drop the last pair (still ≥5 to be a
+  // valid open) so the open isn't rejected by finish-protection.
+  const openCiftMelds = pairSegments.flat().length >= view.you.rack.length
+    ? pairSegments.slice(0, Math.max(pairsNeeded, pairSegments.length - 1))
+    : pairSegments
 
   // Determine the player's open route (after first open)
   const openRoute = view.you.openRoute as 'seri' | 'cift' | undefined
@@ -860,16 +866,9 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           </div>
         </div>
 
-        {/* RIGHT of the nameplate: sort (diz) buttons + hint, then the draw stock +
-            gösterge at the far right. */}
+        {/* RIGHT of the nameplate: the draw stock + gösterge (the diz/hint buttons
+            moved BELOW the rack — see the rack-tools row). */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
-          <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {/* Arrange buttons are LOCAL (rack-only) — keep them available even while
-                bots play, so the player can sort/check their hand any time. */}
-            {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
-            {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
-            {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
-          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <StockPile stockCount={view.stockCount} enabled={isMyTurn && view.turn.phase === 'DRAW' && view.stockCount > 0} />
             {view.indicator && (
@@ -900,6 +899,14 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
         />
+      </div>
+
+      {/* Rack tools — BELOW the rack: arrange (diz) buttons + hint. Local/rack-only,
+          available even while bots play. (Stock + gösterge live above, top-right.) */}
+      <div className="act" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+        {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
+        {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
+        {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
       </div>
 
       {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
