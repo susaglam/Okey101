@@ -38,9 +38,10 @@ export function legalMoves101(state: GameState, seat: number): GameEvent['type']
     moves.push('TakeOkey')
   }
 
-  // ReturnFloorTile: a non-çift taker who hasn't opened may return the floor tile
-  // they took this turn (instead of being forced to open).
-  if (state.turn.tookFromLeft === true && !player.declaredCift && !player.hasOpened) {
+  // ReturnFloorTile: whoever took the floor this turn may give it back (undo the
+  // take) — whether or not they've opened — as long as they haven't made a board
+  // move this turn (open/lay-off/okey-swap → openSnapshot; retract that first).
+  if (state.turn.tookFromLeft === true && state.turn.openSnapshot == null) {
     moves.push('ReturnFloorTile')
   }
 

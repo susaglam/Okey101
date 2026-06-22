@@ -647,7 +647,12 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         throw new RuleError('no floor tile to return this turn')
       }
       const p = state.players.find((x) => x.seat === event.seat)!
-      if (p.hasOpened) throw new RuleError('cannot return the floor tile after opening')
+      // You may return the floor tile (undo the take) whether or not you have opened
+      // — BUT not after a board move this turn (open / lay-off / okey-swap leaves a
+      // snapshot). Retract that first (Geri Al), then return the tile. (PO 2026-06-23)
+      if (turn0.openSnapshot != null) {
+        throw new RuleError('cannot return the floor tile after a board move this turn — retract (Geri Al) first')
+      }
 
       const floorTile = turn0.floorTileTaken
       const ridx = p.rack.findIndex((t) => tilesEqual(t, floorTile))

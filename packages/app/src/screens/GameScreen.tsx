@@ -792,13 +792,15 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               Çifte Git
             </button>
           )}
-          {/* Taşı Geri Al — non-çift taker who can't open returns the floor tile (Kural 11) */}
-          {isMyTurn && isDiscardPhase && is101 && view.turn.tookFromLeft && !view.you.hasOpened && !view.you.declaredCift && (
+          {/* Taşı Geri Ver — give the floor tile back (undo the take). Works whether
+              or not you've opened, as long as you haven't made a board move this turn
+              (then canRetract is true → use "Geri Al" to retract that first). */}
+          {isMyTurn && isDiscardPhase && is101 && view.turn.tookFromLeft && !view.turn.canRetract && (
             <button
-              title="Yerden aldığın taşı geri koy, stoktan çek"
+              title="Yerden aldığın taşı geri ver — bu turda tahta hamlesi yapmadıysan (sonra yeniden çekebilirsin)"
               onClick={() => send({ type: 'ReturnFloorTile', seat: view.seat })}
             >
-              ↩ Taşı Geri Al
+              ↩ Taşı Geri Ver
             </button>
           )}
           {/* İşle (lay-off) — left group */}

@@ -761,6 +761,41 @@ describe('Kural 11 (Q1) — floor-take must open or return', () => {
     const s3 = reduce(s2, { type: 'DrawFromDiscard', seat: 0 })
     expect(s3.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(true)
   })
+
+  it('an OPENED player may also return the floor tile (no board move made this turn)', () => {
+    const base = start101()
+    const floor = tileFromString('9R')
+    const s: GameState = {
+      ...base,
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor },
+      players: base.players.map((p) =>
+        p.seat === 0
+          ? { ...p, hasOpened: true, openRoute: 'seri', rack: [floor, ...h('5K', '6M')] }
+          : p,
+      ),
+    }
+    const s2 = reduce(s, { type: 'ReturnFloorTile', seat: 0 })
+    expect(s2.turn.phase).toBe('DRAW')
+    expect(s2.players[0]!.rack.some((t) => tilesEqual(t, floor))).toBe(false)
+    expect(s2.players[3]!.discard[s2.players[3]!.discard.length - 1]).toEqual(floor)
+  })
+
+  it('rejects ReturnFloorTile after a board move this turn (retract first)', () => {
+    const base = start101()
+    const floor = tileFromString('9R')
+    const s: GameState = {
+      ...base,
+      // a board move this turn leaves an openSnapshot on the turn
+      turn: {
+        seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor,
+        openSnapshot: { rack: [], hasOpened: true, tableMelds: [], penaltiesApplied: [] },
+      },
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, rack: [floor, ...h('5K', '6M')] } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'ReturnFloorTile', seat: 0 })).toThrow(RuleError)
+  })
 })
 
 describe('İşlek penalty (Q1 reversal, PO 2026-06-21) — floor-take + open', () => {
