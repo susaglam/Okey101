@@ -5,6 +5,10 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { applyTheme } from './theme/themes'
 import { loadSettings } from './settings'
-// Apply the persisted theme on load so the board matches the saved setting (no flash of the wrong theme).
-applyTheme(loadSettings().theme)
+import { setBotNames } from './names'
+// Apply persisted theme + bot names on load so the board matches saved settings
+// (no flash of the wrong theme / default names).
+const _s = loadSettings()
+applyTheme(_s.theme)
+setBotNames(_s.botNames)
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)

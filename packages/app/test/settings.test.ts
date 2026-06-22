@@ -20,7 +20,7 @@ describe('settings', () => {
   })
 
   it('round-trips a non-default value', () => {
-    const custom: Settings = { theme: 'gece', colorblind: true, repValue: false, sound: true, difficulty: 'hard' }
+    const custom: Settings = { theme: 'gece', colorblind: true, repValue: false, sound: true, difficulty: 'hard', botNames: ['A', 'B', 'C'] }
     saveSettings(custom)
     const loaded = loadSettings()
     expect(loaded).toEqual(custom)

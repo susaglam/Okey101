@@ -57,7 +57,7 @@ import type { SlotLayout } from '../rack/slots'
 import { initLayout, reconcile, moveTile, autoArrange, autoArrangePairs, parseMeldSegments } from '../rack/slots'
 import { interpretDragEnd } from '../utils/dragEnd'
 import { captureRackFlip, runRackFlip } from '../anim/flip'
-import { SEAT_NAMES, seatName } from '../names'
+import { SEAT_NAMES, seatName, setBotNames } from '../names'
 
 const COLS = 16
 
@@ -394,6 +394,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
     setSettings(next)
     saveSettings(next)
     if (patch.theme) applyTheme(patch.theme)
+    if (patch.botNames) setBotNames(next.botNames) // seats re-render via setSettings
   }
 
   // ── 101-specific pre-computed values ──────────────────────────────────────
@@ -1041,6 +1042,26 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <option value="hard">Zor</option>
             </select>
           </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span>Bot isimleri:</span>
+            {[0, 1, 2].map((i) => (
+              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                <span style={{ minWidth: 52, opacity: 0.8 }}>Oyuncu {i + 2}</span>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={settings.botNames[i] ?? ''}
+                  placeholder={SEAT_NAMES[i + 1]}
+                  onChange={(e) => {
+                    const names = [...settings.botNames] as [string, string, string]
+                    names[i] = e.target.value
+                    updateSettings({ botNames: names })
+                  }}
+                  style={{ flex: 1, padding: '4px 7px', borderRadius: 6, border: '1px solid rgba(0,0,0,.25)' }}
+                />
+              </label>
+            ))}
+          </div>
           <button className="modal-close" onClick={() => setShowSettings(false)} style={{ marginTop: 4, alignSelf: 'flex-start' }}>Kapat</button>
         </div>
       )}

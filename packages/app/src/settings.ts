@@ -4,6 +4,8 @@ export interface Settings {
   repValue: boolean
   sound: boolean
   difficulty: 'easy' | 'medium' | 'hard'
+  /** Display names for the 3 bots (seats 1, 2, 3). Seat 0 (you) is always "Sen". */
+  botNames: [string, string, string]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -12,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   repValue: true,
   sound: true,
   difficulty: 'medium',
+  botNames: ['Mert', 'Can', 'Arda'],
 }
 
 const STORAGE_KEY = 'cs-okey-settings'
