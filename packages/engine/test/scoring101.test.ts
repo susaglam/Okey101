@@ -1,6 +1,6 @@
 // packages/engine/test/scoring101.test.ts
 import { describe, it, expect } from 'vitest'
-import { scoreHand101 } from '../src/scoring/yuzbir'
+import { scoreHand101, okeyHeldPenalties } from '../src/scoring/yuzbir'
 import type { GameState } from '../src/state'
 import { KLASIK_101 } from '../src/config'
 import { tileFromString } from '../src/tile'
@@ -429,6 +429,126 @@ describe('çift declared, opened (≥5 pairs laid) but did not finish', () => {
     })
     const deltas = scoreHand101(s)
     expect(deltas[1]).toBe(72) // 2 × 18 × 2
+  })
+})
+
+// ── Çift binding via opening route (opened pairs WITHOUT declaring) ───────────
+
+describe('çift binding via opening route', () => {
+  it('opened via pairs (openRoute=cift) pays 2× leftover even without declaredCift', () => {
+    // The PO rule: opening çift binds you to çift scoring whether or not you said
+    // "çifte gidiyorum". seat 1 opened pairs, leftover 5+6+7=18 → 2×18 = 36.
+    const s = endedState({
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true, declaredCift: false, openRoute: 'cift' },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[1]).toBe(36) // 2 × 18
+  })
+
+  it('opened via pairs + never-finished (openRoute=cift) with riziko: 2×18×2 = 72', () => {
+    const s = endedState({
+      rizikoActive: true,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true, openRoute: 'cift' },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(72)
+  })
+})
+
+// ── Okey held by an OPENED player → flat +101 (separate, never multiplied) ──────
+
+describe('okey held by an opened player', () => {
+  it('opened non-finisher holding okey: leftover×m + a FLAT 101 (çift finish ×2)', () => {
+    // çift finish doubles the table (×2). seat 1 opened (non-çift) holds okey + 5R.
+    // The okey is NOT part of the ×2 leftover — it is a flat +101 instead:
+    //   leftover 5×2 = 10, + okey-held 101 flat = 111  (NOT (5+101)×2 = 212).
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'pairs' },
+      players: [
+        { rack: [] },
+        { rack: [tileFromString('5R'), okey], hasOpened: true },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(111)
+  })
+
+  it('opened non-finisher holding okey (normal finish, m=1): still totals 5 + 101 = 106', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: [tileFromString('5R'), okey], hasOpened: true },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(106)
+  })
+
+  it('NOT-opened player holding okey: no okey-held penalty (flat 202 base)', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: [tileFromString('5R'), okey], hasOpened: false },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(202)
+  })
+})
+
+// ── okeyHeldPenalties (display + scoring source of truth) ──────────────────────
+
+describe('okeyHeldPenalties', () => {
+  it('lists okey-held only for OPENED non-finishers holding the real okey', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'exhausted' },
+      players: [
+        { rack: [tileFromString('5R'), okey], hasOpened: true },   // opened + okey → yes
+        { rack: [okey], hasOpened: false },                         // not opened → no
+        { rack: [tileFromString('3K')], hasOpened: true },          // opened, no okey → no
+        { rack: [tileFromString('X')], hasOpened: true },           // false joker ≠ okey → no
+      ],
+    })
+    expect(okeyHeldPenalties(s)).toEqual([{ seat: 0, type: 'okey-held' }])
+  })
+
+  it('never charges the finisher (empty rack)', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [], hasOpened: true },
+        { rack: [tileFromString('5R')], hasOpened: true },
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(okeyHeldPenalties(s)).toEqual([])
   })
 })
 

@@ -29,7 +29,7 @@ export function deriveOkey(indicator: Tile): Tile {
  * The okey tile itself is excluded (its own discard is the separate okey-discard
  * penalty). Returns false when there is no okey or no table melds.
  */
-function isWorkableDiscard(
+export function isWorkableDiscard(
   tile: Tile,
   tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[],
   okey: Tile | undefined,

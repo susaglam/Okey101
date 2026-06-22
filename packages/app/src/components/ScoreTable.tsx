@@ -1,9 +1,11 @@
 import type { HandRecord } from '../match'
 
 const PENALTY_LABEL: Record<string, string> = {
-  'islek': 'işlek',
-  'islek-floor-open': 'işlek', // legacy
-  'okey-discard': 'okey attı',
+  'islek': '↙ işlek (yerden besledi)',
+  'islek-discard': '⤳ işlek taş attı',
+  'islek-floor-open': '↙ işlek (yerden besledi)', // legacy
+  'okey-held': '🎯 okey elde kaldı',
+  'okey-discard': '🀄 okey attı',
 }
 
 function penaltyLabel(type: string): string {

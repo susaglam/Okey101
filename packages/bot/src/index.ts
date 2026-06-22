@@ -1,4 +1,4 @@
-import { evaluateHand, findOpening, findLayableMeld, findPairOpening, findLayablePairs, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
+import { evaluateHand, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isWorkableDiscard, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
 
 export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => number): GameEvent {
   const seat = view.seat
@@ -84,8 +84,10 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
       }
     }
 
-    // 5. Fall through: discard least-useful.
-    const idx = leastUsefulIndex(rack, view.okey, rng)
+    // 5. Fall through: discard least-useful — but AVOID an işlek tile (one usable on
+    //    a table meld), since discarding it costs the bot a flat +101 (PO 2026-06-22).
+    const işlek = (t: Tile) => isWorkableDiscard(t, view.tableMelds, view.okey, view.config)
+    const idx = leastUsefulIndex(rack, view.okey, rng, işlek)
     return { type: 'Discard', seat, tile: rack[idx]! }
   }
 
@@ -253,7 +255,12 @@ function connectionDegree(t: Tile, rest: Tile[]): number {
  * Never discards the okey (wild) or a false joker; slightly prefers shedding edge
  * values (1, 13), which are less useful to opponents.
  */
-function leastUsefulIndex(rack: Tile[], okey: Tile | undefined, rng: () => number): number {
+function leastUsefulIndex(
+  rack: Tile[],
+  okey: Tile | undefined,
+  rng: () => number,
+  isWorkable?: (t: Tile) => boolean,
+): number {
   let bestIdx = 0; let bestScore = Infinity
   for (let i = 0; i < rack.length; i++) {
     const t = rack[i]!
@@ -261,6 +268,7 @@ function leastUsefulIndex(rack: Tile[], okey: Tile | undefined, rng: () => numbe
     let score = connectionDegree(t, rest)
     if (t.kind === 'FALSE_JOKER') score += 1000                         // keep false jokers
     if (okey && t.kind === 'NUMBER' && tilesEqual(t, okey)) score += 1000 // never discard the okey
+    if (isWorkable?.(t)) score += 800                                   // işlek → discarding costs +101
     if (t.kind === 'NUMBER' && (t.number === 1 || t.number === 13)) score -= 0.4 // shed edges first
     const jittered = score + rng() * 0.3
     if (jittered < bestScore) { bestScore = jittered; bestIdx = i }

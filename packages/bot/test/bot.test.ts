@@ -202,4 +202,21 @@ describe('bot.decide 101', () => {
     // Without OpenMeld in legal list, should not return OpenMeld
     expect(ev.type).not.toBe('OpenMeld')
   })
+
+  it('does NOT discard an işlek tile (one that could swap an okey on the table)', () => {
+    // Table has a pair [13K + okey]; the okey stands in for 13K, so a real 13K is
+    // işlek (it could reclaim the okey → discarding it eats +101). The bot can't
+    // lay onto a pair, so it would otherwise just throw 13K (an edge tile it likes
+    // to shed). It must avoid it and discard a dead tile instead.
+    const view = view101(
+      ['13K', '9M', '2S', '8R'],
+      'DISCARD',
+      true /* hasOpened */,
+      [{ owner: 1, kind: 'pair', tiles: ['13K', '7M'] }],
+      'seri',
+    )
+    const ev = decide(view, ['Discard'], makeRng(3))
+    expect(ev.type).toBe('Discard')
+    if (ev.type === 'Discard') expect(tileFromString('13K')).not.toEqual(ev.tile)
+  })
 })

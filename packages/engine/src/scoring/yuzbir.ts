@@ -16,10 +16,41 @@ function tileValue(tile: Tile, okey: Tile | undefined): number {
 }
 
 /**
- * Sum of face values of all tiles in a rack.
+ * Sum of face values of a rack's leftover tiles, EXCLUDING the real okey.
+ * A held okey is charged separately as a flat +101 "okey-held" penalty (see
+ * okeyHeldPenalties), so it must not also be counted (and ×-multiplied) here.
+ * FALSE_JOKER stays in the sum (its fixed face value = okey's number).
  */
-function rackSum(rack: Tile[], okey: Tile | undefined): number {
-  return rack.reduce((acc, t) => acc + tileValue(t, okey), 0)
+function leftoverSum(rack: Tile[], okey: Tile | undefined): number {
+  return rack.reduce((acc, t) => {
+    if (okey != null && t.kind === 'NUMBER' && tilesEqual(t, okey)) return acc // real okey → okey-held
+    return acc + tileValue(t, okey)
+  }, 0)
+}
+
+/**
+ * Flat "okey-held" penalties for an ended hand: an OPENED non-finisher who still
+ * holds the real okey pays a flat +101 per okey held (PO 2026-06-22). A player who
+ * NEVER opened pays nothing extra for holding the okey (they already pay the flat
+ * never-opened base). The finisher's rack is empty, so they're never charged.
+ * Exposed so the score table can show it as a distinct line, and so scoreHand101
+ * and the match history agree.
+ */
+export function okeyHeldPenalties(state: GameState): { seat: number; type: string }[] {
+  const okey = state.okey
+  const term = state.terminal
+  if (!term || okey == null) return []
+  const winnerSeat = term.reason === 'win' && term.winnerSeat != null ? term.winnerSeat : -1
+  const out: { seat: number; type: string }[] = []
+  for (let seat = 0; seat < state.config.players; seat++) {
+    if (seat === winnerSeat) continue
+    const p = state.players[seat]!
+    if (p.hasOpened !== true) continue
+    for (const t of p.rack) {
+      if (t.kind === 'NUMBER' && tilesEqual(t, okey)) out.push({ seat, type: 'okey-held' })
+    }
+  }
+  return out
 }
 
 /**
@@ -96,18 +127,21 @@ export function scoreHand101(state: GameState): number[] {
       // double their leftover" (PO 2026-06-21). On exhaustion there is no finisher
       // so finishMultiplier === 1 and amounts are unchanged.
       const opened = player.hasOpened === true
-      const cift = player.declaredCift === true
+      // Çift binding: declaring çift OR opening via the pairs route (openRoute='cift')
+      // both lock you into çift scoring (2× leftover) — you can't dodge it by simply
+      // not saying "çifte gidiyorum" (PO 2026-06-22).
+      const cift = player.declaredCift === true || player.openRoute === 'cift'
       const m = finishMultiplier * riziko
 
       if (cift && !opened) {
         // Çift declared, never opened: 2 × 202
         deltas[seat] = 2 * 202 * m
       } else if (cift && opened) {
-        // Çift declared, opened but didn't finish: 2 × rackSum
-        deltas[seat] = 2 * rackSum(player.rack, okey) * m
+        // Çift (declared or opened-via-pairs), opened but didn't finish: 2 × leftover
+        deltas[seat] = 2 * leftoverSum(player.rack, okey) * m
       } else if (opened) {
-        // Opened non-finisher: rackSum
-        deltas[seat] = rackSum(player.rack, okey) * m
+        // Opened non-finisher: leftover (okey excluded → charged flat below)
+        deltas[seat] = leftoverSum(player.rack, okey) * m
       } else {
         // Never-opened, no çift: 202
         deltas[seat] = 202 * m
@@ -121,6 +155,13 @@ export function scoreHand101(state: GameState): number[] {
     if (seat >= 0 && seat < n) {
       deltas[seat] = (deltas[seat] ?? 0) + 101
     }
+  }
+
+  // Okey-held penalty (flat +101, NEVER multiplied): an opened non-finisher who
+  // still holds the real okey. Applies on a finish AND on exhaustion. The okey is
+  // excluded from leftoverSum above, so this is the ONLY place it's charged.
+  for (const { seat } of okeyHeldPenalties(state)) {
+    deltas[seat] = (deltas[seat] ?? 0) + 101
   }
 
   return deltas

@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { arrange, suggestDiscard } from '../src/arrange'
+import { isWorkableDiscard } from '../src/reduce'
 import { KLASIK, KLASIK_101 } from '../src/config'
 import { openingValue } from '../src/open'
 import { tileFromString, tileToString } from '../src/tile'
+import type { Tile } from '../src/tile'
 const h = (...s: string[]) => s.map(tileFromString)
 const OKEY = tileFromString('7M')
+/** Build the işlek predicate suggestDiscard expects (mirrors the real call site). */
+const workable = (tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[], okey: Tile) =>
+  (t: Tile) => isWorkableDiscard(t, tableMelds, okey, KLASIK_101)
 
 describe('arrange — value-maximizing objective (101 Sırala)', () => {
   it('places the wild in the highest-value slot when given a valueFn', () => {
@@ -13,6 +18,32 @@ describe('arrange — value-maximizing objective (101 Sırala)', () => {
     // Value mode: wild extends the high run to 13 → {10,11,12,13}=46 + {5,5,5}=15 = 61
     const valued = arrange(rack, okey, KLASIK_101, (m) => openingValue(m, okey))
     expect(openingValue(valued.melds, okey)).toBe(61)
+  })
+})
+
+describe('suggestDiscard — avoids işlek tiles (usable on a table meld)', () => {
+  // Tiles below have NO rack partners, so the OLD suggestDiscard just returns the
+  // first (colour-sorted: BLACK<BLUE<RED<YELLOW). The işlek tile is BLACK so it
+  // sorts first → the old code would throw it; the new code must skip it.
+  it('does not suggest a tile that extends a table run when a dead tile exists', () => {
+    const okey = tileFromString('1S') // wild not in the rack/melds below
+    const tableMelds = [{ owner: 1, kind: 'run' as const, tiles: h('4K', '5K', '6K') }]
+    // 7K extends the black run on the table (işlek). 9M / 13S fit nothing.
+    const tile = suggestDiscard(h('7K', '9M', '13S'), okey, KLASIK_101, workable(tableMelds, okey))
+    expect(tileToString(tile)).not.toBe('7K')
+  })
+
+  it('does not suggest a tile that can swap an okey out of a table pair', () => {
+    const okey = tileFromString('12R')
+    // Table pair [13⚫ + okey]: a real 13⚫ could reclaim the okey → 13K is işlek.
+    const tableMelds = [{ owner: 1, kind: 'pair' as const, tiles: [tileFromString('13K'), tileFromString('12R')] }]
+    const tile = suggestDiscard(h('13K', '9M', '2S'), okey, KLASIK_101, workable(tableMelds, okey))
+    expect(tileToString(tile)).not.toBe('13K')
+  })
+
+  it('still works (no crash) with no işlek predicate passed', () => {
+    const okey = tileFromString('1S')
+    expect(suggestDiscard(h('7K', '9M', '13S'), okey, KLASIK_101)).toBeDefined()
   })
 })
 

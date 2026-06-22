@@ -439,39 +439,61 @@ export function arrange(
   }
 }
 
-export function suggestDiscard(rack: Tile[], okey: Tile, config: VariantConfig): Tile {
+/**
+ * Suggest a tile to discard (the "İpucu" hint, and a basis for bot discards).
+ *
+ * Prefers a tile that is BOTH dead in hand (no run/group partner left) AND safe to
+ * throw — i.e. NOT "işlek": not usable on a meld already on the table (a lay-off or
+ * an okey-swap). `isWorkable` is injected by the caller (it needs the table melds,
+ * which arrange has no business importing) — pass undefined to skip the table check.
+ *
+ * Order of preference:
+ *   1. dead in hand AND not işlek      (ideal throwaway)
+ *   2. not işlek                       (don't feed the board / waste a working tile)
+ *   3. dead in hand                    (all remaining are işlek — shed a dead one)
+ *   4. anything                        (fallback)
+ * The okey itself is never suggested while any alternative exists.
+ */
+export function suggestDiscard(
+  rack: Tile[],
+  okey: Tile,
+  config: VariantConfig,
+  isWorkable?: (t: Tile) => boolean,
+): Tile {
   const result = arrange(rack, okey, config)
+  const pool = result.leftovers.length > 0 ? result.leftovers : rack
 
-  if (result.leftovers.length === 0) {
-    // Fully melded — return last tile of the rack
-    return rack[rack.length - 1]!
-  }
-
-  // Find a leftover with no near-meld partner in the rack:
-  // - no same-number tile (for group potential)
-  // - no same-color tile with number ±1 or ±2 (for run potential)
-  for (const leftover of result.leftovers) {
-    if (leftover.kind !== 'NUMBER' || leftover.number == null || leftover.color == null) continue
+  const işlek = (t: Tile) => isWorkable?.(t) === true
+  const isOkey = (t: Tile) => isWild(t, okey)
+  const deadInHand = (leftover: Tile): boolean => {
+    if (leftover.kind !== 'NUMBER' || leftover.number == null || leftover.color == null) return false
     const num = leftover.number
     const col = leftover.color
-    let hasPartner = false
     for (const t of rack) {
       if (tilesEqual(t, leftover)) continue
       if (isWild(t, okey)) continue
       if (t.kind !== 'NUMBER' || t.number == null || t.color == null) continue
-      // Group potential
-      if (t.number === num && t.color !== col) { hasPartner = true; break }
-      // Run potential
+      if (t.number === num && t.color !== col) return false                 // group partner
       if (t.color === col) {
         const diff = Math.abs(t.number - num)
-        if (diff === 1 || diff === 2) { hasPartner = true; break }
+        if (diff === 1 || diff === 2) return false                          // run partner
       }
     }
-    if (!hasPartner) return leftover
+    return true
   }
 
-  // All leftovers have some partner — return first leftover
-  return result.leftovers[0]!
+  // 1. dead AND not işlek (and not the okey)
+  const ideal = pool.find((t) => !isOkey(t) && !işlek(t) && deadInHand(t))
+  if (ideal) return ideal
+  // 2. not işlek (and not the okey)
+  const safe = pool.find((t) => !isOkey(t) && !işlek(t))
+  if (safe) return safe
+  // 3. dead in hand (and not the okey) — all alternatives are işlek
+  const dead = pool.find((t) => !isOkey(t) && deadInHand(t))
+  if (dead) return dead
+  // 4. anything that isn't the okey, else the last tile.
+  const nonOkey = pool.find((t) => !isOkey(t))
+  return nonOkey ?? pool[pool.length - 1] ?? rack[rack.length - 1]!
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────

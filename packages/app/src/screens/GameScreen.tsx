@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue, isWorkableDiscard } from '@cs-okey/engine'
 import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
 
@@ -374,7 +374,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
 
   const handleHint = () => {
     if (!view.okey) return
-    const suggested = suggestDiscard(view.you.rack, view.okey, view.config)
+    const okey = view.okey
+    // Don't suggest a tile that's işlek on the table (laid off / can swap an okey).
+    const suggested = suggestDiscard(view.you.rack, okey, view.config,
+      (t) => isWorkableDiscard(t, view.tableMelds, okey, view.config))
     // Find the slot index in the current layout that contains this tile
     const slotIdx = currentLayout.findIndex(t => t !== null && tilesEqual(t, suggested))
     if (slotIdx !== -1) setSelectedSlot(slotIdx)

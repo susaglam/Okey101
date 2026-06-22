@@ -1,6 +1,6 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101,
+  reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101, okeyHeldPenalties,
   type GameState, type GameEvent, type PlayerView, type VariantConfig,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
@@ -137,11 +137,16 @@ export class LocalAdapter implements Adapter {
         : scoreHand(this.state)
       this.standings = applyHandScore(this.standings, deltas)
       this.scoredHandNo = this.state.handNo
-      // Record this hand for the score table.
+      // Record this hand for the score table. The okey-held penalty is derived at
+      // hand end (not stored in state), so append it here for the breakdown — it
+      // matches the +101 scoreHand101 already folded into the deltas.
+      const heldPenalties = this.variant.scoringModel === 'yuzbir-penalty'
+        ? okeyHeldPenalties(this.state)
+        : []
       this.history.push({
         handNo: this.state.handNo,
         deltas: [...deltas],
-        penalties: (this.state.penaltiesApplied ?? []).map((p) => ({ ...p })),
+        penalties: [...(this.state.penaltiesApplied ?? []), ...heldPenalties].map((p) => ({ ...p })),
         winnerSeat: this.state.terminal?.winnerSeat,
         winType: this.state.terminal?.winType,
         reason: this.state.terminal?.reason,
