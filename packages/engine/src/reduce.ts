@@ -352,12 +352,13 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // that the floor tile enabled, not on later lay-downs.)
       const wasFirstOpen = !player.hasOpened
 
-      // Determine if this is a çift-route open: exactly `pairsCount` melds, all
-      // valid pairs. Uses isValidPairSet so okey-backed pairs (the wild as a
-      // pair-mate) count — otherwise a çift open that uses the okey would be
-      // misdetected as 'seri' and the player could then illegally lay runs.
+      // Determine if this is a çift-route open: AT LEAST `pairsCount` melds, all
+      // valid pairs (5 is the minimum; laying more pairs at once is allowed). Uses
+      // isValidPairSet so okey-backed pairs (the wild as a pair-mate) count —
+      // otherwise a çift open that uses the okey would be misdetected as 'seri' and
+      // the player could then illegally lay runs.
       const pairsCount = cfg.pairsOpenCount ?? 5
-      const isCiftOpen = event.melds.length === pairsCount && isValidPairSet(event.melds, okey)
+      const isCiftOpen = event.melds.length >= pairsCount && isValidPairSet(event.melds, okey)
 
       if (!player.hasOpened) {
         // First open: validate via canOpen (≥101 or 5 pairs)

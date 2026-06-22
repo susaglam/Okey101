@@ -466,14 +466,15 @@ export function findLayableMeld(rack: Tile[], okey: Tile, config: VariantConfig)
  * Standard route: all melds are valid runs/groups AND total face value ≥
  *   config.openingThreshold.
  *
- * Pairs route: melds are exactly config.pairsOpenCount valid identical pairs.
+ * Pairs route: AT LEAST config.pairsOpenCount valid identical pairs (you may lay
+ * all the pairs you arranged in one open, not only the minimum 5).
  */
 export function canOpen(melds: Tile[][], okey: Tile, config: VariantConfig): boolean {
   const threshold = config.openingThreshold ?? 101
   const pairsCount = config.pairsOpenCount ?? 5
 
-  // Try pairs route first
-  if (melds.length === pairsCount) {
+  // Try pairs route first — 5 is the MINIMUM; more pairs in one open is allowed.
+  if (melds.length >= pairsCount) {
     if (melds.every((m) => isValidPair(m, okey))) {
       return true
     }

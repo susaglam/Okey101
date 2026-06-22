@@ -278,7 +278,7 @@ describe('canOpen — pairs route (pairsOpenCount=5)', () => {
     expect(canOpen(melds, OKEY, KLASIK_101)).toBe(false)
   })
 
-  it('returns false with 6 pairs (too many for pairs route)', () => {
+  it('returns true with 6 pairs (5 is the MINIMUM; lay all arranged pairs at once)', () => {
     const melds = [
       h('3R', '3R'),
       h('5K', '5K'),
@@ -286,6 +286,18 @@ describe('canOpen — pairs route (pairsOpenCount=5)', () => {
       h('11S', '11S'),
       h('13R', '13R'),
       h('1K', '1K'),
+    ]
+    expect(canOpen(melds, OKEY, KLASIK_101)).toBe(true)
+  })
+
+  it('still returns false if one of the ≥5 melds is not a valid pair', () => {
+    const melds = [
+      h('3R', '3R'),
+      h('5K', '5K'),
+      h('8M', '8M'),
+      h('11S', '11S'),
+      h('13R', '13R'),
+      h('1K', '2K'), // not a pair
     ]
     expect(canOpen(melds, OKEY, KLASIK_101)).toBe(false)
   })

@@ -806,6 +806,25 @@ describe('İşlek penalty (Q1 reversal, PO 2026-06-21) — floor-take + open', (
   })
 })
 
+describe('OpenMeld — çift open with MORE than 5 pairs (lay all in one move)', () => {
+  it('opens çift with 6 pairs at once → hasOpened, openRoute cift, all 6 laid', () => {
+    const base = start101()
+    const okey = tileFromString('5S') // distinct from the pairs
+    const pairs = [h('3R', '3R'), h('6K', '6K'), h('8M', '8M'), h('11S', '11S'), h('13R', '13R'), h('2K', '2K')]
+    const rack = [...pairs.flat(), tileFromString('9M')] // +1 filler so a tile remains
+    const s: GameState = {
+      ...base,
+      okey,
+      turn: { seat: 0, phase: 'DISCARD' },
+      players: base.players.map((p) => (p.seat === 0 ? { ...p, hasOpened: false, rack } : p)),
+    }
+    const after = reduce(s, { type: 'OpenMeld', seat: 0, melds: pairs })
+    expect(after.players[0]!.hasOpened).toBe(true)
+    expect(after.players[0]!.openRoute).toBe('cift')
+    expect((after.tableMelds ?? []).filter((m) => m.kind === 'pair').length).toBe(6)
+  })
+})
+
 describe('OpenMeld — finish-protection', () => {
   it('rejects laying (post-open) that would empty the rack — must keep a finishing tile', () => {
     const base = start101()
