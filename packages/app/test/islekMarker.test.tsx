@@ -6,8 +6,14 @@ import { render, screen, cleanup } from '@testing-library/react'
 import GameScreen from '../src/screens/GameScreen'
 import { KLASIK_101, tileFromString, type PlayerView } from '@cs-okey/engine'
 import type { Adapter } from '../src/adapter/Adapter'
+import type { CurrentUser } from '../src/auth'
 
 afterEach(() => cleanup())
+
+const GUEST: CurrentUser = {
+  id: 'g', name: 'Misafir', kind: 'guest', isAdmin: false,
+  group: { id: 'guest', name: 'Misafir', features: { islekMarkers: false, hint: false, dragAssists: false } },
+}
 
 function viewWithTableRun(): PlayerView {
   // Table has the run 4R-5R-6R (opened by seat 1). The human holds 7R (extends it
@@ -64,6 +70,11 @@ describe('işlek (layable) tile marker', () => {
     const v = viewWithTableRun()
     v.tableMelds = []
     render(<GameScreen adapter={staticAdapter(v) as Parameters<typeof GameScreen>[0]['adapter']} />)
+    expect(screen.queryByTestId('islek-dot')).toBeNull()
+  })
+
+  it('hides the işlek dot from a GUEST (gated advantage)', () => {
+    render(<GameScreen adapter={staticAdapter(viewWithTableRun()) as Parameters<typeof GameScreen>[0]['adapter']} user={GUEST} />)
     expect(screen.queryByTestId('islek-dot')).toBeNull()
   })
 })

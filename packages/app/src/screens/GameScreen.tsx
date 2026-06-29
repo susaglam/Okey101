@@ -58,6 +58,7 @@ import { initLayout, reconcile, moveTile, autoArrange, autoArrangePairs, parseMe
 import { interpretDragEnd } from '../utils/dragEnd'
 import { captureRackFlip, runRackFlip } from '../anim/flip'
 import { SEAT_NAMES, seatName, setBotNames } from '../names'
+import { can, type CurrentUser } from '../auth'
 
 const COLS = 16
 
@@ -72,8 +73,11 @@ const REJECT_MSG: Record<RejectionCode, string> = {
   'unknown': 'Hamle reddedildi',
 }
 
-export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed }: {
+export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isResumed }: {
   adapter: LocalAdapter
+  /** The signed-in player — gates the assist features by their group (guests get none).
+   *  Optional: when omitted (tests/legacy), all assists are enabled. */
+  user?: CurrentUser
   /** Return to the main menu (from the match-over screen). */
   onExitToMenu?: () => void
   /** Start a fresh match of the same variant (from the match-over screen). */
@@ -400,6 +404,13 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // ── 101-specific pre-computed values ──────────────────────────────────────
   const is101 = !!view.config.requiresOpening
 
+  // Membership-gated assist features (a guest's group grants none of these). The
+  // engine still validates every actual move — these only hide the VISUAL hints.
+  // When no user is supplied (tests/legacy), all assists are on.
+  const canIslek = user ? can('islekMarkers', user) : true
+  const canHint = user ? can('hint', user) : true
+  const canDrag = user ? can('dragAssists', user) : true
+
   // LAYOUT-DRIVEN opening (the player's rack arrangement is the source of truth):
   // parse the rack into the player's intended meld segments and value THOSE — the
   // engine's auto-arrangement never overrides how the player grouped their tiles.
@@ -472,7 +483,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // Find first rack tile + meld index that produces a legal LayOff
   type LayOffTarget = { meldIndex: number; tile: typeof view.you.rack[0] } | null
   const layOffTarget: LayOffTarget = (() => {
-    if (!is101 || !view.you.hasOpened || !view.okey) return null
+    if (!canDrag || !is101 || !view.you.hasOpened || !view.okey) return null // auto-İşle is a drag assist
     const tableMelds = view.tableMelds
     const okey = view.okey
     for (let mi = 0; mi < tableMelds.length; mi++) {
@@ -495,7 +506,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // table melds — informational, regardless of whether the human has opened yet).
   const layableKeys: Set<string> = (() => {
     const keys = new Set<string>()
-    if (!is101 || !view.okey || view.tableMelds.length === 0) return keys
+    if (!canIslek || !is101 || !view.okey || view.tableMelds.length === 0) return keys
     const okey = view.okey
     for (const tile of view.you.rack) {
       const key = tileToString(tile)
@@ -554,7 +565,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
     const targets = new Set<number>()
     const dragTile = activeDrag?.kind === 'rack' ? activeDrag.tile : undefined
     if (
-      !dragTile || !is101 || !view.okey || !view.you.hasOpened ||
+      !canDrag || !dragTile || !is101 || !view.okey || !view.you.hasOpened ||
       !isDiscardPhase || view.you.rack.length <= 1
     ) return targets
     const okey = view.okey
@@ -920,7 +931,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
           )}
           {view.status === 'PLAYING' && <button onClick={handleArrangePairs} title="Çiftlere göre diz">↺ Çift Diz</button>}
           {view.status === 'PLAYING' && <button onClick={handleArrange} title="Serilere/gruplara göre diz">↺ Seri Diz</button>}
-          {isMyTurn && isDiscardPhase && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
+          {isMyTurn && isDiscardPhase && canHint && <button onClick={handleHint} aria-label="İpucu" title="İpucu">💡</button>}
         </div>
       </div>
       </div>{/* /centred rack-width column */}

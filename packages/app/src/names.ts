@@ -5,20 +5,35 @@
  */
 export const SEAT_NAMES = ['Sen', 'Mert', 'Can', 'Arda'] as const
 
-// Live names. Seat 0 (the human) is always "Sen"; seats 1–3 (the bots) can be
-// renamed from Settings. Kept as module state so the many seatName() call sites
-// (table seats, nameplate, scoreboard, result lines, meld labels) need no extra
-// prop threading — call setBotNames() on startup and whenever the setting changes.
+// Live names. Seat 0 is the local human; their label comes from the signed-in
+// user's profile (falls back to "Sen"). Seats 1–3 (the bots) can be renamed from
+// Settings. Kept as module state so the many seatName() call sites (table seats,
+// nameplate, scoreboard, result lines, meld labels) need no prop threading — call
+// setHumanName()/setBotNames() on startup and whenever they change.
+let humanName: string = SEAT_NAMES[0]
+let botNamesState: string[] = [SEAT_NAMES[1], SEAT_NAMES[2], SEAT_NAMES[3]]
+
+function rebuild(): void {
+  liveNames = [humanName, ...botNamesState]
+}
+
 let liveNames: string[] = [...SEAT_NAMES]
 
-/** Apply custom bot names (seats 1–3). Empty/blank entries fall back to defaults. */
+/** Set the local human's display name (seat 0). Blank → "Sen". */
+export function setHumanName(name: string | undefined): void {
+  humanName = name?.trim() || SEAT_NAMES[0]
+  rebuild()
+}
+
+/** Apply custom bot names (seats 1–3). Empty/blank entries fall back to defaults.
+ *  Does NOT touch the human's name (seat 0). */
 export function setBotNames(botNames: readonly string[] | undefined): void {
-  liveNames = [
-    'Sen',
+  botNamesState = [
     botNames?.[0]?.trim() || SEAT_NAMES[1],
     botNames?.[1]?.trim() || SEAT_NAMES[2],
     botNames?.[2]?.trim() || SEAT_NAMES[3],
   ]
+  rebuild()
 }
 
 export function seatName(seat: number): string {

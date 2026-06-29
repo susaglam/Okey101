@@ -6,14 +6,16 @@ import App from '../src/App'
 import { saveGame, clearGame } from '../src/persistence'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import type { GameMode } from '../src/modes'
+import { TEST_USER, signInGuest } from './_helpers'
 
+const menuProps = { user: TEST_USER, onAdmin: () => {}, onLogout: () => {} }
 const clearAll = () => { clearGame('klasik'); clearGame('yuzbir'); clearGame('yuzbir-esli') }
 afterEach(() => { cleanup(); clearAll() })
-beforeEach(() => { clearAll() })
+beforeEach(() => { clearAll(); signInGuest() })
 
 describe('Menu — start a mode directly', () => {
   it('renders Klasik, 101 and Eşli 101 mode cards', () => {
-    render(<Menu onStart={() => {}} onHelp={() => {}} onResume={() => {}} />)
+    render(<Menu {...menuProps} onStart={() => {}} onHelp={() => {}} onResume={() => {}} />)
     expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /el açma/i })).toBeTruthy()      // plain 101 (unique subtitle)
     expect(screen.getByRole('button', { name: /eşli 101/i })).toBeTruthy()     // team 101
@@ -21,34 +23,34 @@ describe('Menu — start a mode directly', () => {
 
   it('clicking the Klasik card starts a klasik game directly', () => {
     const onStart = vi.fn<(m: GameMode) => void>()
-    render(<Menu onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
+    render(<Menu {...menuProps} onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /klasik/i }))
     expect(onStart).toHaveBeenCalledWith('klasik')
   })
 
   it('clicking the 101 card starts a yuzbir game directly', () => {
     const onStart = vi.fn<(m: GameMode) => void>()
-    render(<Menu onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
+    render(<Menu {...menuProps} onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /el açma/i }))
     expect(onStart).toHaveBeenCalledWith('yuzbir')
   })
 
   it('clicking the Eşli 101 card starts a yuzbir-esli game', () => {
     const onStart = vi.fn<(m: GameMode) => void>()
-    render(<Menu onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
+    render(<Menu {...menuProps} onStart={onStart} onHelp={() => {}} onResume={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /eşli 101/i }))
     expect(onStart).toHaveBeenCalledWith('yuzbir-esli')
   })
 
   it('shows no "Devam Et" when no mode has a save', () => {
-    render(<Menu onStart={() => {}} onHelp={() => {}} onResume={() => {}} />)
+    render(<Menu {...menuProps} onStart={() => {}} onHelp={() => {}} onResume={() => {}} />)
     expect(screen.queryByRole('button', { name: /devam et/i })).toBeNull()
   })
 
   it('shows "Devam Et" only for the mode that has a save and resumes THAT mode', () => {
     saveGame({ version: 1, mode: 'yuzbir', state: {}, standings: [0, 0, 0, 0], scoredHandNo: 0, savedAt: 0 })
     const onResume = vi.fn<(m: GameMode) => void>()
-    render(<Menu onStart={() => {}} onHelp={() => {}} onResume={onResume} />)
+    render(<Menu {...menuProps} onStart={() => {}} onHelp={() => {}} onResume={onResume} />)
     const resumeBtns = screen.getAllByRole('button', { name: /devam et/i })
     expect(resumeBtns).toHaveLength(1)
     fireEvent.click(resumeBtns[0]!)

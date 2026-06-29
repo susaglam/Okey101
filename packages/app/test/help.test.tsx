@@ -7,6 +7,7 @@ import Help from '../src/screens/Help'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
 import { KLASIK_101 } from '@cs-okey/engine'
+import { TEST_USER, signInGuest } from './_helpers'
 
 afterEach(() => cleanup())
 
@@ -40,12 +41,13 @@ describe('Help screen', () => {
   it('Menu calls onHelp when "Nasıl Oynanır?" is clicked', () => {
     const onStart = vi.fn()
     const onHelp = vi.fn()
-    render(<Menu onStart={onStart} onHelp={onHelp} onResume={() => {}} hasKlasikSave={false} has101Save={false} />)
+    render(<Menu user={TEST_USER} onStart={onStart} onHelp={onHelp} onResume={() => {}} onAdmin={() => {}} onLogout={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /nasıl oynanır/i }))
     expect(onHelp).toHaveBeenCalledOnce()
   })
 
   it('App shows help content after clicking "Nasıl Oynanır?" and returns to menu on Geri', () => {
+    signInGuest()
     render(<App />)
     // Menu is visible (the Klasik variant card)
     expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()

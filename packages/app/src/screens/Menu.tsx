@@ -3,6 +3,7 @@ import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
 import { hasSavedGame } from '../persistence'
 import { MODES, MODE_ORDER, type GameMode } from '../modes'
+import type { CurrentUser } from '../auth'
 
 /**
  * Each MODE is its own card: the big button starts a NEW game of that mode, and
@@ -11,13 +12,19 @@ import { MODES, MODE_ORDER, type GameMode } from '../modes'
  * adds a card here automatically.
  */
 export default function Menu({
+  user,
   onStart,
   onHelp,
   onResume,
+  onAdmin,
+  onLogout,
 }: {
+  user: CurrentUser
   onStart: (mode: GameMode) => void
   onHelp: () => void
   onResume: (mode: GameMode) => void
+  onAdmin: () => void
+  onLogout: () => void
 }) {
   const [theme, setTheme] = useState(() => loadSettings().theme)
 
@@ -31,6 +38,16 @@ export default function Menu({
 
   return (
     <div className="menu">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+        <span style={{ opacity: 0.85 }}>
+          👤 <strong>{user.name}</strong>
+          {user.kind === 'guest' && <span style={{ opacity: 0.6 }}> (misafir)</span>}
+        </span>
+        {user.isAdmin && (
+          <button onClick={onAdmin} style={{ fontSize: 12, padding: '4px 10px' }}>🛠 Admin</button>
+        )}
+        <button onClick={onLogout} style={{ fontSize: 12, padding: '4px 10px' }}>Çıkış</button>
+      </div>
       <h1>♣ CS OKEY</h1>
       <p style={{ opacity: 0.7, marginTop: -8, fontSize: 14 }}>Bir oyun seç ve başla</p>
 
