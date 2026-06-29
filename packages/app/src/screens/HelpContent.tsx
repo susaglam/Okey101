@@ -82,7 +82,13 @@ export function HelpContent({ variant }: { variant?: 'klasik' | 'yuzbir' }) {
             <strong>Bitiş çarpanı herkese işler:</strong> okeyle biten ×2, çiftle biten ×2, ikisi birden ×4 — o elde herkesin puanı katlanır. <em>Riziko</em> ayrıca ×2.
           </p>
           <p>
+            <strong>Elden bitme (800):</strong> kimse açmadan açıp bitirirsen tüm masa <strong>×2</strong> daha yer (okey/çiftle çarpışır: elden+okey ×4, elden+çift+okey ×8). Biten de aynı oranda fazla düşer.
+          </p>
+          <p>
             <strong>Düz cezalar (+101, çarpılmaz):</strong> işlek besleme · yerdeki pere işlenebilen taşı atma · okeyi atma · açtıktan sonra okeyi elinde tutma.
+          </p>
+          <p>
+            <strong>Eşli mod:</strong> 2 takım (Sen + karşı). Herkes kendi cezasını yazdırır ama puanlar takımca toplanır; en düşük toplamlı takım kazanır. Bir eş <strong>bitince</strong> diğer eşin el-sayısı silinir (düz cezaları kalır).
           </p>
         </>
       )}

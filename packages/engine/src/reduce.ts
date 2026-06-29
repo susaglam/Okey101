@@ -76,6 +76,16 @@ function floorTileLaidThisTurn(state: GameState, floorTile: Tile): boolean {
   return countEq(after) > countEq(before)
 }
 
+/**
+ * "Elden bitme" (800 atma): did the finisher go out while NO OTHER player had
+ * opened? Read from the players' (sticky) hasOpened flags at the moment of
+ * finishing. Stamped onto the terminal so 101 scoring can double the table
+ * (it composes with the okey/çift finish multipliers). 101-relevant only.
+ */
+function isEldenBitme(players: PlayerState[], winnerSeat: number): boolean {
+  return players.every((p) => p.seat === winnerSeat || p.hasOpened !== true)
+}
+
 function requireTurn(state: GameState, seat: number, phase: GameState['turn']['phase']): void {
   if (state.status !== 'PLAYING') throw new RuleError(`Game not in play (status=${state.status})`)
   if (state.turn.seat !== seat) throw new RuleError(`Not seat ${seat}'s turn`)
@@ -287,7 +297,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
           const winType = player.openRoute === 'cift' ? 'pairs' : 'perOnly'
           return {
             ...state, players: winnersPlayers, status: 'ENDED',
-            terminal: { reason: 'win', winnerSeat: seat, winType, finishingTile: tile },
+            terminal: { reason: 'win', winnerSeat: seat, winType, finishingTile: tile, eldenBitme: isEldenBitme(players, seat) },
           }
         }
       }
@@ -356,7 +366,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const players = replacePlayer(state.players, event.seat, (pp) => ({ ...pp, rack, discard: [...pp.discard, finishing!], isOut: true }))
       return {
         ...state, players, status: 'ENDED',
-        terminal: { reason: 'win', winnerSeat: event.seat, winType: result.winKind, finishingTile: finishing },
+        terminal: { reason: 'win', winnerSeat: event.seat, winType: result.winKind, finishingTile: finishing, eldenBitme: isEldenBitme(players, event.seat) },
       }
     }
 

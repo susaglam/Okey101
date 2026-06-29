@@ -120,15 +120,19 @@ describe('101 happy finish: hasOpened=true → win terminal + scoreHand101 credi
     const rack = h('1R', '2R', '3R', '4R', '5R', '6R', '7R', '8R', '9R', '10R')
     const finishTile = tileFromString('10R')
 
-    const state = playing101State(0, rack, {}, { hasOpened: true })
+    // Seat 1 has ALSO opened (with a leftover) so this is a NORMAL finish, not
+    // "elden bitme" (which fires only when nobody else opened → ×2).
+    const base = playing101State(0, rack, {}, { hasOpened: true })
+    const state: GameState = {
+      ...base,
+      players: base.players.map((p) => (p.seat === 1 ? { ...p, hasOpened: true, rack: h('5R', '5K') } : p)),
+    }
     const ended = reduce(state, { type: 'DeclareWin', seat: 0, discardTile: finishTile })
 
     const deltas = scoreHand101(ended)
-    // Finisher gets −101 (or more negative with multipliers)
     expect(deltas[0]).toBeLessThan(0)
-    // Non-finishers who never opened get +202 each
-    expect(deltas[1]).toBe(202)
-    expect(deltas[2]).toBe(202)
+    expect(deltas[1]).toBe(10)   // opened, leftover 5+5
+    expect(deltas[2]).toBe(202)  // never opened
     expect(deltas[3]).toBe(202)
   })
 
@@ -136,12 +140,27 @@ describe('101 happy finish: hasOpened=true → win terminal + scoreHand101 credi
     const rack = h('1R', '2R', '3R', '4R', '5R', '6R', '7R', '8R', '9R', '10R')
     const finishTile = tileFromString('10R')
 
-    const state = playing101State(0, rack, {}, { hasOpened: true })
+    // Seat 1 opened too → NOT elden bitme, so no ×2: a plain perOnly finish.
+    const base = playing101State(0, rack, {}, { hasOpened: true })
+    const state: GameState = {
+      ...base,
+      players: base.players.map((p) => (p.seat === 1 ? { ...p, hasOpened: true } : p)),
+    }
     const ended = reduce(state, { type: 'DeclareWin', seat: 0, discardTile: finishTile })
 
     const deltas = scoreHand101(ended)
-    // 10R is not the okey (7M), and winType is 'perOnly', so no multiplier → −101
+    // 10R is not the okey (7M), winType 'perOnly', not elden → no multiplier → −101
     expect(deltas[0]).toBe(-101)
+  })
+
+  it('a finish where NOBODY else opened is elden bitme → finisher −202', () => {
+    const rack = h('1R', '2R', '3R', '4R', '5R', '6R', '7R', '8R', '9R', '10R')
+    const finishTile = tileFromString('10R')
+    // All opponents still closed → reduce stamps terminal.eldenBitme → ×2.
+    const state = playing101State(0, rack, {}, { hasOpened: true })
+    const ended = reduce(state, { type: 'DeclareWin', seat: 0, discardTile: finishTile })
+    expect(ended.terminal?.eldenBitme).toBe(true)
+    expect(scoreHand101(ended)[0]).toBe(-202)
   })
 })
 

@@ -625,6 +625,104 @@ describe('exhaustion — no finisher credit', () => {
   })
 })
 
+// ── Elden bitme (800) — opened+finished while nobody else opened ───────────────
+
+describe('elden bitme (800) — doubles the table, composes with okey/çift', () => {
+  it('plain elden: finisher −202, opened loser ×2, never-opened ×2', () => {
+    const s = endedState({
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', eldenBitme: true },
+      players: [
+        { rack: [] },                                  // 0 winner → −101 ×2 = −202
+        { rack: h('5R', '6R', '7R'), hasOpened: true },// 1 → 18 ×2 = 36
+        { rack: [], hasOpened: false },                // 2 → 202 ×2 = 404
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const d = scoreHand101(s)
+    expect(d[0]).toBe(-202)
+    expect(d[1]).toBe(36)
+    expect(d[2]).toBe(404)
+  })
+
+  it('elden + okey finish → ×4: finisher −404, opened loser ×4', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      okey,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', finishingTile: okey, eldenBitme: true },
+      players: [
+        { rack: [] },                                  // −101 ×4 = −404
+        { rack: h('5R', '6R', '7R'), hasOpened: true },// 18 ×4 = 72
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const d = scoreHand101(s)
+    expect(d[0]).toBe(-404)
+    expect(d[1]).toBe(72)
+  })
+
+  it('elden + a çift-declaring loser → that loser pays 2×base ×2 elden = ×4', () => {
+    const s = endedState({
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', eldenBitme: true },
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true, declaredCift: true }, // 2×18 ×2 = 72
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(72)
+  })
+
+  it('flat penalties are NOT doubled by elden bitme', () => {
+    const s = endedState({
+      penaltiesApplied: [{ seat: 1, type: 'islek-discard' }],
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', eldenBitme: true },
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 18 ×2 = 36, + flat 101 = 137
+        { rack: [], hasOpened: false },
+        { rack: [], hasOpened: false },
+      ],
+    })
+    expect(scoreHand101(s)[1]).toBe(137) // 36 + 101 (flat, NOT ×2)
+  })
+
+  it('NOT elden (eldenBitme falsey) → normal ×1', () => {
+    const s = endedState({
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' }, // no eldenBitme
+      players: [
+        { rack: [] },
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 18 ×1
+        { rack: [], hasOpened: false },                 // 202 ×1
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const d = scoreHand101(s)
+    expect(d[0]).toBe(-101)
+    expect(d[1]).toBe(18)
+    expect(d[2]).toBe(202)
+  })
+
+  it('team mode + elden: partner waived, opponents pay ×2', () => {
+    const s = endedState({
+      config: { ...KLASIK_101, teamMode: true },
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly', eldenBitme: true },
+      players: [
+        { rack: [] },                                   // 0 winner → −202
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 1 opponent → 36
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 2 PARTNER → waived 0
+        { rack: [], hasOpened: false },                 // 3 opponent → 404
+      ],
+    })
+    const d = scoreHand101(s)
+    expect(d[0]).toBe(-202)
+    expect(d[1]).toBe(36)
+    expect(d[2]).toBe(0)
+    expect(d[3]).toBe(404)
+  })
+})
+
 // ── Eşli (team) mode — partner waiver + team aggregation ───────────────────────
 
 describe('eşli (team) mode — winner waives their partner’s leftover', () => {

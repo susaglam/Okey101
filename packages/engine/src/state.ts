@@ -53,6 +53,12 @@ export interface Terminal {
   winnerSeat?: number
   winType?: WinKind
   finishingTile?: Tile
+  /**
+   * "Elden bitme" (800 atma): the winner finished while NO OTHER player had opened.
+   * Stamped by reduce() at finish time. Doubles the whole table's amounts in 101
+   * scoring (composes with okey/çift). 101-only; ignored by Klasik scoring.
+   */
+  eldenBitme?: boolean
 }
 
 export interface GameState {

@@ -112,6 +112,15 @@ export function scoreHand101(state: GameState): number[] {
     } else if (isCift || isOkeyFinish) {
       finishMultiplier = 2
     }
+    // Elden bitme ("800 atma"): the finisher went out while NO OTHER player had
+    // opened — they opened and finished essentially from hand. This DOUBLES the
+    // whole table's amounts and composes with okey/çift: elden ×2, elden+okey (or
+    // elden+çift) ×4, elden+çift+okey ×8. The finisher's credit doubles in step
+    // (−101 → −202 → −404 → −808). Flat penalties (işlek, okey-discard, okey-held)
+    // are NEVER multiplied — they are added after this. (PO 2026-06-29.)
+    // The flag is stamped by reduce() at the moment of finishing (it captures who
+    // had opened then), so scoring stays a pure function of the terminal state.
+    if (term.eldenBitme === true) finishMultiplier *= 2
   }
 
   // Compute base delta for each seat (before flat penalties).
