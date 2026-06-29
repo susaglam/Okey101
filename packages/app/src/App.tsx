@@ -4,6 +4,7 @@ import GameScreen from './screens/GameScreen'
 import Help from './screens/Help'
 import Login from './screens/Login'
 import Admin from './screens/Admin'
+import OnlineRoot from './screens/Online'
 import { LocalAdapter } from './adapter/LocalAdapter'
 import { clearGame, loadGame, isResumableSave } from './persistence'
 import type { SaveData } from './persistence'
@@ -18,7 +19,15 @@ type View = 'lobby' | 'table' | 'help' | 'admin'
 // SEED itself must vary per game so each new game is genuinely random.
 const freshSeed = () => Math.floor(Math.random() * 0x7fffffff)
 
+// ONLINE build (VITE_ONLINE=1) → the server-driven flow (auth + shared lobby + game
+// over sockets). Default build stays the offline (vs-bots) app below.
+const ONLINE = import.meta.env.VITE_ONLINE === '1'
+
 export default function App() {
+  return ONLINE ? <OnlineRoot /> : <OfflineApp />
+}
+
+function OfflineApp() {
   const [user, setUser] = useState<CurrentUser | null>(() => currentUser())
   const [view, setView] = useState<View>('lobby')
   const [tables, setTables] = useState<TableDescriptor[]>(() => loadTables())

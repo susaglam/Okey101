@@ -36,8 +36,7 @@ const collisionStrategy: CollisionDetection = (args) => {
   return pointerHits
 }
 import type { Tile } from '@cs-okey/engine'
-import type { LocalAdapter } from '../adapter/LocalAdapter'
-import type { RejectionCode } from '../adapter/Adapter'
+import type { RejectionCode, GameAdapter } from '../adapter/Adapter'
 import type { MatchState } from '../match'
 import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
@@ -74,7 +73,7 @@ const REJECT_MSG: Record<RejectionCode, string> = {
 }
 
 export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isResumed }: {
-  adapter: LocalAdapter
+  adapter: GameAdapter
   /** The signed-in player — gates the assist features by their group (guests get none).
    *  Optional: when omitted (tests/legacy), all assists are enabled. */
   user?: CurrentUser

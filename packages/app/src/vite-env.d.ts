@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   /** Base URL of the CS Okey server (empty = same origin). Set in .env for dev. */
   readonly VITE_SERVER_URL?: string
+  /** '1' builds the online (server-driven) client instead of the offline vs-bots app. */
+  readonly VITE_ONLINE?: string
   readonly DEV: boolean
   readonly PROD: boolean
   readonly MODE: string
