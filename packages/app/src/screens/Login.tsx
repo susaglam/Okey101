@@ -28,9 +28,12 @@ export default function Login({ onAuthed }: { onAuthed: () => void }) {
   }
 
   return (
-    <div className="menu" style={{ maxWidth: 360, margin: '0 auto' }}>
+    <div className="menu">
       <h1>♣ CS OKEY</h1>
 
+      {/* The .menu fills the screen (felt background); the form sits in a centred
+          narrow column so the inputs don't stretch edge-to-edge. */}
+      <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px', boxSizing: 'border-box' }}>
       <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
         {(['login', 'register'] as const).map((t) => (
           <button
@@ -84,6 +87,7 @@ export default function Login({ onAuthed }: { onAuthed: () => void }) {
       <p style={{ fontSize: 12, opacity: 0.6, textAlign: 'center', marginTop: 4 }}>
         Misafirler oynayabilir; isim değiştirmek ve avantajlı yardımları görmek için üye olun.
       </p>
+      </div>
     </div>
   )
 }
