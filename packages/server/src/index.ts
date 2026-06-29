@@ -1,31 +1,38 @@
 // packages/server/src/index.ts
-// CS Okey realtime server. Authoritative game host: clients send intents, the
-// server validates them through the SAME pure engine the client uses (reduce +
-// redactFor) and broadcasts per-seat redacted views. Bots run here too. Faz A:
-// skeleton — HTTP health + Socket.IO + DB bootstrap. Auth/lobby/game land next.
-import Fastify from 'fastify'
-import cors from '@fastify/cors'
+// Bootstrap: build the Fastify app, attach a JWT-authenticated Socket.IO server, and
+// listen. The authoritative game host (per-table rooms, redacted broadcasts, bots,
+// AFK) lands on this socket in Faz C–F.
 import { Server as SocketServer } from 'socket.io'
-import { ENGINE_NAME } from '@cs-okey/engine'
-import { db } from './db.ts'
+import { buildApp, ALLOWED_ORIGINS } from './app.ts'
+import { verifyAccess } from './auth/tokens.ts'
 
 const PORT = Number(process.env.PORT ?? 8787)
+const isProd = process.env.NODE_ENV === 'production'
 
-const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } })
-await app.register(cors, { origin: true })
-
-db() // open + migrate + seed the database on boot
-
-app.get('/health', async () => ({ ok: true, engine: ENGINE_NAME, ts: Date.now() }))
-
+const app = await buildApp()
 await app.ready()
 
-// Socket.IO shares Fastify's HTTP server. One room per table (added in Faz C/E).
-const io = new SocketServer(app.server, { cors: { origin: '*' } })
+// Socket.IO shares Fastify's HTTP server; the handshake is JWT-authenticated and the
+// payload size is capped (game intents are tiny). One room per table lands in Faz C/E.
+const io = new SocketServer(app.server, {
+  cors: { origin: ALLOWED_ORIGINS, credentials: true },
+  maxHttpBufferSize: 16 * 1024,
+})
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token as string | undefined
+  const claims = token ? verifyAccess(token) : null
+  if (!claims) return next(new Error('unauthorized'))
+  socket.data.user = claims
+  next()
+})
 io.on('connection', (socket) => {
-  app.log.info({ id: socket.id }, 'socket connected')
+  app.log.info({ id: socket.id, user: socket.data.user?.sub }, 'socket connected')
   socket.on('disconnect', (reason) => app.log.info({ id: socket.id, reason }, 'socket disconnected'))
 })
 
+if (!isProd && !process.env.JWT_SECRET) {
+  app.log.warn('JWT_SECRET not set — using an INSECURE dev key. Set JWT_SECRET in production.')
+}
+
 await app.listen({ port: PORT, host: '0.0.0.0' })
-app.log.info(`CS Okey server listening on :${PORT}`)
+app.log.info(`CS Okey server on :${PORT} (origins: ${ALLOWED_ORIGINS.join(', ')})`)
