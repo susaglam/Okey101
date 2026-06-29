@@ -6,3 +6,6 @@ dist/
 .playwright-mcp/
 packages/app/.playwright-mcp/
 *.png
+
+# Coolify API key — never commit
+api.key
