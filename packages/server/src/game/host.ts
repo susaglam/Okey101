@@ -193,6 +193,10 @@ export class GameHost {
       this.advancing = false
     }
     this.armAfk() // it's now a human's turn (or the game ended) — start the AFK clock
+    // Re-broadcast AFTER arming so the freshly-computed turn deadline (the client's
+    // countdown ring) actually reaches the players — the in-loop onChange fired before
+    // armAfk() set it, so without this the ring never appears at a human turn's start.
+    if (this.state.status === 'PLAYING' && this.isHumanSeat(this.state.turn.seat)) this.onChange()
     this.scheduleAutoNext() // hand ended (not match over) → auto-advance after a countdown
   }
 
@@ -268,7 +272,17 @@ export class GameHost {
     this.actors[seat] = { kind: 'human', userId }
     this.onActorChange(seat, { kind: 'human', userId })
     this.clearAfkAll()
-    if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) this.armAfk()
+    if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) { this.armAfk(); this.onChange() }
+  }
+
+  /** Resume timers after a server restart (restore). Re-arms the AFK clock + countdown
+   *  ring for a human turn, drives bots whose turn it is, and re-schedules auto-next on
+   *  an ended hand — so a redeploy never freezes an in-progress game. */
+  async resume(): Promise<void> {
+    if (this.state.status === 'ENDED') { this.scheduleAutoNext(); return }
+    if (this.state.status !== 'PLAYING') return
+    if (this.actors[this.state.turn.seat]?.kind === 'bot') await this.advance()
+    else { this.armAfk(); this.onChange() }
   }
 
   /** Discard a tile that is NOT işlek and not the okey (falls back gracefully). */

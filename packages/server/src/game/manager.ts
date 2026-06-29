@@ -221,10 +221,15 @@ export class GameManager {
     return { ok: true }
   }
 
-  /** Restore live games from the DB on boot. */
+  /** Restore live games from the DB on boot, then resume their timers/bots so a
+   *  redeploy never freezes an in-progress game (and the turn-timer ring reappears). */
   restoreAll(): void {
     for (const t of listTables()) {
-      if (t.status === 'playing' && loadGameRow(t.id)) this.hosts.set(t.id, this.makeHost(t, true))
+      if (t.status === 'playing' && loadGameRow(t.id)) {
+        const host = this.makeHost(t, true)
+        this.hosts.set(t.id, host)
+        void host.resume()
+      }
     }
   }
 
