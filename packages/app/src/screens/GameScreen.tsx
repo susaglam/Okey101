@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue, isWorkableDiscard } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue, isWorkableDiscard, canLayOff } from '@cs-okey/engine'
 import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
 
@@ -479,10 +479,10 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       const meld = tableMelds[mi]!
       // Pairs are never lay-off targets — you can't extend a çift into a run/group.
       if (meld.kind === 'pair') continue
-      // Only try 1-tile lay-off (cap per run is 2, but we try one at a time)
+      // Only try 1-tile lay-off (cap per run is 2, but we try one at a time).
+      // canLayOff also rejects lay-offs that would shift an okey already on the table.
       for (const tile of view.you.rack) {
-        const merged = [...meld.tiles, tile]
-        if (isValidMeldSet([merged], okey, view.config)) {
+        if (canLayOff(meld.tiles, [tile], okey, view.config)) {
           return { meldIndex: mi, tile }
         }
       }
@@ -503,7 +503,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
       for (const meld of view.tableMelds) {
         // Pairs are not lay-off targets, so a tile that only "fits" a pair is not işlek.
         if (meld.kind === 'pair') continue
-        if (isValidMeldSet([[...meld.tiles, tile]], okey, view.config)) { keys.add(key); break }
+        if (canLayOff(meld.tiles, [tile], okey, view.config)) { keys.add(key); break }
       }
     }
     return keys
@@ -550,7 +550,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
     const okey = view.okey
     view.tableMelds.forEach((m, i) => {
       if (m.kind === 'pair') return // pairs are never lay-off targets
-      if (isValidMeldSet([[...m.tiles, dragTile]], okey, view.config)) targets.add(i)
+      if (canLayOff(m.tiles, [dragTile], okey, view.config)) targets.add(i)
     })
     return targets
   })()

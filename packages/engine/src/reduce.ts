@@ -7,6 +7,7 @@ import { buildDeck } from './deck'
 import { makeRng, shuffle, deriveSeed } from './rng'
 import { evaluateHand } from './evaluator'
 import { canOpen, openingValue, isValidMeldSet, isValidPairSet } from './open'
+import { canLayOff } from './meld'
 
 export class RuleError extends Error {}
 
@@ -44,8 +45,10 @@ export function isWorkableDiscard(
     tiles.length === 2 ? isValidPairSet([tiles], okey) : isValidMeldSet([tiles], okey, cfg)
 
   for (const m of tableMelds) {
-    // (a) Lay-off onto a run/group (a pair can't be extended, only swapped).
-    if (m.tiles.length >= 3 && isValidMeldSet([[...m.tiles, tile]], okey, cfg)) return true
+    // (a) Lay-off onto a run/group (a pair can't be extended, only swapped). canLayOff
+    // also rejects a lay-off that would silently shift an okey already on the table, so
+    // a tile that "fits" only by reinterpreting an okey is NOT counted as workable here.
+    if (canLayOff(m.tiles, [tile], okey, cfg)) return true
     // (b) Okey-swap: replacing some real-okey slot with `tile` keeps the meld valid.
     for (let i = 0; i < m.tiles.length; i++) {
       if (!isRealOkey(m.tiles[i]!)) continue
@@ -521,10 +524,14 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         throw new RuleError(`lay-off cap exceeded: max ${cap} tiles per run per turn, got ${event.tiles.length}`)
       }
 
-      // Check the resulting meld is still valid
+      // The resulting meld must be valid AND must not silently shift an okey already
+      // on the table: the okey points at the number where it was placed and stays there
+      // until an explicit TakeOkey moves it (PO 2026-06-23). canLayOff enforces both —
+      // so e.g. laying yellow-8 onto [10🟡,11🟡,okey(=12)] is rejected (it would turn
+      // the okey into a 9).
       const mergedTiles = [...targetMeld.tiles, ...event.tiles]
-      if (!isValidMeldSet([mergedTiles], okey, cfg)) {
-        throw new RuleError('lay-off would produce an invalid meld')
+      if (!canLayOff(targetMeld.tiles, event.tiles, okey, cfg)) {
+        throw new RuleError('lay-off would produce an invalid meld or shift an okey on the table')
       }
 
       // Remove tiles from rack

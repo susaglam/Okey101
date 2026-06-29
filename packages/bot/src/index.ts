@@ -1,4 +1,4 @@
-import { evaluateHand, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isWorkableDiscard, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
+import { evaluateHand, findOpening, findLayableMeld, findPairOpening, findLayablePairs, isWorkableDiscard, canLayOff, tilesEqual, type PlayerView, type GameEvent, type Tile } from '@cs-okey/engine'
 
 export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => number): GameEvent {
   const seat = view.seat
@@ -39,7 +39,7 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
         const pop = findPairOpening(rack, okey, view.config)
         if (pop !== null && meldsContain(pop, floor)) return { type: 'OpenMeld', seat, melds: pop }
       } else if (view.you.hasOpened && legal.includes('LayOff') && rack.length > 1) {
-        const lay = findLayOffForTile(floor, view.tableMelds, okey)
+        const lay = findLayOffForTile(floor, view.tableMelds, okey, view.config)
         if (lay !== null) return { type: 'LayOff', seat, meldIndex: lay.meldIndex, tiles: [lay.tile] }
       }
       // Couldn't lay the floor tile → give it back (avoids a rejected discard).
@@ -95,7 +95,7 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
     //    Keep at least 2 tiles so the lay-off leaves >=1 to discard as the
     //    finishing move (the engine rejects a lay-off that empties the rack).
     if (view.you.hasOpened && legal.includes('LayOff') && rack.length > 1) {
-      const layOff = findLayOff(rack, view.tableMelds, view.okey!)
+      const layOff = findLayOff(rack, view.tableMelds, view.okey!, view.config)
       if (layOff !== null) {
         return { type: 'LayOff', seat, meldIndex: layOff.meldIndex, tiles: [layOff.tile] }
       }
@@ -136,6 +136,7 @@ function findLayOff(
   rack: Tile[],
   tableMelds: PlayerView['tableMelds'],
   okey: Tile,
+  config: PlayerView['config'],
 ): LayOffResult | null {
   for (let mi = 0; mi < tableMelds.length; mi++) {
     const meld = tableMelds[mi]!
@@ -144,93 +145,16 @@ function findLayOff(
     if (meld.kind === 'pair') continue
     for (const tile of rack) {
       if (tile.kind !== 'NUMBER') continue
-      if (canExtendMeld(tile, meld, okey)) {
+      // canLayOff is the single engine oracle: it rejects any lay-off that would be
+      // structurally invalid OR would silently shift an okey already on the table.
+      // The bot MUST use the same rule the engine enforces, or it would propose a
+      // move the engine rejects and stall the turn.
+      if (canLayOff(meld.tiles, [tile], okey, config)) {
         return { meldIndex: mi, tile }
       }
     }
   }
   return null
-}
-
-function canExtendMeld(
-  tile: Tile,
-  meld: PlayerView['tableMelds'][number],
-  okey: Tile,
-): boolean {
-  if (tile.kind !== 'NUMBER' || tile.number == null || tile.color == null) return false
-
-  if (meld.kind === 'run') {
-    return canExtendRun(tile, meld.tiles, okey)
-  } else {
-    return canExtendGroup(tile, meld.tiles, okey)
-  }
-}
-
-/**
- * Return the effective {number, color} of a tile:
- * - FALSE_JOKER → okey's {number, color} (plain tile fixed to okey's value)
- * - NUMBER tile → its own {number, color}
- * Returns null if the tile lacks number/color.
- */
-function tileEffectiveValue(t: Tile, okey: Tile): { number: number; color: string } | null {
-  if (t.kind === 'FALSE_JOKER') {
-    if (okey.number == null || okey.color == null) return null
-    return { number: okey.number, color: okey.color }
-  }
-  if (t.number == null || t.color == null) return null
-  return { number: t.number, color: t.color }
-}
-
-/**
- * A tile is wild only if it is a real NUMBER tile whose number+color matches okey.
- */
-function isTileWild(t: Tile, okey: Tile): boolean {
-  return t.kind === 'NUMBER' && tilesEqual(t, okey)
-}
-
-function canExtendRun(tile: Tile, meldTiles: Tile[], okey: Tile): boolean {
-  if (tile.kind !== 'NUMBER' || tile.number == null || tile.color == null) return false
-
-  // Find the run's color and number range (ignoring wilds, using effective values for FALSE_JOKER)
-  // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
-  const nonWildEvs = meldTiles
-    .filter((t) => !isTileWild(t, okey))
-    .map((t) => tileEffectiveValue(t, okey))
-    .filter((v): v is { number: number; color: string } => v !== null)
-  if (nonWildEvs.length === 0) return false
-
-  // All non-wild tiles in a run must be same color
-  const runColor = nonWildEvs[0]!.color
-  if (tile.color !== runColor) return false
-
-  const nums = nonWildEvs.map((v) => v.number).sort((a, b) => a - b)
-  const minNum = nums[0]!
-  const maxNum = nums[nums.length - 1]!
-
-  // Extend at left end: tile.number === minNum - 1
-  // Extend at right end: tile.number === maxNum + 1
-  return tile.number === minNum - 1 || tile.number === maxNum + 1
-}
-
-function canExtendGroup(tile: Tile, meldTiles: Tile[], okey: Tile): boolean {
-  if (tile.kind !== 'NUMBER' || tile.number == null || tile.color == null) return false
-
-  // Group: same number, distinct colors, max 4 tiles
-  if (meldTiles.length >= 4) return false // already full group
-
-  // Only real NUMBER tiles equal to okey are wild; FALSE_JOKER is a plain tile with okey's value.
-  const nonWildEvs = meldTiles
-    .filter((t) => !isTileWild(t, okey))
-    .map((t) => tileEffectiveValue(t, okey))
-    .filter((v): v is { number: number; color: string } => v !== null)
-  if (nonWildEvs.length === 0) return false
-
-  const groupNumber = nonWildEvs[0]!.number
-  if (tile.number !== groupNumber) return false
-
-  // Tile color must not already appear in the group
-  const existingColors = new Set(nonWildEvs.map((v) => v.color))
-  return !existingColors.has(tile.color)
 }
 
 // ── Floor-take helpers (Kural 11: a taken floor tile must be laid or returned) ──
@@ -240,11 +164,11 @@ function meldsContain(melds: Tile[][], tile: Tile): boolean {
 }
 
 /** First table run/group that `tile` legally extends (pairs can't be laid off). */
-function findLayOffForTile(tile: Tile, tableMelds: PlayerView['tableMelds'], okey: Tile): LayOffResult | null {
+function findLayOffForTile(tile: Tile, tableMelds: PlayerView['tableMelds'], okey: Tile, config: PlayerView['config']): LayOffResult | null {
   for (let mi = 0; mi < tableMelds.length; mi++) {
     const meld = tableMelds[mi]!
     if (meld.kind === 'pair') continue
-    if (canExtendMeld(tile, meld, okey)) return { meldIndex: mi, tile }
+    if (canLayOff(meld.tiles, [tile], okey, config)) return { meldIndex: mi, tile }
   }
   return null
 }
@@ -256,7 +180,7 @@ function findLayOffForTile(tile: Tile, tableMelds: PlayerView['tableMelds'], oke
 function canTakeFloor(view: PlayerView, top: Tile, rack: Tile[]): boolean {
   if (!view.config.requiresOpening) return true
   const okey = view.okey!
-  if (view.you.hasOpened) return findLayOffForTile(top, view.tableMelds, okey) !== null
+  if (view.you.hasOpened) return findLayOffForTile(top, view.tableMelds, okey, view.config) !== null
   if (view.you.declaredCift) return true
   const op = findOpening([...rack, top], okey, view.config)
   if (op !== null && meldsContain(op, top)) return true
