@@ -29,6 +29,10 @@ export class OnlineAdapter implements GameAdapter {
       this.viewCb?.(p.view)
     })
     if (this.lastView) onView(this.lastView)
+    // The first game:view may have been emitted during table:start, BEFORE this
+    // listener existed. Re-join now (listener is attached) so the server re-pushes
+    // our current redacted view.
+    void this.client.joinTable(this.tableId)
     return () => { off(); this.viewCb = null }
   }
 

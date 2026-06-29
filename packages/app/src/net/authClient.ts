@@ -46,10 +46,19 @@ export const login = (username: string, password: string, remember?: boolean) =>
   authPost('/auth/login', { username, password, remember })
 export const guest = () => authPost('/auth/guest', {})
 
+// De-dupe concurrent refreshes (React StrictMode double-invokes the boot effect; two
+// refreshes with the same cookie would rotate once then trip the server's reuse-
+// detection on the replayed token and kill the session). One in-flight promise → one
+// network rotation, shared by all callers.
+let refreshInFlight: Promise<ServerUser | null> | null = null
+
 /** Silent session restore from the refresh cookie. Returns the user or null. */
-export async function refresh(): Promise<ServerUser | null> {
-  const r = await authPost('/auth/refresh', {}, true)
-  return r.ok ? r.user : null
+export function refresh(): Promise<ServerUser | null> {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = authPost('/auth/refresh', {}, true)
+    .then((r) => (r.ok ? r.user : null))
+    .finally(() => { refreshInFlight = null })
+  return refreshInFlight
 }
 
 export async function logout(): Promise<void> {
