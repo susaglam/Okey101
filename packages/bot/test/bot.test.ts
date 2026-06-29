@@ -27,6 +27,7 @@ function view101(
   hasOpened = false,
   tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: string[] }[] = [],
   openRoute?: 'seri' | 'cift',
+  leftDiscard: string[] = [], // seat 3 = our left neighbour
 ) {
   const state: GameState = {
     gameId: 'g101', config: KLASIK_101, rngSeed: 2, handNo: 1,
@@ -37,7 +38,7 @@ function view101(
       { seat: 0, rack: rack.map(tileFromString), discard: [], hasOpened, isOut: false, ...(openRoute ? { openRoute } : {}) },
       { seat: 1, rack: [], discard: [], hasOpened: false, isOut: false },
       { seat: 2, rack: [], discard: [], hasOpened: false, isOut: false },
-      { seat: 3, rack: [], discard: [], hasOpened: false, isOut: false },
+      { seat: 3, rack: [], discard: leftDiscard.map(tileFromString), hasOpened: false, isOut: false },
     ],
     scores: [0, 0, 0, 0], status: 'PLAYING',
     tableMelds: tableMelds.map((m) => ({ owner: m.owner, kind: m.kind, tiles: m.tiles.map(tileFromString) })),
@@ -218,5 +219,26 @@ describe('bot.decide 101', () => {
     const ev = decide(view, ['Discard'], makeRng(3))
     expect(ev.type).toBe('Discard')
     if (ev.type === 'Discard') expect(tileFromString('13K')).not.toEqual(ev.tile)
+  })
+
+  it('opened bot does NOT take a floor tile it cannot lay off (draws stock instead)', () => {
+    // 9K is useful to the hand (10K is adjacent) but does NOT extend the red 4-5-6
+    // run on the table → it could never be laid this turn → don't take it.
+    const view = view101(
+      ['10K', '2S', '5M'], 'DRAW', true, [{ owner: 1, kind: 'run', tiles: ['4R', '5R', '6R'] }], 'seri',
+      ['9K'],
+    )
+    const ev = decide(view, ['DrawFromStock', 'DrawFromDiscard'], makeRng(1))
+    expect(ev.type).toBe('DrawFromStock')
+  })
+
+  it('opened bot TAKES a floor tile it can lay off', () => {
+    // 7R extends the red 4-5-6 run → layable this turn → take it.
+    const view = view101(
+      ['8R', '2S', '5M'], 'DRAW', true, [{ owner: 1, kind: 'run', tiles: ['4R', '5R', '6R'] }], 'seri',
+      ['7R'],
+    )
+    const ev = decide(view, ['DrawFromStock', 'DrawFromDiscard'], makeRng(1))
+    expect(ev.type).toBe('DrawFromDiscard')
   })
 })

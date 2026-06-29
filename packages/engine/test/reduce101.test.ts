@@ -1006,6 +1006,68 @@ describe('DEFERRED işlek penalty — çift-declarer takes floor, opens later', 
 // "wasted a working tile" and eat a flat +101. The user's case: a çift opener laid
 // [13🟡 + okey] (okey standing in for the second 13🟡); discarding the real 13🟡
 // (which could reclaim the okey) is işlek → +101 to the discarder.
+// ── Floor-take must be USED on the table (or returned) — Kural 11 (PO 2026-06-23) ─
+describe('floor-take must be laid on the table this turn (or returned)', () => {
+  const okey = tileFromString('5S')
+  const floor = tileFromString('9R')
+
+  it('OPENED taker who laid NOTHING cannot discard (must use the floor tile or return)', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base, okey,
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor },
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, openRoute: 'seri', rack: [floor, ...h('2M', '3M', '4M')] } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('2M') })).toThrow(RuleError)
+  })
+
+  it('opening WITHOUT the floor tile does not satisfy the rule (still rejected)', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base, okey,
+      turn: {
+        seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor,
+        openSnapshot: { rack: [], hasOpened: false, tableMelds: [], penaltiesApplied: [] },
+      },
+      tableMelds: [{ owner: 0, kind: 'run', tiles: h('5M', '6M', '7M') }], // no 9R laid
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, openRoute: 'seri', rack: [floor, ...h('2M', '3M')] } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('2M') })).toThrow(RuleError)
+  })
+
+  it('allows the discard once the floor tile IS laid on the table this turn', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base, okey,
+      turn: {
+        seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor,
+        openSnapshot: { rack: [], hasOpened: true, tableMelds: [], penaltiesApplied: [] },
+      },
+      tableMelds: [{ owner: 0, kind: 'run', tiles: h('9R', '10R', '11R') }], // 9R laid this turn
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: true, openRoute: 'seri', rack: h('2M', '3M') } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('2M') })).not.toThrow()
+  })
+
+  it('çift-declarer (not opened) is EXEMPT — may keep the floor tile and defer', () => {
+    const base = start101()
+    const s: GameState = {
+      ...base, okey,
+      turn: { seat: 0, phase: 'DISCARD', tookFromLeft: true, floorTileTaken: floor },
+      players: base.players.map((p) =>
+        p.seat === 0 ? { ...p, hasOpened: false, declaredCift: true, rack: [floor, ...h('2M', '3M')] } : p,
+      ),
+    }
+    expect(() => reduce(s, { type: 'Discard', seat: 0, tile: tileFromString('2M') })).not.toThrow()
+  })
+})
+
 describe('İşlek-discard penalty (101) — discarding a board-usable tile', () => {
   const islekOf = (s: GameState) => (s.penaltiesApplied ?? []).filter((x) => x.type === 'islek-discard')
 

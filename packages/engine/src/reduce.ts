@@ -56,6 +56,23 @@ export function isWorkableDiscard(
   return false
 }
 
+/**
+ * Did the player lay a tile equal to `floorTile` onto the table THIS turn (via an
+ * open or a lay-off)? Compares the table now against the pre-turn snapshot (the
+ * openSnapshot, captured before this turn's first board move; if none, nothing was
+ * laid). Tiles are interchangeable by value, so a single count comparison suffices.
+ * Used to enforce Kural 11: a floor-take must be USED on the board (you can't take a
+ * tile and keep/discard it) — else you must return it.
+ */
+function floorTileLaidThisTurn(state: GameState, floorTile: Tile): boolean {
+  const turn = state.turn as TurnState
+  const before = turn.openSnapshot?.tableMelds ?? state.tableMelds ?? []
+  const after = state.tableMelds ?? []
+  const countEq = (melds: { tiles: Tile[] }[]) =>
+    melds.reduce((n, m) => n + m.tiles.reduce((k, t) => k + (tilesEqual(t, floorTile) ? 1 : 0), 0), 0)
+  return countEq(after) > countEq(before)
+}
+
 function requireTurn(state: GameState, seat: number, phase: GameState['turn']['phase']): void {
   if (state.status !== 'PLAYING') throw new RuleError(`Game not in play (status=${state.status})`)
   if (state.turn.seat !== seat) throw new RuleError(`Not seat ${seat}'s turn`)
@@ -224,12 +241,17 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       if (!state) throw new RuleError('No game')
       requireTurn(state, event.seat, 'DISCARD')
       const p = state.players.find((x) => x.seat === event.seat)!
-      // Kural 11 (Q1): a non-çift player who took the floor this turn must open
-      // this turn — they cannot just discard. They must open, or return the tile.
+      // Kural 11 (PO 2026-06-23): whoever took the floor this turn must LAY that tile
+      // on the table (in an opened meld or a lay-off) before discarding — you can't
+      // take a tile and keep or discard it (no hoarding in 101). If you can't use it,
+      // return it. EXCEPTION: a çift-declarer who hasn't opened yet may keep it and
+      // defer (they open via 5 pairs at once, so a single tile can't be laid early).
       if (state.config.requiresOpening) {
-        const tookFromLeft = (state.turn as TurnState).tookFromLeft === true
-        if (tookFromLeft && !p.declaredCift && !p.hasOpened) {
-          throw new RuleError('floor-take: you must open this turn or return the tile before discarding')
+        const t = state.turn as TurnState
+        const exemptDefer = p.declaredCift === true && p.hasOpened !== true
+        if (t.tookFromLeft === true && t.floorTileTaken != null && !exemptDefer
+            && !floorTileLaidThisTurn(state, t.floorTileTaken)) {
+          throw new RuleError('floor-take: you must lay the tile you took (meld/lay-off) this turn, or return it')
         }
       }
       const idx = p.rack.findIndex((t) => tilesEqual(t, event.tile))

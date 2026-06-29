@@ -6,19 +6,14 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
 
   // ── DRAW phase (same logic for Klasik and 101) ───────────────────────────────
   if (view.turn.phase === 'DRAW') {
-    // Prefer the left discard only if it pairs with or sequences a tile we already hold.
+    // Prefer the left discard only if it pairs with or sequences a tile we already
+    // hold AND we can actually USE it this turn (Kural 11 — a taken floor tile must
+    // be laid on the table or returned). Otherwise draw from stock (no dead end).
     if (legal.includes('DrawFromDiscard')) {
       const left = view.opponents.find((o) => o.seat === leftSeatOf(seat, view))
       const top = left?.discardTop
-      if (top && top.kind === 'NUMBER' && isUseful(top, rack)) {
-        // Kural 11: a non-çift, not-yet-opened player who takes the floor MUST open
-        // this turn (else they must return it). So only take if it enables an open
-        // — otherwise stay on the stock and avoid the dead end (and a stalled turn).
-        const mustOpenToTake = view.config.requiresOpening && !view.you.hasOpened && !view.you.declaredCift
-        const canOpenWithFloor = !mustOpenToTake
-          || findOpening([...rack, top], view.okey!, view.config) !== null
-          || findPairOpening([...rack, top], view.okey!, view.config) !== null
-        if (canOpenWithFloor) return { type: 'DrawFromDiscard', seat }
+      if (top && top.kind === 'NUMBER' && isUseful(top, rack) && canTakeFloor(view, top, rack)) {
+        return { type: 'DrawFromDiscard', seat }
       }
     }
     return { type: 'DrawFromStock', seat }
@@ -28,6 +23,28 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
 
   if (view.config.requiresOpening) {
     // ── 101 branch ──────────────────────────────────────────────────────────────
+    const okey = view.okey!
+
+    // 0. Floor-take obligation: if we took the floor this turn (and aren't the exempt
+    //    çift-declarer who may defer), the taken tile MUST be laid on the table this
+    //    turn — open WITH it, lay it off, or return it. Otherwise the engine rejects
+    //    our discard and the turn stalls.
+    const tookFloor = view.turn.tookFromLeft === true
+    const floor = view.turn.floorTileTaken
+    const exemptDefer = view.you.declaredCift === true && !view.you.hasOpened
+    if (tookFloor && floor && !exemptDefer && rack.some((t) => tilesEqual(t, floor))) {
+      if (!view.you.hasOpened && legal.includes('OpenMeld')) {
+        const op = findOpening(rack, okey, view.config)
+        if (op !== null && meldsContain(op, floor)) return { type: 'OpenMeld', seat, melds: op }
+        const pop = findPairOpening(rack, okey, view.config)
+        if (pop !== null && meldsContain(pop, floor)) return { type: 'OpenMeld', seat, melds: pop }
+      } else if (view.you.hasOpened && legal.includes('LayOff') && rack.length > 1) {
+        const lay = findLayOffForTile(floor, view.tableMelds, okey)
+        if (lay !== null) return { type: 'LayOff', seat, meldIndex: lay.meldIndex, tiles: [lay.tile] }
+      }
+      // Couldn't lay the floor tile → give it back (avoids a rejected discard).
+      if (legal.includes('ReturnFloorTile')) return { type: 'ReturnFloorTile', seat }
+    }
 
     // 1. DeclareWin: only if already opened and a winning discard exists.
     if (legal.includes('DeclareWin') && view.you.hasOpened) {
@@ -214,6 +231,37 @@ function canExtendGroup(tile: Tile, meldTiles: Tile[], okey: Tile): boolean {
   // Tile color must not already appear in the group
   const existingColors = new Set(nonWildEvs.map((v) => v.color))
   return !existingColors.has(tile.color)
+}
+
+// ── Floor-take helpers (Kural 11: a taken floor tile must be laid or returned) ──
+
+function meldsContain(melds: Tile[][], tile: Tile): boolean {
+  return melds.some((m) => m.some((t) => tilesEqual(t, tile)))
+}
+
+/** First table run/group that `tile` legally extends (pairs can't be laid off). */
+function findLayOffForTile(tile: Tile, tableMelds: PlayerView['tableMelds'], okey: Tile): LayOffResult | null {
+  for (let mi = 0; mi < tableMelds.length; mi++) {
+    const meld = tableMelds[mi]!
+    if (meld.kind === 'pair') continue
+    if (canExtendMeld(tile, meld, okey)) return { meldIndex: mi, tile }
+  }
+  return null
+}
+
+/** May we take `top` from the floor this turn AND honour "use it or return it"?
+ *  Klasik: always. Opened: only if `top` lays off onto a table meld. çift-declarer
+ *  (not opened): yes (exempt — may keep/defer). Non-çift, not opened: only if some
+ *  opening that INCLUDES `top` exists (so we can open with it this turn). */
+function canTakeFloor(view: PlayerView, top: Tile, rack: Tile[]): boolean {
+  if (!view.config.requiresOpening) return true
+  const okey = view.okey!
+  if (view.you.hasOpened) return findLayOffForTile(top, view.tableMelds, okey) !== null
+  if (view.you.declaredCift) return true
+  const op = findOpening([...rack, top], okey, view.config)
+  if (op !== null && meldsContain(op, top)) return true
+  const pop = findPairOpening([...rack, top], okey, view.config)
+  return pop !== null && meldsContain(pop, top)
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────

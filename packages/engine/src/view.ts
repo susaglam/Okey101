@@ -26,9 +26,10 @@ export interface PlayerView {
   indicator?: Tile
   okey?: Tile
   // tookFromLeft is public (taking the floor is an observable move); the UI uses
-  // it to offer "return the floor tile" to a non-çift taker who can't open.
-  // canRetract: the current seat opened THIS turn and can still undo it (pre-discard).
-  turn: { seat: number; phase: Phase; tookFromLeft?: boolean; canRetract?: boolean }
+  // it to offer "return the floor tile". floorTileTaken is the exact tile taken (it
+  // came off a public discard pile) — used by the bot to satisfy the "use it or
+  // return it" rule. canRetract: the current seat opened THIS turn (pre-discard).
+  turn: { seat: number; phase: Phase; tookFromLeft?: boolean; floorTileTaken?: Tile; canRetract?: boolean }
   scores: number[]
   status: GameState['status']
   terminal?: Terminal
@@ -69,6 +70,7 @@ export function redactFor(state: GameState, seat: number, version: number): Play
       seat: state.turn.seat,
       phase: state.turn.phase,
       tookFromLeft: state.turn.tookFromLeft,
+      floorTileTaken: state.turn.floorTileTaken,
       canRetract: state.turn.openSnapshot != null ? true : undefined,
     },
     scores: state.scores.slice(), status: state.status,
