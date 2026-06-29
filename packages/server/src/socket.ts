@@ -49,6 +49,7 @@ export function createSocketLayer(io: SocketServer, botDelayMs = 0, afk: Manager
     socket.on('table:ready', (p: { tableId?: string; ready?: boolean }, cb: Ack) => ack(cb, manager.ready(userId, String(p?.tableId ?? ''), !!p?.ready)))
     socket.on('table:start', (p: { tableId?: string }, cb: Ack) => { void manager.start(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
     socket.on('table:next', (p: { tableId?: string }, cb: Ack) => { void manager.nextHand(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
+    socket.on('table:restart', (p: { tableId?: string }, cb: Ack) => { void manager.restartMatch(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
 
     socket.on('intent', (p: { tableId?: string; baseVersion?: number; event?: unknown }, cb: Ack) => {
       const event = validateIntent(p?.event)

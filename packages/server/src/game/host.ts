@@ -63,6 +63,9 @@ export class GameHost {
   private afkTakeoverTimer: ReturnType<typeof setTimeout> | null = null
   private readonly autoNextMs: number
   private autoNextTimer: ReturnType<typeof setTimeout> | null = null
+  // Epoch ms when the current human turn's auto-move fires (the visible countdown
+  // deadline). Server-runtime only — NOT part of the deterministic engine state.
+  private currentTurnDeadline: number | null = null
 
   constructor(opts: HostOpts) {
     this.tableId = opts.tableId
@@ -86,12 +89,13 @@ export class GameHost {
   }
 
   /** Restore from a persisted games row (server restart). */
-  restore(row: { state: GameState; version: number; standings: number[]; seed: number; scoredHandNo: number }): void {
+  restore(row: { state: GameState; version: number; standings: number[]; seed: number; scoredHandNo: number; history?: unknown[] }): void {
     this.state = row.state
     this.version = row.version
     this.standings = [...row.standings]
     this.seed = row.seed
     this.scoredHandNo = row.scoredHandNo
+    if (Array.isArray(row.history)) this.history = row.history // keep the score table across restarts
   }
 
   /** Deal the first hand and play any leading bots. */
@@ -207,16 +211,33 @@ export class GameHost {
   private clearAfkAll(): void {
     if (this.afkMoveTimer) { clearTimeout(this.afkMoveTimer); this.afkMoveTimer = null }
     if (this.afkTakeoverTimer) { clearTimeout(this.afkTakeoverTimer); this.afkTakeoverTimer = null }
+    this.currentTurnDeadline = null
   }
 
   private armAfk(): void {
     if (this.afkMoveTimer) { clearTimeout(this.afkMoveTimer); this.afkMoveTimer = null }
+    this.currentTurnDeadline = null
     if (this.state.status !== 'PLAYING') { this.clearAfkAll(); return }
     const seat = this.state.turn.seat
     if (!this.isHumanSeat(seat)) return // bots' turn — keep the takeover clock running
-    if (this.afkAutoMoveMs > 0) this.afkMoveTimer = setTimeout(() => { void this.afkAutoMove(seat) }, this.afkAutoMoveMs)
+    if (this.afkAutoMoveMs > 0) {
+      this.afkMoveTimer = setTimeout(() => { void this.afkAutoMove(seat) }, this.afkAutoMoveMs)
+      this.currentTurnDeadline = Date.now() + this.afkAutoMoveMs // exposed via turnTimer()
+    }
     if (this.afkTakeoverMs > 0 && !this.afkTakeoverTimer) this.afkTakeoverTimer = setTimeout(() => { void this.afkTakeover(seat) }, this.afkTakeoverMs)
   }
+
+  /** The current human turn's countdown (for the client's timer ring), or null when
+   *  it's a bot's turn / no enforced timer / not playing. Server-runtime, not state. */
+  turnTimer(): { seat: number; phase: string; budgetMs: number; deadlineMs: number } | null {
+    if (this.state.status !== 'PLAYING' || this.afkAutoMoveMs <= 0 || this.currentTurnDeadline == null) return null
+    const seat = this.state.turn.seat
+    if (!this.isHumanSeat(seat)) return null
+    return { seat, phase: this.state.turn.phase, budgetMs: this.afkAutoMoveMs, deadlineMs: this.currentTurnDeadline }
+  }
+
+  /** Per-hand score history (for the 📊 score table). Mirrors LocalAdapter's records. */
+  getHistory(): unknown[] { return this.history }
 
   /** Auto-play ONE phase for an idle human: draw from stock on DRAW, a safe non-işlek
    *  discard on DISCARD. Each phase has its own turn-timer, so a draw and a discard

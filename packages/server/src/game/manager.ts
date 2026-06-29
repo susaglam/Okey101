@@ -173,15 +173,35 @@ export class GameManager {
     return { ok: true }
   }
 
+  /** Host restarts a FINISHED match on the same table: fresh seed, standings reset,
+   *  same seats re-dealt. Rejected mid-match. ("Yeniden Başlat") */
+  async restartMatch(userId: string, tableId: string): Promise<{ ok: boolean; error?: string }> {
+    const t = getTable(tableId)
+    const host = this.hosts.get(tableId)
+    if (!t || !host) return { ok: false, error: 'Masa bulunamadı.' }
+    if (t.hostUserId !== userId) return { ok: false, error: 'Yalnız masa sahibi yeniden başlatabilir.' }
+    if (!host.matchOver) return { ok: false, error: 'Maç henüz bitmedi.' }
+    host.dispose() // clears AFK + auto-next timers
+    const fresh = this.makeHost(t) // rebuilds actors from the (already-filled) seats, new random seed
+    this.hosts.set(tableId, fresh)
+    await fresh.startNewMatch()
+    this.emit.toTable(tableId, 'table:state', publicTable(t))
+    this.pushLobby()
+    return { ok: true }
+  }
+
   /** Send each seated human their own redacted view (+ legal moves + match state). */
   emitGameViews(tableId: string): void {
     const host = this.hosts.get(tableId)
     const t = getTable(tableId)
     if (!host || !t) return
+    const history = host.getHistory()
+    const turnTimer = host.turnTimer()
     for (const s of t.seats) {
       if (s.occupant?.kind !== 'human') continue
       this.emit.toUser(s.occupant.userId, 'game:view', {
-        tableId, view: host.viewFor(s.index), legal: host.legalFor(s.index), match: host.matchState(),
+        tableId, view: host.viewFor(s.index), legal: host.legalFor(s.index),
+        match: host.matchState(), history, turnTimer,
       })
     }
   }
@@ -196,7 +216,7 @@ export class GameManager {
     const host = this.hosts.get(tableId)
     if (host && t.status === 'playing') {
       const seat = seatOf(t, userId)
-      if (seat >= 0) { void host.reclaim(seat, userId); this.emit.toUser(userId, 'game:view', { tableId, view: host.viewFor(seat), legal: host.legalFor(seat), match: host.matchState() }) }
+      if (seat >= 0) { void host.reclaim(seat, userId); this.emit.toUser(userId, 'game:view', { tableId, view: host.viewFor(seat), legal: host.legalFor(seat), match: host.matchState(), history: host.getHistory(), turnTimer: host.turnTimer() }) }
     }
     return { ok: true }
   }
@@ -211,12 +231,14 @@ export class GameManager {
   disposeAll(): void { for (const h of this.hosts.values()) h.dispose() }
 }
 
-interface GameRow { state: string; version: number; standings: string; seed: number; scored_hand_no: number }
+interface GameRow { state: string; version: number; standings: string; history: string; seed: number; scored_hand_no: number }
 function loadGameRow(tableId: string) {
   const r = db().prepare('SELECT * FROM games WHERE table_id = ?').get(tableId) as GameRow | undefined
   if (!r) return null
+  let history: unknown[] = []
+  try { history = JSON.parse(r.history) } catch { /* legacy row without history */ }
   return {
     state: JSON.parse(r.state), version: r.version, standings: JSON.parse(r.standings) as number[],
-    seed: r.seed, scoredHandNo: r.scored_hand_no,
+    seed: r.seed, scoredHandNo: r.scored_hand_no, history,
   }
 }

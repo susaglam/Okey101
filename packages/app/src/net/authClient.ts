@@ -52,13 +52,38 @@ export const guest = () => authPost('/auth/guest', {})
 // network rotation, shared by all callers.
 let refreshInFlight: Promise<ServerUser | null> | null = null
 
-/** Silent session restore from the refresh cookie. Returns the user or null. */
+/** Silent session restore from the refresh cookie. Returns the user or null.
+ *  On failure (e.g. a stale token after a redeploy), clear the in-memory access
+ *  token so the app falls cleanly back to the login screen instead of carrying a
+ *  dead token into socket/admin calls. */
 export function refresh(): Promise<ServerUser | null> {
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = authPost('/auth/refresh', {}, true)
-    .then((r) => (r.ok ? r.user : null))
+    .then((r) => {
+      if (r.ok) return r.user
+      accessToken = null
+      return null
+    })
     .finally(() => { refreshInFlight = null })
   return refreshInFlight
+}
+
+/** Authenticated fetch for the /admin API: sends the Bearer access token and, on a
+ *  401 (expired access token), refreshes ONCE via the cookie and retries. Returns the
+ *  parsed JSON (or { error } on failure). */
+export async function adminFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  const call = () => fetch(BASE + path, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+    },
+  })
+  let res = await call()
+  if (res.status === 401) { await refresh(); res = await call() }
+  return (await res.json().catch(() => ({}))) as T
 }
 
 export async function logout(): Promise<void> {

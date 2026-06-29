@@ -1,3 +1,5 @@
+import { TurnRing } from './TurnRing'
+
 export function Seat({
   name,
   count,
@@ -8,6 +10,8 @@ export function Seat({
   stack,
   seat,
   penalties,
+  turnDeadlineMs,
+  turnBudgetMs,
 }: {
   name: string
   count: number
@@ -21,6 +25,9 @@ export function Seat({
   seat?: number
   /** Bu el alınan düz ceza sayısı (işlek/okey-atma) — >0 ise kırmızı rozet. */
   penalties?: number
+  /** Sıra süresi geri sayım halkası (online): bitiş epoch ms + toplam süre. */
+  turnDeadlineMs?: number
+  turnBudgetMs?: number
 }) {
   const isVertical = position === 'left' || position === 'right'
 
@@ -101,6 +108,9 @@ export function Seat({
       data-seat={seat}
       style={containerStyle}
     >
+      {isTurn && turnDeadlineMs != null && turnBudgetMs != null && (
+        <TurnRing deadlineMs={turnDeadlineMs} budgetMs={turnBudgetMs} radius={12} />
+      )}
       <div style={avatarStyle}>
         {name[0]}
         {isTurn && (

@@ -88,6 +88,15 @@ describe('seating + start + redaction', () => {
     mgr.sit('u-2', t.id, 1)
     expect((await mgr.start('u-2', t.id)).ok).toBe(false)
   })
+
+  it('restartMatch is rejected mid-match and only for the host', async () => {
+    const t = mkTable()
+    await mgr.start('u-host', t.id)
+    // mid-match (status playing, not over) → rejected
+    expect((await mgr.restartMatch('u-host', t.id)).ok).toBe(false)
+    // non-host → rejected
+    expect((await mgr.restartMatch('u-2', t.id)).ok).toBe(false)
+  })
 })
 
 describe('AFK (host-level): safe auto-move + bot takeover', () => {
@@ -104,6 +113,33 @@ describe('AFK (host-level): safe auto-move + bot takeover', () => {
     await new Promise((r) => setTimeout(r, 350)) // let auto-moves + takeover happen
     expect(host.currentVersion).toBeGreaterThan(startVersion)             // auto-moves advanced the game
     expect(changes.some((c) => c.seat === 0 && c.kind === 'bot')).toBe(true) // bot took the idle seat over
+    host.dispose()
+  })
+
+  it('exposes a per-turn countdown (turnTimer) on a human turn, null on a bot turn', async () => {
+    const host = new GameHost({
+      tableId: 't-timer', mode: 'yuzbir',
+      actors: [{ kind: 'human', userId: 'u' }, { kind: 'bot' }, { kind: 'bot' }, { kind: 'bot' }],
+      botDelayMs: 0, afkAutoMoveMs: 20_000, afkTakeoverMs: 90_000,
+    })
+    await host.startNewMatch()
+    // Hand 0 starts on the human (seat 0): a live deadline in the budget window.
+    const t = host.turnTimer()
+    expect(t).toBeTruthy()
+    expect(t!.seat).toBe(0)
+    expect(t!.budgetMs).toBe(20_000)
+    expect(t!.deadlineMs).toBeGreaterThan(0)
+    host.dispose()
+  })
+
+  it('turnTimer is null when the per-turn timer is disabled (afkAutoMoveMs=0)', async () => {
+    const host = new GameHost({
+      tableId: 't-timer0', mode: 'yuzbir',
+      actors: [{ kind: 'human', userId: 'u' }, { kind: 'bot' }, { kind: 'bot' }, { kind: 'bot' }],
+      botDelayMs: 0, afkAutoMoveMs: 0, afkTakeoverMs: 0,
+    })
+    await host.startNewMatch()
+    expect(host.turnTimer()).toBeNull()
     host.dispose()
   })
 

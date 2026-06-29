@@ -78,6 +78,7 @@ export function Table({
   standings,
   tableMelds,
   humanDiscard,
+  turnTimer,
 }: {
   view: PlayerView
   children?: ReactNode
@@ -88,7 +89,11 @@ export function Table({
   tableMelds?: ReactNode
   /** The human's discard target, placed at the bottom-right corner of the play area. */
   humanDiscard?: ReactNode
+  /** Active turn countdown (online) — drawn as a ring around the active opponent. */
+  turnTimer?: { seat: number; budgetMs: number; deadlineMs: number } | null
 }) {
+  const ringFor = (seat: number) =>
+    turnTimer && turnTimer.seat === seat ? { turnDeadlineMs: turnTimer.deadlineMs, turnBudgetMs: turnTimer.budgetMs } : {}
   // Find opponents by relative position
   const rightOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 1)
   const topOpponent = view.opponents.find(o => (o.seat - view.seat + 4) % 4 === 2)
@@ -127,7 +132,7 @@ export function Table({
             {/* Centred again now that the centre meld area sits lower (top:58) and no
                 longer collides with a top-centre card (PO 2026-06-23). */}
             <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', zIndex: 6 }}>
-              <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack />
+              <Seat name={seatName(topOpponent.seat)} seat={topOpponent.seat} count={topOpponent.rackCount} isTurn={view.turn.seat === topOpponent.seat} position="top" score={standings?.[topOpponent.seat]} penalties={topOpponent.penalties} stack {...ringFor(topOpponent.seat)} />
             </div>
             <div style={{ position: 'absolute', top: 60, left: 14 }}>
               <DiscardPile topTile={topOpponent.discardTop} count={topOpponent.discardCount} takeable={false} seat={topOpponent.seat} />
@@ -138,7 +143,7 @@ export function Table({
         {rightOpponent && (
           <>
             <div style={{ position: 'absolute', right: 4, top: '46%', transform: 'translateY(-50%)' }}>
-              <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} penalties={rightOpponent.penalties} stack />
+              <Seat name={seatName(rightOpponent.seat)} seat={rightOpponent.seat} count={rightOpponent.rackCount} isTurn={view.turn.seat === rightOpponent.seat} position="right" score={standings?.[rightOpponent.seat]} penalties={rightOpponent.penalties} stack {...ringFor(rightOpponent.seat)} />
             </div>
             {/* Pushed below the fixed top-right UI buttons (stats/help/settings)
                 so they never overlap this discard pile. */}
@@ -152,7 +157,7 @@ export function Table({
         {leftOpponent && (
           <>
             <div style={{ position: 'absolute', left: 4, top: '46%', transform: 'translateY(-50%)' }}>
-              <Seat name={seatName(leftOpponent.seat)} seat={leftOpponent.seat} count={leftOpponent.rackCount} isTurn={view.turn.seat === leftOpponent.seat} position="left" score={standings?.[leftOpponent.seat]} penalties={leftOpponent.penalties} stack />
+              <Seat name={seatName(leftOpponent.seat)} seat={leftOpponent.seat} count={leftOpponent.rackCount} isTurn={view.turn.seat === leftOpponent.seat} position="left" score={standings?.[leftOpponent.seat]} penalties={leftOpponent.penalties} stack {...ringFor(leftOpponent.seat)} />
             </div>
             <div style={{ position: 'absolute', bottom: 6, left: 8 }}>
               {takeablePile ? (

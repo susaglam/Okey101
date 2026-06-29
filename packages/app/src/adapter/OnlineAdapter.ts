@@ -4,17 +4,19 @@
 // view comes from the server's per-seat redactFor() push — the client never computes
 // game state.
 import type { GameEvent, PlayerView } from '@cs-okey/engine'
-import type { GameAdapter, RejectionCode, Status } from './Adapter'
+import type { GameAdapter, RejectionCode, Status, TurnTimer } from './Adapter'
 import type { MatchState, HandRecord } from '../match'
 import type { OnlineClient } from '../net/online'
 
-interface GameViewMsg { tableId: string; view: PlayerView; legal: GameEvent['type'][]; match: MatchState }
+interface GameViewMsg { tableId: string; view: PlayerView; legal: GameEvent['type'][]; match: MatchState; history?: HandRecord[]; turnTimer?: TurnTimer | null }
 
 export class OnlineAdapter implements GameAdapter {
   private viewCb: ((v: PlayerView) => void) | null = null
   private lastView: PlayerView | null = null
   private legal: GameEvent['type'][] = []
   private match: MatchState
+  private history: HandRecord[] = []
+  private timer: TurnTimer | null = null
 
   constructor(private client: OnlineClient, private tableId: string, initialMatch?: MatchState) {
     this.match = initialMatch ?? { handNo: 1, totalHands: 11, standings: [0, 0, 0, 0], over: false }
@@ -26,6 +28,8 @@ export class OnlineAdapter implements GameAdapter {
     const off = this.client.on<GameViewMsg>('game:view', (p) => {
       if (p.tableId !== this.tableId) return
       this.lastView = p.view; this.legal = p.legal; this.match = p.match
+      if (Array.isArray(p.history)) this.history = p.history
+      this.timer = p.turnTimer ?? null
       this.viewCb?.(p.view)
     })
     if (this.lastView) onView(this.lastView)
@@ -48,6 +52,7 @@ export class OnlineAdapter implements GameAdapter {
   legalMoves(): GameEvent['type'][] { return this.legal }
   currentVersion(): number { return this.lastView?.version ?? 0 }
   getMatch(): MatchState { return this.match }
-  getHistory(): HandRecord[] { return [] } // server doesn't ship per-hand history to clients yet
+  getHistory(): HandRecord[] { return this.history }
+  turnTimer(): TurnTimer | null { return this.timer }
   nextHand(): void { void this.client.nextHand(this.tableId) }
 }

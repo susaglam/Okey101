@@ -54,6 +54,7 @@ export class OnlineClient {
   ready<T = unknown>(tableId: string, ready: boolean) { return this.request<T>('table:ready', { tableId, ready }) }
   start<T = unknown>(tableId: string) { return this.request<T>('table:start', { tableId }) }
   nextHand<T = unknown>(tableId: string) { return this.request<T>('table:next', { tableId }) }
+  restart<T = unknown>(tableId: string) { return this.request<T>('table:restart', { tableId }) }
   leave<T = unknown>(tableId: string) { return this.request<T>('table:leave', { tableId }) }
   /** Send a game move. `event` is the GameEvent WITHOUT seat (the server forces the seat). */
   intent<T = unknown>(tableId: string, baseVersion: number, event: unknown) { return this.request<T>('intent', { tableId, baseVersion, event }) }

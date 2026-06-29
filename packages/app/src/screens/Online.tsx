@@ -4,6 +4,7 @@
 // offline (vs-bots) app + its tests are untouched.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import GameScreen from './GameScreen'
+import OnlineAdmin from './OnlineAdmin'
 import { OnlineClient } from '../net/online'
 import { OnlineAdapter } from '../adapter/OnlineAdapter'
 import { register, login, guest, logout, refresh, type ServerUser } from '../net/authClient'
@@ -32,7 +33,7 @@ export default function OnlineRoot() {
 
   if (!booted) return <div className="menu"><h1>♣ CS OKEY</h1><p>Bağlanıyor…</p></div>
   if (!user) return <OnlineLogin onAuthed={setUser} />
-  return <OnlineApp user={user} onLogout={() => { void logout().then(() => setUser(null)) }} />
+  return <OnlineApp user={user} onLogout={() => { void logout().then(() => setUser(null)) }} onSessionLost={() => setUser(null)} />
 }
 
 function OnlineLogin({ onAuthed }: { onAuthed: (u: ServerUser) => void }) {
@@ -76,7 +77,7 @@ function OnlineLogin({ onAuthed }: { onAuthed: (u: ServerUser) => void }) {
   )
 }
 
-function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void }) {
+function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogout: () => void; onSessionLost: () => void }) {
   const clientRef = useRef<OnlineClient | null>(null)
   if (!clientRef.current) clientRef.current = new OnlineClient()
   const client = clientRef.current
@@ -85,13 +86,16 @@ function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void 
   const [tables, setTables] = useState<PublicTable[]>([])
   const [table, setTable] = useState<PublicTable | null>(null) // table we're in
   const [picking, setPicking] = useState(false)
+  const [showAdmin, setShowAdmin] = useState(false)
   // Host-chosen table settings (frozen at creation).
   const [newHands, setNewHands] = useState(11)
   const [newTurnSecs, setNewTurnSecs] = useState(20)
 
   useEffect(() => {
     let alive = true
-    void client.connect().then(() => { if (alive) setConnected(true) })
+    // On a connect/auth failure (e.g. a stale session after a redeploy), fall cleanly
+    // back to the login screen instead of getting stuck on "bağlanıyor…".
+    void client.connect().then(() => { if (alive) setConnected(true) }).catch(() => { if (alive) onSessionLost() })
     const offLobby = client.on<PublicTable[]>('lobby:tables', (t) => setTables(t))
     const offState = client.on<PublicTable>('table:state', (t) => setTable(t))
     return () => { alive = false; offLobby(); offState(); client.disconnect() }
@@ -105,9 +109,12 @@ function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void 
 
   if (!connected) return <div className="menu"><h1>♣ CS OKEY</h1><p>Sunucuya bağlanıyor…</p></div>
 
+  // ── admin panel (server-backed; admins only) ───────────────────────────────
+  if (showAdmin && cu.isAdmin) return <OnlineAdmin onBack={() => setShowAdmin(false)} />
+
   // ── in a PLAYING table we're seated at → the game ──────────────────────────
   if (table && table.status === 'playing' && adapter) {
-    return <GameScreen adapter={adapter} user={cu} onExitToMenu={() => setTable(null)} />
+    return <GameScreen adapter={adapter} user={cu} onExitToMenu={() => setTable(null)} onRestart={() => { void client.restart(table.id) }} />
   }
 
   // ── in a table (waiting room) ──────────────────────────────────────────────
@@ -147,6 +154,7 @@ function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void 
     <div className="menu">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
         <span>👤 <strong>{user.username}</strong>{user.groupId === 'guest' && <span style={{ opacity: 0.6 }}> (misafir)</span>}</span>
+        {cu.isAdmin && <button onClick={() => setShowAdmin(true)} style={{ fontSize: 12, padding: '4px 10px' }}>🛠 Yönetim</button>}
         <button onClick={onLogout} style={{ fontSize: 12, padding: '4px 10px' }}>Çıkış</button>
       </div>
       <h1>♣ CS OKEY <span style={{ fontSize: 14, opacity: 0.6 }}>online</span></h1>

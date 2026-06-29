@@ -42,6 +42,7 @@ import { Table } from '../components/Table'
 import { SlotRack } from '../components/SlotRack'
 import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
+import { TurnRing } from '../components/TurnRing'
 import { StockPile } from '../components/StockPile'
 import { flyTile, animationsEnabled } from '../anim/fly'
 import { playSfx, setSoundEnabled, type Sfx } from '../anim/sound'
@@ -395,6 +396,10 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
   // Single source of truth for action gating (engine legality for the human seat).
   const legal = adapter.legalMoves()
+  // Server-enforced turn countdown (online only; null offline / bot turn) — drives the
+  // green→red ring around the active player's card, re-armed per phase by the server.
+  const turnTimer = adapter.turnTimer?.() ?? null
+  const myTurnRing = turnTimer && turnTimer.seat === view.seat ? turnTimer : null
 
   // The human's single discard spot shows their thrown tiles (top + count).
   const myDiscardTop = view.you.discard.length > 0 ? view.you.discard[view.you.discard.length - 1] : undefined
@@ -579,8 +584,11 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     handResultLine = winnerSeat === view.seat
       ? `🏆 Kazandın! — ${winTypeLabel}`
       : `${winnerName} kazandı — ${winTypeLabel}`
+  } else if (view.terminal?.reason === 'hand-void') {
+    handResultLine = 'El geçersiz — yeniden'
   } else {
-    handResultLine = 'Berabere (stok bitti)'
+    // Stock ran out with no winner — NOT a draw ("berabere"); nobody could finish.
+    handResultLine = 'El bitti — stok tükendi'
   }
 
   // Celebration banner shown on the felt as the hand finishes (before the overlay).
@@ -777,6 +785,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       view={view}
       onTakeDiscard={handleTakeDiscard}
       standings={match.standings}
+      turnTimer={turnTimer}
       tableMelds={is101 && view.okey ? (
         <CenterMelds
           melds={view.tableMelds}
@@ -933,6 +942,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
           <div
             data-testid="human-nameplate"
             style={{
+              position: 'relative',
               display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 12,
               background: 'linear-gradient(180deg, #caa063 0%, #9a6a30 52%, #774719 100%)',
               border: '1px solid rgba(72,44,16,0.85)', color: '#fff7e9', fontFamily: 'system-ui',
@@ -942,6 +952,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
               transition: 'box-shadow .2s ease',
             }}
           >
+            {myTurnRing && <TurnRing deadlineMs={myTurnRing.deadlineMs} budgetMs={myTurnRing.budgetMs} radius={12} />}
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, #5e6fb0 0%, #2c3768 100%)', border: '1.5px solid rgba(255,238,205,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.45)' }}>S</div>
             <span style={{ fontWeight: 700, fontSize: 14, textShadow: '0 1px 1px rgba(0,0,0,0.4)', letterSpacing: 0.2 }}>{seatName(view.seat)}</span>
             <span style={{ background: 'linear-gradient(180deg, #fbf6ea, #e8dcc4)', color: '#5a4420', borderRadius: 7, padding: '2px 8px', fontSize: 12, fontWeight: 800, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 1px rgba(0,0,0,0.25)' }}>{view.you.rack.length}</span>
