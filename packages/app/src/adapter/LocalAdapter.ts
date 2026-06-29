@@ -21,6 +21,7 @@ export class LocalAdapter implements Adapter {
   private readonly totalHands: number
   private variant: VariantConfig
   private mode: GameMode
+  private tableId: string
   private standings: number[]
   private scoredHandNo: number | null = null
   private history: HandRecord[] = []
@@ -35,6 +36,7 @@ export class LocalAdapter implements Adapter {
       const rf = opts.resumeFrom
       // Restore mode + its config (rebuilds teamMode for Eşli — never downgrades it).
       this.mode = saveMode(rf)
+      this.tableId = rf.tableId ?? this.mode
       this.variant = configForMode(this.mode)
       // totalHands from the restored variant (or opts override)
       this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
@@ -49,6 +51,7 @@ export class LocalAdapter implements Adapter {
       this.seed = rf.seed ?? this.state.rngSeed ?? opts.seed
     } else {
       this.mode = opts.mode ?? 'klasik'
+      this.tableId = opts.tableId ?? this.mode
       this.variant = opts.variant ?? configForMode(this.mode)
       this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
       this.standings = [0, 0, 0, 0]
@@ -58,6 +61,10 @@ export class LocalAdapter implements Adapter {
       // The first hand always starts on the human (handNo 0 → starter 0), so no
       // bots need to run here. StartHand just dealt — settleIfEnded is a no-op.
       this.settleIfEnded()
+      // Persist the fresh deal immediately (lobby tables only) so a table re-entered
+      // before any move resumes the SAME hand ("Devam Et"), not a reshuffled one.
+      // Legacy/test adapters (no explicit tableId) keep the old "save on first move".
+      if (opts.tableId != null) saveGame(this.snapshot())
     }
   }
 
@@ -75,6 +82,7 @@ export class LocalAdapter implements Adapter {
     return {
       version: this.version,
       mode: this.mode,
+      tableId: this.tableId,
       // Legacy field kept so an older build could still read the save's rules family.
       variantId: this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik',
       state: JSON.parse(JSON.stringify(this.state)),
@@ -162,7 +170,7 @@ export class LocalAdapter implements Adapter {
     this.settleIfEnded()
     this.viewCb?.(this.getHumanView())
     if (this.getMatch().over) {
-      clearGame(this.mode)
+      clearGame(this.tableId)
     } else {
       saveGame(this.snapshot())
     }

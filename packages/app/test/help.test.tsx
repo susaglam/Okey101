@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import App from '../src/App'
-import Menu from '../src/screens/Menu'
+import Lobby from '../src/screens/Lobby'
 import Help from '../src/screens/Help'
 import GameScreen from '../src/screens/GameScreen'
 import { LocalAdapter } from '../src/adapter/LocalAdapter'
@@ -38,26 +38,20 @@ describe('Help screen', () => {
     expect(onBack).toHaveBeenCalledOnce()
   })
 
-  it('Menu calls onHelp when "Nasıl Oynanır?" is clicked', () => {
-    const onStart = vi.fn()
+  it('Lobby calls onHelp when "Nasıl Oynanır?" is clicked', () => {
     const onHelp = vi.fn()
-    render(<Menu user={TEST_USER} onStart={onStart} onHelp={onHelp} onResume={() => {}} onAdmin={() => {}} onLogout={() => {}} />)
+    render(<Lobby user={TEST_USER} tables={[]} onNewTable={() => {}} onEnter={() => {}} onDelete={() => {}} onHelp={onHelp} onAdmin={() => {}} onLogout={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /nasıl oynanır/i }))
     expect(onHelp).toHaveBeenCalledOnce()
   })
 
-  it('App shows help content after clicking "Nasıl Oynanır?" and returns to menu on Geri', () => {
+  it('App shows help content after clicking "Nasıl Oynanır?" and returns to lobby on Geri', () => {
     signInGuest()
     render(<App />)
-    // Menu is visible (the Klasik variant card)
-    expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()
-    // Click Nasıl Oynanır?
+    expect(screen.getByText('Masalar')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /nasıl oynanır/i }))
-    // Help screen content
     expect(screen.getAllByText(/gösterge/i).length).toBeGreaterThan(0)
-    // Click Geri
     fireEvent.click(screen.getByRole('button', { name: /geri/i }))
-    // Back to menu
-    expect(screen.getByRole('button', { name: /klasik/i })).toBeTruthy()
+    expect(screen.getByText('Masalar')).toBeTruthy()
   })
 })

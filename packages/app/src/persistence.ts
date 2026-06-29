@@ -4,9 +4,11 @@ import { resolveMode, type GameMode } from './modes'
 
 export interface SaveData {
   version: number
-  /** Game mode — the save-slot key AND the rules selector. Eşli 101 gets its own
-   *  slot distinct from plain 101 (they were colliding before). */
+  /** Game mode — the rules selector. Eşli 101 is distinct from plain 101. */
   mode: GameMode
+  /** Lobby table this save belongs to (the save-slot key). For legacy/migrated
+   *  single-mode saves this equals the mode string, so old keys still resolve. */
+  tableId?: string
   /** Legacy rules family, kept for back-compat with pre-mode saves. Optional. */
   variantId?: 'klasik' | 'yuzbir'
   state: unknown
@@ -22,29 +24,54 @@ export interface SaveData {
 
 export type VariantId = 'klasik' | 'yuzbir'
 
-// One "continue" slot per mode. Klasik & 101 keep their original keys (the mode id
-// matches the old variantId), so existing saves load unchanged; Eşli 101 gets a new
-// slot. (The lobby will later key by tableId instead.)
-const saveKey = (mode: GameMode) => `cs-okey-savegame-${mode}`
+const PREFIX = 'cs-okey-savegame-'
+// One save slot per table (or per mode for legacy saves — the formula is the same,
+// so a tableId of 'yuzbir' resolves the pre-lobby per-mode key unchanged).
+const saveKey = (slotId: string) => `${PREFIX}${slotId}`
 
 /** The mode a (possibly legacy) save belongs to: prefer `mode`, fall back to `variantId`. */
 export function saveMode(data: SaveData): GameMode {
   return resolveMode(data.mode ?? data.variantId)
 }
 
+/** The slot id a save is stored under: its tableId, else its mode (legacy). */
+export function saveSlot(data: SaveData): string {
+  return data.tableId ?? saveMode(data)
+}
+
 export function saveGame(data: SaveData): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(saveKey(saveMode(data)), JSON.stringify(data))
+    localStorage.setItem(saveKey(saveSlot(data)), JSON.stringify(data))
   } catch {
     // Quota exceeded or other storage error — save is best-effort
   }
 }
 
-export function loadGame(mode: GameMode): SaveData | null {
+/** Every saved game in storage (powers the lobby's table list). */
+export function listSaves(): SaveData[] {
+  if (typeof localStorage === 'undefined') return []
+  const out: SaveData[] = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key == null || !key.startsWith(PREFIX)) continue
+      const raw = localStorage.getItem(key)
+      if (raw == null) continue
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) out.push(parsed as SaveData)
+      } catch { /* skip corrupt slot */ }
+    }
+  } catch { /* ignore */ }
+  return out
+}
+
+/** Load by slot id — a tableId, or a mode string for legacy per-mode saves. */
+export function loadGame(slotId: string): SaveData | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const raw = localStorage.getItem(saveKey(mode))
+    const raw = localStorage.getItem(saveKey(slotId))
     if (raw === null) return null
     const parsed = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
@@ -54,10 +81,10 @@ export function loadGame(mode: GameMode): SaveData | null {
   }
 }
 
-export function clearGame(mode: GameMode): void {
+export function clearGame(slotId: string): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.removeItem(saveKey(mode))
+    localStorage.removeItem(saveKey(slotId))
   } catch {
     // Best-effort
   }
@@ -97,10 +124,10 @@ export function isResumableSave(save: SaveData | null): boolean {
   return true
 }
 
-export function hasSavedGame(mode: GameMode): boolean {
+export function hasSavedGame(slotId: string): boolean {
   if (typeof localStorage === 'undefined') return false
   try {
-    return localStorage.getItem(saveKey(mode)) !== null
+    return localStorage.getItem(saveKey(slotId)) !== null
   } catch {
     return false
   }

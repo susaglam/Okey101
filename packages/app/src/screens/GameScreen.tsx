@@ -936,7 +936,20 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       </div>
       </div>{/* /centred rack-width column */}
 
-      {/* Score table + Help + Settings buttons — fixed top-right of the screen */}
+      {/* Lobby + Score table + Help + Settings buttons — fixed top-right of the screen.
+          Leaving to the lobby is safe: the game auto-saves every turn, so the table
+          reappears with "Devam Et". */}
+      {onExitToMenu && (
+        <button
+          className="hud-btn"
+          aria-label="Lobiye dön"
+          title="Lobiye dön"
+          onClick={onExitToMenu}
+          style={{ position: 'fixed', top: 12, right: 150, zIndex: 210 }}
+        >
+          🏠
+        </button>
+      )}
       <button
         className="hud-btn"
         aria-label="Skor Tabelası"
