@@ -3,21 +3,21 @@
 // already JWT-verified (index.ts), so socket.data.user is trusted here; we still
 // derive the acting SEAT server-side (never from the wire) inside the host.
 import type { Server as SocketServer } from 'socket.io'
-import { GameManager, type Emitter } from './game/manager.ts'
+import { GameManager, type Emitter, type ManagerAfk } from './game/manager.ts'
 import { validateIntent } from './game/intents.ts'
 
 type Ack = ((payload: unknown) => void) | undefined
 const ack = (cb: Ack, payload: unknown) => { if (typeof cb === 'function') cb(payload) }
 const room = (tableId: string) => `table:${tableId}`
 
-export function createSocketLayer(io: SocketServer, botDelayMs = 0): GameManager {
+export function createSocketLayer(io: SocketServer, botDelayMs = 0, afk: ManagerAfk = {}): GameManager {
   const userSockets = new Map<string, Set<string>>()
   const emitter: Emitter = {
     toUser(userId, event, payload) { for (const sid of userSockets.get(userId) ?? []) io.to(sid).emit(event, payload) },
     toTable(tableId, event, payload) { io.to(room(tableId)).emit(event, payload) },
     toAll(event, payload) { io.emit(event, payload) },
   }
-  const manager = new GameManager(emitter, botDelayMs)
+  const manager = new GameManager(emitter, botDelayMs, afk)
 
   io.on('connection', (socket) => {
     const userId = socket.data.user.sub as string
