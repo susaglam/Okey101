@@ -975,7 +975,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <h2>📊 Skor Tabelası</h2>
               <button className="modal-close" onClick={() => setShowScores(false)} aria-label="Kapat">Kapat</button>
             </div>
-            <ScoreTable history={history} standings={match.standings} names={[...SEAT_NAMES]} lowerWins={is101} />
+            <ScoreTable history={history} standings={match.standings} names={SEAT_NAMES.map((_, i) => seatName(i))} lowerWins={is101} />
           </div>
         </div>
       )}
@@ -1086,7 +1086,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
 
           <Scoreboard
             standings={match.standings}
-            names={[...SEAT_NAMES]}
+            names={SEAT_NAMES.map((_, i) => seatName(i))}
             handNo={match.handNo}
             totalHands={match.totalHands}
             lowerWins={is101}
