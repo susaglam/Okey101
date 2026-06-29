@@ -1,0 +1,29 @@
+# Coolify deploy for the CS Okey realtime server.
+# Build context is the repo root; the Dockerfile lives at packages/server/Dockerfile.
+# Set JWT_SECRET + ADMIN_PASSWORD as Coolify SECRET env vars (not here).
+services:
+  okey-server:
+    build:
+      context: ../..
+      dockerfile: packages/server/Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - CS_OKEY_DB=/data/cs-okey.sqlite
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://okey.codesnap.nl}
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - BCRYPT_COST=${BCRYPT_COST:-12}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      # PERSISTENT storage — mark it "Persistent" in Coolify so a redeploy keeps
+      # users/sessions/games. The .sqlite-wal/.sqlite-shm siblings land here too.
+      - okey-data:/data
+    # Coolify maps the public FQDN to this port; the proxy terminates TLS.
+    expose:
+      - '8787'
+    stop_grace_period: 30s
+
+volumes:
+  okey-data:

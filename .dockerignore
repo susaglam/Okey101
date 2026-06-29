@@ -19,3 +19,8 @@ npm-debug.log*
 scratchpad
 coverage
 **/coverage
+# Never bake a developer's local SQLite DB into the image (server writes to a volume).
+packages/server/data
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
