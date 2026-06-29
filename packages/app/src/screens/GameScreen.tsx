@@ -1057,19 +1057,6 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <option value="hard">Zor</option>
             </select>
           </label>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={settings.teamMode}
-              onChange={e => updateSettings({ teamMode: e.target.checked })}
-            />
-            Eşli mod (Sen + karşı)
-          </label>
-          {settings.teamMode !== (view.config.teamMode === true) && (
-            <span style={{ fontSize: 12, opacity: 0.7, marginTop: -4 }}>
-              ⓘ Eşli mod değişikliği sonraki oyunda geçerli olur.
-            </span>
-          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span>Bot isimleri:</span>
             {[0, 1, 2].map((i) => (

@@ -1,12 +1,13 @@
 // packages/app/src/adapter/LocalAdapter.ts
 import {
-  reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101, makeRng, deriveSeed, KLASIK, KLASIK_101, scoreHand, scoreHand101, okeyHeldPenalties,
+  reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101, makeRng, deriveSeed, scoreHand, scoreHand101, okeyHeldPenalties,
   type GameState, type GameEvent, type PlayerView, type VariantConfig,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
 import type { Adapter, LocalOptions, RejectionCode, Status } from './Adapter'
 import { applyHandScore, type MatchState, type HandRecord } from '../match'
-import { saveGame, clearGame, type SaveData, type VariantId } from '../persistence'
+import { saveGame, clearGame, saveMode, type SaveData } from '../persistence'
+import { configForMode, type GameMode } from '../modes'
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -19,6 +20,7 @@ export class LocalAdapter implements Adapter {
   private seed: number
   private readonly totalHands: number
   private variant: VariantConfig
+  private mode: GameMode
   private standings: number[]
   private scoredHandNo: number | null = null
   private history: HandRecord[] = []
@@ -31,8 +33,9 @@ export class LocalAdapter implements Adapter {
 
     if (opts.resumeFrom) {
       const rf = opts.resumeFrom
-      // Restore variant from saved variantId
-      this.variant = rf.variantId === 'yuzbir' ? KLASIK_101 : KLASIK
+      // Restore mode + its config (rebuilds teamMode for Eşli — never downgrades it).
+      this.mode = saveMode(rf)
+      this.variant = configForMode(this.mode)
       // totalHands from the restored variant (or opts override)
       this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
       // Restore state directly — no CreateGame/StartHand
@@ -45,7 +48,8 @@ export class LocalAdapter implements Adapter {
       // saves lack `seed`, but CreateGame stored it as state.rngSeed — use that.
       this.seed = rf.seed ?? this.state.rngSeed ?? opts.seed
     } else {
-      this.variant = opts.variant ?? KLASIK
+      this.mode = opts.mode ?? 'klasik'
+      this.variant = opts.variant ?? configForMode(this.mode)
       this.totalHands = opts.matchHands ?? this.variant.matchHands ?? 5
       this.standings = [0, 0, 0, 0]
       let s = reduce(null, { type: 'CreateGame', gameId: 'local', seed: opts.seed, config: this.variant })
@@ -67,14 +71,12 @@ export class LocalAdapter implements Adapter {
       : legalMovesKlasik(this.state, this.humanSeat)
   }
 
-  private get variantId(): VariantId {
-    return this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik'
-  }
-
   snapshot(): SaveData {
     return {
       version: this.version,
-      variantId: this.variantId,
+      mode: this.mode,
+      // Legacy field kept so an older build could still read the save's rules family.
+      variantId: this.variant.scoringModel === 'yuzbir-penalty' ? 'yuzbir' : 'klasik',
       state: JSON.parse(JSON.stringify(this.state)),
       standings: [...this.standings],
       scoredHandNo: this.scoredHandNo ?? 0,
@@ -160,7 +162,7 @@ export class LocalAdapter implements Adapter {
     this.settleIfEnded()
     this.viewCb?.(this.getHumanView())
     if (this.getMatch().over) {
-      clearGame(this.variantId)
+      clearGame(this.mode)
     } else {
       saveGame(this.snapshot())
     }

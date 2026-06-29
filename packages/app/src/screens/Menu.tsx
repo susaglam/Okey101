@@ -1,26 +1,23 @@
 import { useState } from 'react'
 import { loadSettings, saveSettings } from '../settings'
 import { applyTheme } from '../theme/themes'
-
-type Variant = 'klasik' | 'yuzbir'
+import { hasSavedGame } from '../persistence'
+import { MODES, MODE_ORDER, type GameMode } from '../modes'
 
 /**
- * Each variant is its own card: the big button starts a NEW game of that variant,
- * and (when a save exists) a "Devam Et" button under it resumes that variant's
- * own game. No separate OYNA button, no shared/ambiguous continue.
+ * Each MODE is its own card: the big button starts a NEW game of that mode, and
+ * (when a save exists) a "Devam Et" button under it resumes that mode's own game.
+ * Modes (incl. Eşli 101) come from the shared MODES table — adding a mode there
+ * adds a card here automatically.
  */
 export default function Menu({
   onStart,
   onHelp,
   onResume,
-  hasKlasikSave,
-  has101Save,
 }: {
-  onStart: (variant: Variant) => void
+  onStart: (mode: GameMode) => void
   onHelp: () => void
-  onResume: (variant: Variant) => void
-  hasKlasikSave: boolean
-  has101Save: boolean
+  onResume: (mode: GameMode) => void
 }) {
   const [theme, setTheme] = useState(() => loadSettings().theme)
 
@@ -32,31 +29,30 @@ export default function Menu({
     setTheme(next)
   }
 
-  const VariantCard = ({ variant, title, subtitle, hasSave }: {
-    variant: Variant; title: string; subtitle: string; hasSave: boolean
-  }) => (
-    <div className="variant-card">
-      <button className="variant-start" onClick={() => onStart(variant)}>
-        <strong>{title}</strong>
-        <span className="variant-sub">{subtitle}</span>
-        <span className="variant-cta">Yeni Oyun ▸</span>
-      </button>
-      {hasSave && (
-        <button className="variant-resume" onClick={() => onResume(variant)}>
-          ↻ Devam Et
-        </button>
-      )}
-    </div>
-  )
-
   return (
     <div className="menu">
       <h1>♣ CS OKEY</h1>
       <p style={{ opacity: 0.7, marginTop: -8, fontSize: 14 }}>Bir oyun seç ve başla</p>
 
       <div className="variant-cards" role="group" aria-label="Oyun çeşidi">
-        <VariantCard variant="klasik" title="Klasik" subtitle="Per + 7 çift" hasSave={hasKlasikSave} />
-        <VariantCard variant="yuzbir" title="101" subtitle="El açma ≥101" hasSave={has101Save} />
+        {MODE_ORDER.map((id) => {
+          const m = MODES[id]
+          const hasSave = hasSavedGame(id)
+          return (
+            <div className="variant-card" key={id}>
+              <button className="variant-start" onClick={() => onStart(id)}>
+                <strong>{m.title}</strong>
+                <span className="variant-sub">{m.subtitle}</span>
+                <span className="variant-cta">Yeni Oyun ▸</span>
+              </button>
+              {hasSave && (
+                <button className="variant-resume" onClick={() => onResume(id)}>
+                  ↻ Devam Et
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <button onClick={onHelp}>Nasıl Oynanır?</button>

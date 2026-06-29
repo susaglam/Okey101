@@ -1,9 +1,14 @@
 // packages/app/src/persistence.ts
 import type { HandRecord } from './match'
+import { resolveMode, type GameMode } from './modes'
 
 export interface SaveData {
   version: number
-  variantId: 'klasik' | 'yuzbir'
+  /** Game mode — the save-slot key AND the rules selector. Eşli 101 gets its own
+   *  slot distinct from plain 101 (they were colliding before). */
+  mode: GameMode
+  /** Legacy rules family, kept for back-compat with pre-mode saves. Optional. */
+  variantId?: 'klasik' | 'yuzbir'
   state: unknown
   standings: number[]
   scoredHandNo: number
@@ -17,22 +22,29 @@ export interface SaveData {
 
 export type VariantId = 'klasik' | 'yuzbir'
 
-// Saves are kept PER VARIANT so Klasik and 101 have independent "continue" slots.
-const saveKey = (v: VariantId) => `cs-okey-savegame-${v}`
+// One "continue" slot per mode. Klasik & 101 keep their original keys (the mode id
+// matches the old variantId), so existing saves load unchanged; Eşli 101 gets a new
+// slot. (The lobby will later key by tableId instead.)
+const saveKey = (mode: GameMode) => `cs-okey-savegame-${mode}`
+
+/** The mode a (possibly legacy) save belongs to: prefer `mode`, fall back to `variantId`. */
+export function saveMode(data: SaveData): GameMode {
+  return resolveMode(data.mode ?? data.variantId)
+}
 
 export function saveGame(data: SaveData): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(saveKey(data.variantId), JSON.stringify(data))
+    localStorage.setItem(saveKey(saveMode(data)), JSON.stringify(data))
   } catch {
     // Quota exceeded or other storage error — save is best-effort
   }
 }
 
-export function loadGame(variantId: VariantId): SaveData | null {
+export function loadGame(mode: GameMode): SaveData | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const raw = localStorage.getItem(saveKey(variantId))
+    const raw = localStorage.getItem(saveKey(mode))
     if (raw === null) return null
     const parsed = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
@@ -42,10 +54,10 @@ export function loadGame(variantId: VariantId): SaveData | null {
   }
 }
 
-export function clearGame(variantId: VariantId): void {
+export function clearGame(mode: GameMode): void {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.removeItem(saveKey(variantId))
+    localStorage.removeItem(saveKey(mode))
   } catch {
     // Best-effort
   }
@@ -85,10 +97,10 @@ export function isResumableSave(save: SaveData | null): boolean {
   return true
 }
 
-export function hasSavedGame(variantId: VariantId): boolean {
+export function hasSavedGame(mode: GameMode): boolean {
   if (typeof localStorage === 'undefined') return false
   try {
-    return localStorage.getItem(saveKey(variantId)) !== null
+    return localStorage.getItem(saveKey(mode)) !== null
   } catch {
     return false
   }

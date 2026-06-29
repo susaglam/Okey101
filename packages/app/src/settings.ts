@@ -6,8 +6,6 @@ export interface Settings {
   difficulty: 'easy' | 'medium' | 'hard'
   /** Display names for the 3 bots (seats 1, 2, 3). Seat 0 (you) is always "Sen". */
   botNames: [string, string, string]
-  /** Eşli (partnered) mode: 2 teams across the table (you+top vs the two sides). */
-  teamMode: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -17,7 +15,6 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   difficulty: 'medium',
   botNames: ['Mert', 'Can', 'Arda'],
-  teamMode: false,
 }
 
 const STORAGE_KEY = 'cs-okey-settings'
