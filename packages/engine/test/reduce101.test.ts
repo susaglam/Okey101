@@ -577,6 +577,24 @@ describe('TakeOkey', () => {
     expect(meld.some((t) => tilesEqual(t, okey))).toBe(false)
     expect(meld.some((t) => tilesEqual(t, tileFromString('7K')))).toBe(true)
   })
+
+  it('takes the okey at the END of a run (9-10-okey ⇒ okey=11) — the reported bug', () => {
+    // The okey sits after 10, so the display pins it to red-11; a real 11R must take it.
+    // (Previously rejected as "ambiguous" because 8R would also form a valid 8-9-10.)
+    const s = meldState([tileFromString('9R'), tileFromString('10R'), okey], 'run', ['11R', '9K'])
+    const s2 = reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('11R') })
+    const meld = s2.tableMelds![0]!.tiles
+    expect(meld.some((t) => tilesEqual(t, okey))).toBe(false)
+    expect(meld.some((t) => tilesEqual(t, tileFromString('11R')))).toBe(true)
+    expect(s2.players[0]!.rack.some((t) => tilesEqual(t, okey))).toBe(true)
+  })
+
+  it('rejects taking that end-of-run okey as the WRONG value (8 — it is pinned to 11)', () => {
+    const s = meldState([tileFromString('9R'), tileFromString('10R'), okey], 'run', ['8R', '9K'])
+    expect(() =>
+      reduce(s, { type: 'TakeOkey', seat: 0, meldIndex: 0, tile: tileFromString('8R') }),
+    ).toThrow(RuleError)
+  })
 })
 
 describe('RetractOpen — undo this turn’s open before discarding', () => {
