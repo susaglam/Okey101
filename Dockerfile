@@ -1,44 +1,32 @@
 # syntax=docker/dockerfile:1
+# CS Okey — production image: ONE Node service that serves the built SPA (online
+# build) AND the API + Socket.IO, same-origin. bookworm (glibc) for better-sqlite3.
+#   build context = repo root.
 
-# ──────────────────────────────────────────────────────────────────────────────
-# CS Okey — static SPA deploy image.
-#
-# The game is 100% client-side: the engine is pure/deterministic and the bots run
-# in the browser via LocalAdapter, so there is NO backend. We build the Vite app
-# in a Node stage and serve the static dist/ with nginx.
-# ──────────────────────────────────────────────────────────────────────────────
-
-# ── Build stage ───────────────────────────────────────────────────────────────
-FROM node:22-alpine AS build
+# ── build: install workspace deps + build the SPA in ONLINE mode ──────────────
+FROM node:22-bookworm AS build
 WORKDIR /app
-
-# Install workspace deps first so this layer is cached unless a manifest or the
-# lockfile changes. All three workspace package.json files are needed for npm to
-# wire up the workspace symlinks.
 COPY package.json package-lock.json ./
-COPY packages/app/package.json packages/app/package.json
-COPY packages/bot/package.json packages/bot/package.json
 COPY packages/engine/package.json packages/engine/package.json
+COPY packages/bot/package.json packages/bot/package.json
+COPY packages/app/package.json packages/app/package.json
+COPY packages/server/package.json packages/server/package.json
 RUN npm ci
-
-# Build the SPA. @cs-okey/engine and @cs-okey/bot are pure TS resolved from source
-# (their package "main" points at src/index.ts), so Vite bundles everything into
-# hashed static assets under packages/app/dist.
 COPY . .
-RUN npm run build -w @cs-okey/app
+# Same-origin: empty server URL → the SPA talks to its own host for /auth + socket.
+RUN VITE_ONLINE=1 VITE_SERVER_URL= npm run build -w @cs-okey/app
 
-# ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM nginx:1.27-alpine AS runtime
-
-# SPA routing + long-lived caching for hashed assets.
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/packages/app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
-# Healthcheck — Coolify uses this to validate the deployment (busybox wget ships
-# with nginx:alpine).
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1
-
-# nginx:alpine's base image already runs `nginx -g 'daemon off;'` in the foreground.
+# ── runtime ────────────────────────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production CS_OKEY_DB=/data/cs-okey.sqlite PORT=3000
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/packages ./packages
+RUN mkdir -p /data && chown -R node:node /data /app
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# The server serves packages/app/dist (built above) + /auth + /admin + /socket.io.
+CMD ["npx", "tsx", "packages/server/src/index.ts"]

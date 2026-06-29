@@ -44,7 +44,7 @@ import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
 import { StockPile } from '../components/StockPile'
 import { flyTile, animationsEnabled } from '../anim/fly'
-import { playSfx, setSoundEnabled } from '../anim/sound'
+import { playSfx, setSoundEnabled, type Sfx } from '../anim/sound'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
 import { CenterMelds } from '../components/CenterMelds'
@@ -60,6 +60,25 @@ import { SEAT_NAMES, seatName, setBotNames } from '../names'
 import { can, type CurrentUser } from '../auth'
 
 const COLS = 16
+
+// Seconds to read the hand result before the next hand auto-starts (mirrors the
+// LocalAdapter + server GameHost auto-next timer; this overlay only counts down).
+const AUTO_NEXT_SECONDS = 6
+
+/** Classify a discard for sound feedback: a cheeky laugh if the OKEY was thrown
+ *  away, a comic flop if an "işlek" (layable) tile was wasted, else a plain clack. */
+function discardSfxFor(tile: Tile, view: PlayerView): Sfx {
+  const okey = view.okey
+  if (okey && tilesEqual(tile, okey)) return 'laugh'
+  if (okey && isWorkableDiscard(tile, view.tableMelds, okey, view.config)) return 'funny'
+  return 'discard'
+}
+
+/** True when the hand was won by discarding the OKEY itself (a celebrated finish). */
+function isOkeyFinish(view: PlayerView): boolean {
+  return !!(view.okey && view.terminal?.reason === 'win' && view.terminal.finishingTile &&
+    tilesEqual(view.terminal.finishingTile, view.okey))
+}
 
 // Reddedilen hamleler için kullanıcı-dostu Türkçe mesajlar (toast).
 const REJECT_MSG: Record<RejectionCode, string> = {
@@ -95,6 +114,11 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const [showScores, setShowScores] = useState(false)
   const [history, setHistory] = useState<HandRecord[]>(() => adapter.getHistory())
   const [toast, setToast] = useState<string | null>(null)
+  // End-of-hand flow: a brief board-level "finish" celebration (the winning tile
+  // drops to the table centre + a Bravo banner) plays BEFORE the dark result
+  // overlay (endReady), and a countdown (nextIn) shows when the next hand begins.
+  const [endReady, setEndReady] = useState(false)
+  const [nextIn, setNextIn] = useState(AUTO_NEXT_SECONDS)
   // The tile currently being dragged — rendered in a <DragOverlay> portal so it
   // floats ABOVE the rack/table instead of being clipped by them.
   const [activeDrag, setActiveDrag] = useState<{ kind: 'rack' | 'stock' | 'floor'; tile?: Tile } | null>(null)
@@ -311,10 +335,10 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     // Fresh hand dealt.
     if (!firstRun && prev && prev.handNo !== view.handNo) { playSfx('deal'); return }
     if (firstRun || !prev || prev.handNo !== view.handNo) return
-    // Hand ended.
+    // Hand ended → applause for the whole table; a longer ovation for an okey-finish.
     if (!prev.terminal && view.terminal) {
-      const youWon = view.terminal.reason === 'win' && view.terminal.winnerSeat === view.seat
-      playSfx(youWon ? 'win' : 'lose')
+      if (view.terminal.reason === 'win') playSfx(isOkeyFinish(view) ? 'applauseLong' : 'applause')
+      else playSfx('lose') // draw / stock exhausted — no celebration
       return
     }
     // It just became the human's turn → priority cue (over the event that caused it).
@@ -330,14 +354,41 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       const b = prev.opponents.find((x) => x.seat === o.seat)
       return b != null && o.discardCount > b.discardCount
     })
-    const prevPen = (prev.penalties ?? []).reduce((a, b) => a + b, 0)
-    const pen = (view.penalties ?? []).reduce((a, b) => a + b, 0)
-    if (pen > prevPen) playSfx('penalty')           // işlek / okey-discard penalty applied
+    // A penalty just landed on an OPPONENT (our own discard SFX fires in
+    // discardFromSlot): laugh if they tossed the okey, comic flop for an işlek tile.
+    const prevPenArr = prev.penalties ?? []
+    const penArr = view.penalties ?? []
+    const penalisedOpp = view.opponents.find((o) => (penArr[o.seat] ?? 0) > (prevPenArr[o.seat] ?? 0))
+    if (penalisedOpp) {
+      const top = penalisedOpp.discardTop
+      playSfx(top && view.okey && tilesEqual(top, view.okey) ? 'laugh' : 'funny')
+    }
     else if (melds > prevMelds) playSfx('open')     // someone opened / laid a new meld
     else if (tiles > prevTiles) playSfx('layoff')   // someone laid onto a meld ("işle")
     else if (view.you.rack.length > prev.you.rack.length) playSfx('draw') // you drew
     else if (oppDiscarded) playSfx('discard')
   }, [view])
+
+  // End-of-hand orchestration. A WIN first shows the board celebration (the
+  // finishing tile dropping to the table centre + a Bravo banner) for a beat, THEN
+  // reveals the dark result overlay; a draw skips straight to it. Keyed on handNo so
+  // it re-arms every hand. The actual advance is driven by the adapter's auto-next
+  // timer (offline LocalAdapter / online GameHost) — this only sequences the visuals.
+  useEffect(() => {
+    if (view?.status !== 'ENDED') { setEndReady(false); return }
+    if (view.terminal?.reason !== 'win' || !animationsEnabled()) { setEndReady(true); return }
+    setEndReady(false)
+    const id = setTimeout(() => setEndReady(true), 1600)
+    return () => clearTimeout(id)
+  }, [view?.status, view?.handNo])
+
+  // Visual countdown to the next hand (resets each ended, non-final hand).
+  useEffect(() => {
+    if (view?.status !== 'ENDED' || match.over) return
+    setNextIn(AUTO_NEXT_SECONDS)
+    const id = setInterval(() => setNextIn((n) => (n > 0 ? n - 1 : 0)), 1000)
+    return () => clearInterval(id)
+  }, [view?.status, view?.handNo, match.over])
 
   if (!view) return null
 
@@ -532,6 +583,15 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     handResultLine = 'Berabere (stok bitti)'
   }
 
+  // Celebration banner shown on the felt as the hand finishes (before the overlay).
+  const okeyFinish = isOkeyFinish(view)
+  const finishWinnerSeat = view.terminal?.reason === 'win' ? view.terminal.winnerSeat : undefined
+  const finishBanner = okeyFinish
+    ? '👏 BRAVO! Okey ile bitirdi! 👏'
+    : finishWinnerSeat === view.seat
+      ? '🎉 Bitirdin!'
+      : finishWinnerSeat != null ? `🎉 ${seatName(finishWinnerSeat)} bitirdi!` : ''
+
   // Determine match winner. Direction depends on the scoring model:
   //  - 101 (yuzbir-penalty): negative = good, so the LOWEST total wins.
   //  - Klasik (points): the winner gains points, so the HIGHEST total wins.
@@ -598,7 +658,9 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
           // Roll the optimistic removal back from the authoritative rack.
           setLayout(reconcile(optimistic, view.you.rack))
         } else {
-          playSfx('discard') // immediate feedback for the human's own throw
+          // Immediate feedback for the human's own throw — a laugh if they just
+          // chucked the okey, a comic flop for an işlek tile, else a plain clack.
+          playSfx(discardSfxFor(tile, view))
         }
       })
   }
@@ -1104,6 +1166,38 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
         </div>
       )}
 
+      {/* Finish celebration: the winning tile drops to the table centre with a Bravo
+          banner, visible to every player. Rendered ABOVE the result overlay for a beat. */}
+      {view.status === 'ENDED' && !endReady && view.terminal?.reason === 'win' && (
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed', inset: 0, zIndex: 420, pointerEvents: 'none',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
+          }}
+        >
+          <style>{`
+            @keyframes okeyDrop{0%{transform:translateY(-240px) rotate(-14deg) scale(1.35);opacity:0}
+              55%{transform:translateY(14px) rotate(4deg) scale(1.06);opacity:1}
+              78%{transform:translateY(-8px) rotate(-2deg)}100%{transform:translateY(0) rotate(0) scale(1)}}
+            @keyframes bravoPop{0%{transform:scale(.4);opacity:0}55%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}
+          `}</style>
+          {view.terminal.finishingTile && (
+            <div style={{ animation: 'okeyDrop .9s cubic-bezier(.2,.85,.3,1) both', filter: 'drop-shadow(0 14px 20px rgba(0,0,0,.55))', transform: 'scale(1.4)' }}>
+              <TileView tile={view.terminal.finishingTile} plain testId="finish-tile" />
+            </div>
+          )}
+          <div style={{
+            animation: 'bravoPop .5s .45s ease-out both', marginTop: 10,
+            padding: '10px 26px', borderRadius: 14, fontWeight: 900, fontSize: okeyFinish ? 30 : 24,
+            color: '#3a2400', background: 'linear-gradient(180deg,#ffe07a,#f0b53e)',
+            boxShadow: '0 6px 0 #9a5e12, 0 10px 26px rgba(0,0,0,.5)', textAlign: 'center',
+          }}>
+            {finishBanner}
+          </div>
+        </div>
+      )}
+
       {view.status === 'ENDED' && (
         <div
           className="overlay"
@@ -1140,17 +1234,22 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
               </div>
             </div>
           ) : (
-            <button
-              onClick={handleNextHand}
-              style={{
-                fontSize: 17, padding: '10px 28px', cursor: 'pointer',
-                background: 'linear-gradient(180deg,#f0b53e,#d2811a)', color: '#3a2400',
-                fontWeight: 800, border: 'none', borderRadius: 10,
-                boxShadow: '0 3px 0 #9a5e12, 0 4px 10px rgba(0,0,0,.4)',
-              }}
-            >
-              Sonraki El ▸
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <p style={{ margin: 0, fontSize: 16, opacity: 0.9 }}>
+                Sonraki el <strong style={{ fontSize: 20, color: '#ffd700' }}>{nextIn}</strong> sn içinde başlıyor…
+              </p>
+              <button
+                onClick={handleNextHand}
+                style={{
+                  fontSize: 16, padding: '9px 24px', cursor: 'pointer',
+                  background: 'linear-gradient(180deg,#f0b53e,#d2811a)', color: '#3a2400',
+                  fontWeight: 800, border: 'none', borderRadius: 10,
+                  boxShadow: '0 3px 0 #9a5e12, 0 4px 10px rgba(0,0,0,.4)',
+                }}
+              >
+                Şimdi geç ▸
+              </button>
+            </div>
           )}
         </div>
       )}

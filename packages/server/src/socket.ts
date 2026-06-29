@@ -27,8 +27,8 @@ export function createSocketLayer(io: SocketServer, botDelayMs = 0, afk: Manager
     socket.emit('lobby:tables', manager.lobby())
     socket.on('lobby:list', (cb: Ack) => ack(cb, manager.lobby()))
 
-    socket.on('table:create', (payload: { mode?: unknown; name?: string; access?: unknown }, cb: Ack) => {
-      const r = manager.createTable(userId, { mode: payload?.mode, name: payload?.name, access: payload?.access as never })
+    socket.on('table:create', (payload: { mode?: unknown; name?: string; access?: unknown; config?: unknown }, cb: Ack) => {
+      const r = manager.createTable(userId, { mode: payload?.mode, name: payload?.name, access: payload?.access as never, config: payload?.config })
       if (r.ok) { void socket.join(room(r.table.id)); socket.data.tableId = r.table.id; manager.join(userId, r.table.id) }
       ack(cb, r.ok ? { ok: true, tableId: r.table.id } : { ok: false, error: r.error })
     })

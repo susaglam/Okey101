@@ -6,6 +6,10 @@ import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
+import staticPlugin from '@fastify/static'
+import { existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { ENGINE_NAME } from '@cs-okey/engine'
 import { db } from './db.ts'
 import { authRoutes } from './auth/routes.ts'
@@ -48,5 +52,20 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(authRoutes)
   await app.register(adminRoutes)
+
+  // Serve the built SPA from the SAME origin (so cookies/CORS are trivial) when a
+  // build exists (production image). Non-API GET routes fall back to index.html so
+  // client routing/reloads work. Skipped in dev/tests where there's no dist.
+  const SPA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../app/dist')
+  if (existsSync(SPA_DIR)) {
+    await app.register(staticPlugin, { root: SPA_DIR, wildcard: false })
+    const API_PREFIXES = ['/auth', '/admin', '/socket.io', '/health', '/ready']
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === 'GET' && !API_PREFIXES.some((p) => req.url.startsWith(p))) {
+        return reply.sendFile('index.html')
+      }
+      return reply.code(404).send({ error: 'not_found' })
+    })
+  }
   return app
 }

@@ -22,6 +22,8 @@ export interface HostOpts {
   mode: GameMode
   actors: SeatActor[]      // seat -> actor (length = config.players; all seats filled)
   seed?: number
+  /** Host-chosen number of hands for this match (overrides the mode default). */
+  matchHands?: number
   botDelayMs?: number
   onChange?: () => void    // called after each state change so the socket layer re-emits views
   onGameOver?: () => void
@@ -29,6 +31,8 @@ export interface HostOpts {
   afkAutoMoveMs?: number
   /** AFK: ms before a bot takes the seat over until the human reclaims (0 disables). */
   afkTakeoverMs?: number
+  /** Countdown (ms) after a hand ends before auto-starting the next (0 disables). */
+  autoNextMs?: number
   /** Notified when a seat's actor changes (e.g. AFK bot takeover) so the lobby updates. */
   onActorChange?: (seat: number, actor: SeatActor) => void
 }
@@ -57,11 +61,17 @@ export class GameHost {
   private readonly afkTakeoverMs: number
   private afkMoveTimer: ReturnType<typeof setTimeout> | null = null
   private afkTakeoverTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly autoNextMs: number
+  private autoNextTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(opts: HostOpts) {
     this.tableId = opts.tableId
     this.mode = opts.mode
     this.config = configForMode(opts.mode)
+    // Host may override the match length (1..20 hands); fall back to the mode default.
+    if (typeof opts.matchHands === 'number' && opts.matchHands >= 1) {
+      this.config = { ...this.config, matchHands: Math.min(20, Math.floor(opts.matchHands)) }
+    }
     this.actors = opts.actors
     this.seed = opts.seed ?? Math.floor(Math.random() * 0x7fffffff)
     this.totalHands = this.config.matchHands ?? 11
@@ -70,8 +80,9 @@ export class GameHost {
     this.onChange = opts.onChange ?? (() => {})
     this.onGameOver = opts.onGameOver ?? (() => {})
     this.onActorChange = opts.onActorChange ?? (() => {})
-    this.afkAutoMoveMs = opts.afkAutoMoveMs ?? 30_000
+    this.afkAutoMoveMs = opts.afkAutoMoveMs ?? 20_000
     this.afkTakeoverMs = opts.afkTakeoverMs ?? 90_000
+    this.autoNextMs = opts.autoNextMs ?? 6_000
   }
 
   /** Restore from a persisted games row (server restart). */
@@ -141,8 +152,9 @@ export class GameHost {
     return { ok: true }
   }
 
-  /** Start the next hand (host action, when the previous ended and the match isn't over). */
+  /** Start the next hand (auto after a countdown, or host action). */
   async nextHand(): Promise<void> {
+    if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null }
     if (this.matchOver || this.state.status !== 'ENDED') return
     this.state = reduce(this.state, { type: 'StartHand' })
     this.version++
@@ -177,6 +189,15 @@ export class GameHost {
       this.advancing = false
     }
     this.armAfk() // it's now a human's turn (or the game ended) — start the AFK clock
+    this.scheduleAutoNext() // hand ended (not match over) → auto-advance after a countdown
+  }
+
+  /** Auto-start the next hand after a short countdown so play flows without a manual click. */
+  private scheduleAutoNext(): void {
+    if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null }
+    if (this.autoNextMs > 0 && this.state.status === 'ENDED' && !this.matchOver) {
+      this.autoNextTimer = setTimeout(() => { void this.nextHand() }, this.autoNextMs)
+    }
   }
 
   // ── AFK: 30s safe auto-move (per turn), 90s bot takeover (continuous absence) ──
@@ -197,14 +218,14 @@ export class GameHost {
     if (this.afkTakeoverMs > 0 && !this.afkTakeoverTimer) this.afkTakeoverTimer = setTimeout(() => { void this.afkTakeover(seat) }, this.afkTakeoverMs)
   }
 
-  /** Play a full SAFE turn for an idle human (draw if needed + a non-işlek discard). */
+  /** Auto-play ONE phase for an idle human: draw from stock on DRAW, a safe non-işlek
+   *  discard on DISCARD. Each phase has its own turn-timer, so a draw and a discard
+   *  each get the full configured time (default 20s) before the system acts. */
   private async afkAutoMove(seat: number): Promise<void> {
     if (this.state.status !== 'PLAYING' || this.state.turn.seat !== seat) return
     try {
-      if (this.state.turn.phase === 'DRAW') { this.state = reduce(this.state, { type: 'DrawFromStock', seat }); this.version++ }
-      if (this.state.status === 'PLAYING' && this.state.turn.seat === seat && this.state.turn.phase === 'DISCARD') {
-        this.state = reduce(this.state, this.safeDiscard(seat)); this.version++
-      }
+      const ev = this.state.turn.phase === 'DRAW' ? { type: 'DrawFromStock', seat } as GameEvent : this.safeDiscard(seat)
+      this.state = reduce(this.state, ev); this.version++
     } catch { try { this.state = reduce(this.state, this.fallback(seat)); this.version++ } catch { /* stuck */ } }
     this.settleIfEnded(); this.persist(); this.onChange()
     await this.advance()
@@ -240,7 +261,7 @@ export class GameHost {
   }
 
   /** Stop all timers (table closed / server shutdown). */
-  dispose(): void { this.clearAfkAll() }
+  dispose(): void { this.clearAfkAll(); if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null } }
 
   /** A guaranteed-legal move so a bad bot move never stalls a seat. */
   private fallback(seat: number): GameEvent {

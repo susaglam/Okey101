@@ -1,53 +1,45 @@
 # =====================================================================
-# CS Okey — Coolify Production Compose
+# CS Okey — Coolify Production Compose (ONLINE / multiplayer)
 # =====================================================================
+# ONE Node service serves the built SPA (online build) + the API + Socket.IO,
+# same-origin. SQLite lives on a PERSISTENT volume so users/sessions/games survive
+# redeploys ("redeploy'da kullanıcılar ve ayarlar silinmesin").
 #
-# Kullanım (Coolify):
-#   1. Coolify Dashboard → + New Resource → Docker Compose Empty
-#      (veya Git Repository seç: github.com/susaglam/Okey101, branch master)
-#   2. Build Pack = Docker Compose
-#   3. Compose Path = docker-compose.coolify.yml  (repo seçildiyse otomatik bulunur)
-#   4. Deploy.
-#
-# Oyun TAMAMEN istemci taraflı (saf motor + tarayıcıda çalışan botlar) — backend,
-# veritabanı, environment değişkeni YOK. Coolify repo'yu pull eder, Dockerfile'dan
-# build alır (Vite → statik dosyalar) ve nginx ile :80'de sunar.
-#
-# Coolify magic:
-#   SERVICE_FQDN_OKEY_80 → public domain'i otomatik atar + HTTPS terminate eder.
-#                          "Domain" sekmesinden override edilebilir.
+# Coolify: Build Pack = Docker Compose, path = docker-compose.coolify.yml, branch main.
+# Set JWT_SECRET + ADMIN_PASSWORD as Coolify Environment Variables (Secret).
+# Coolify magic: SERVICE_FQDN_OKEY_3000 maps okey.codesnap.nl → container :3000 + TLS.
+# IMPORTANT: mark the `okey-data` volume as Persistent in Coolify.
 # =====================================================================
 
 services:
   okey:
-    # Coolify repo'yu pull edip Dockerfile'dan otomatik build eder.
-    # Auto-deploy açıksa her commit'te yeniden build + run.
     build:
       context: .
       dockerfile: Dockerfile
-
-    # Alternatif (advanced): registry'de hazır image kullanmak isterseniz üstteki
-    # `build` bloğunu kaldırıp aşağıyı açın (kendi GitHub hesabımız: susaglam).
-    # image: ${OKEY_IMAGE:-ghcr.io/susaglam/okey101:latest}
-
     restart: unless-stopped
-
-    # Coolify proxy bu port'a yönlenir; SERVICE_FQDN_OKEY_80 magic'i 80 → public
-    # domain map'ler ve HTTPS'i terminate eder.
     expose:
-      - "80"
-
+      - "3000"
     environment:
-      # Coolify domain magic — SERVICE_FQDN_<SERVICE>_<PORT> formatı.
-      - SERVICE_FQDN_OKEY_80
-
+      - SERVICE_FQDN_OKEY_3000
+      - NODE_ENV=production
+      - PORT=3000
+      - CS_OKEY_DB=/data/cs-okey.sqlite
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://okey.codesnap.nl}
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - BCRYPT_COST=${BCRYPT_COST:-12}
+      - BOT_DELAY_MS=${BOT_DELAY_MS:-600}
+    volumes:
+      # PERSISTENT — mark as Persistent Storage in Coolify so a redeploy keeps the DB.
+      - okey-data:/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
-
+      start_period: 20s
     labels:
-      # Coolify managed marker.
       - coolify.managed=true
+
+volumes:
+  okey-data:

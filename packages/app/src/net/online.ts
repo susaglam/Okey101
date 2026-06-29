@@ -47,7 +47,7 @@ export class OnlineClient {
   }
 
   lobbyList<T = unknown>() { return this.request<T>('lobby:list') }
-  createTable<T = unknown>(mode: string, name?: string, access?: unknown) { return this.request<T>('table:create', { mode, name, access }) }
+  createTable<T = unknown>(mode: string, name?: string, access?: unknown, config?: { matchHands?: number; turnSeconds?: number }) { return this.request<T>('table:create', { mode, name, access, config }) }
   joinTable<T = unknown>(tableId: string) { return this.request<T>('table:join', { tableId }) }
   sit<T = unknown>(tableId: string, seat: number) { return this.request<T>('table:sit', { tableId, seat }) }
   stand<T = unknown>(tableId: string) { return this.request<T>('table:stand', { tableId }) }

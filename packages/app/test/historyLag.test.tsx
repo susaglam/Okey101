@@ -37,8 +37,8 @@ describe.each([
     expect(a.getHumanView().status).toBe('ENDED')
     expect(a.getHistory().length).toBe(1)
 
-    // USER'S EXACT FLOW: click "Sonraki El" to deal hand 2, THEN open the modal.
-    const nextBtn = await screen.findByRole('button', { name: /sonraki el/i })
+    // USER'S EXACT FLOW: skip the countdown ("Şimdi geç") to deal hand 2, THEN open the modal.
+    const nextBtn = await screen.findByRole('button', { name: /şimdi geç/i })
     await act(async () => { fireEvent.click(nextBtn) })
 
     // Open the score modal (📊).

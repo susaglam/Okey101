@@ -75,6 +75,26 @@ function playNotes(notes: Note[]): void {
   }
 }
 
+/** A decaying white-noise burst — used for applause (oscillators can't do crowds). */
+function playNoise(dur: number, gain = 0.5, hp = 800): void {
+  const c = getCtx()
+  if (!c) return
+  const now = c.currentTime
+  const frames = Math.floor(c.sampleRate * dur)
+  const buf = c.createBuffer(1, frames, c.sampleRate)
+  const data = buf.getChannelData(0)
+  // Pseudo-random (deterministic-ish) noise; the engine forbids Math.random in the
+  // ENGINE but the client UI may use it freely.
+  for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames)
+  const src = c.createBufferSource(); src.buffer = buf
+  const filt = c.createBiquadFilter(); filt.type = 'highpass'; filt.frequency.value = hp
+  const g = c.createGain()
+  g.gain.setValueAtTime(Math.max(0.0001, gain * MASTER), now)
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur)
+  src.connect(filt).connect(g).connect(c.destination)
+  src.start(now); src.stop(now + dur + 0.05)
+}
+
 export type Sfx =
   | 'discard'   // a tile hits the floor
   | 'draw'      // pick a tile from stock / floor
@@ -87,6 +107,10 @@ export type Sfx =
   | 'deal'      // a fresh hand is dealt
   | 'penalty'   // a flat penalty was applied to someone (işlek / okey-discard)
   | 'error'     // an illegal move was rejected
+  | 'laugh'     // someone discarded the OKEY by mistake — a cheeky giggle
+  | 'funny'     // someone discarded an işlek tile — a comic slide
+  | 'applause'  // a player finished the hand
+  | 'applauseLong' // an okey-finish — longer applause + a "bravo" flourish
 
 /** Play a named sound effect (no-op when sound is disabled/unavailable). */
 export function playSfx(name: Sfx): void {
@@ -151,6 +175,33 @@ export function playSfx(name: Sfx): void {
       break
     case 'error':
       playNotes([{ freq: 150, start: 0, dur: 0.18, type: 'sawtooth', gain: 0.45 }])
+      break
+    case 'laugh':
+      // Cheeky "he-he-he" — bouncy descending blips.
+      playNotes([0, 1, 2, 3].map((i) => ({
+        freq: 720 - i * 70, start: i * 0.11, dur: 0.08, type: 'square' as OscillatorType, gain: 0.5,
+      })))
+      break
+    case 'funny':
+      // Comic slide-whistle: quick rise then a flop down.
+      playNotes([
+        { freq: 400, start: 0, dur: 0.07, type: 'triangle', gain: 0.6 },
+        { freq: 620, start: 0.06, dur: 0.07, type: 'triangle', gain: 0.6 },
+        { freq: 880, start: 0.12, dur: 0.07, type: 'triangle', gain: 0.6 },
+        { freq: 300, start: 0.20, dur: 0.18, type: 'triangle', gain: 0.6 },
+      ])
+      break
+    case 'applause':
+      playNoise(1.1, 0.6)
+      break
+    case 'applauseLong':
+      // Longer crowd + a rising "bravo!" triad on top.
+      playNoise(2.4, 0.7)
+      playNotes([
+        { freq: 659, start: 0.05, dur: 0.16 },
+        { freq: 880, start: 0.20, dur: 0.16 },
+        { freq: 1175, start: 0.36, dur: 0.34 },
+      ])
       break
   }
 }

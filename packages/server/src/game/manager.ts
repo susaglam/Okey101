@@ -7,7 +7,7 @@ import { getUserById, getGroup, publicUser } from '../repo.ts'
 import {
   createTable as dbCreateTable, getTable, listTables, saveTable, deleteTable,
   sit as sitSeat, stand as standSeat, fillWithBots, seatOf, humanCount,
-  type TableRecord, type TableAccess, type Seat,
+  type TableRecord, type TableAccess, type TableConfig, type Seat,
 } from '../tables/repo.ts'
 import { db } from '../db.ts'
 import { GameHost, type SeatActor } from './host.ts'
@@ -35,12 +35,28 @@ function publicSeat(s: Seat) {
 export function publicTable(t: TableRecord) {
   return {
     id: t.id, mode: t.mode, name: t.name, status: t.status,
-    access: t.access, hostUserId: t.hostUserId,
+    access: t.access, config: t.config, hostUserId: t.hostUserId,
     seats: t.seats.map(publicSeat), humanCount: humanCount(t),
   }
 }
 
-export interface ManagerAfk { autoMoveMs?: number; takeoverMs?: number }
+// Clamp the host's table settings to sane bounds (untrusted wire input).
+const TURN_MIN = 5, TURN_MAX = 120, HANDS_MIN = 1, HANDS_MAX = 20
+function sanitizeConfig(input: unknown): TableConfig {
+  const cfg: TableConfig = {}
+  if (input && typeof input === 'object') {
+    const o = input as Record<string, unknown>
+    if (typeof o.matchHands === 'number' && Number.isFinite(o.matchHands)) {
+      cfg.matchHands = Math.max(HANDS_MIN, Math.min(HANDS_MAX, Math.floor(o.matchHands)))
+    }
+    if (typeof o.turnSeconds === 'number' && Number.isFinite(o.turnSeconds)) {
+      cfg.turnSeconds = Math.max(TURN_MIN, Math.min(TURN_MAX, Math.floor(o.turnSeconds)))
+    }
+  }
+  return cfg
+}
+
+export interface ManagerAfk { autoMoveMs?: number; takeoverMs?: number; autoNextMs?: number }
 
 export class GameManager {
   private hosts = new Map<string, GameHost>()
@@ -60,12 +76,13 @@ export class GameManager {
   lobby(): ReturnType<typeof publicTable>[] { return listTables().map(publicTable) }
   pushLobby(): void { this.emit.toAll('lobby:tables', this.lobby()) }
 
-  createTable(userId: string, input: { mode: unknown; name?: string; access?: TableAccess }): { ok: true; table: TableRecord } | { ok: false; error: string } {
+  createTable(userId: string, input: { mode: unknown; name?: string; access?: TableAccess; config?: unknown }): { ok: true; table: TableRecord } | { ok: false; error: string } {
     if (!isGameMode(input.mode)) return { ok: false, error: 'Geçersiz mod.' }
     const mine = listTables().filter((t) => t.hostUserId === userId).length
     if (mine >= MAX_TABLES_PER_USER) return { ok: false, error: 'Çok fazla masa açtın.' }
     const name = (input.name?.trim() || `${input.mode} masası`).slice(0, 40)
-    const table = dbCreateTable({ hostUserId: userId, mode: input.mode as GameMode, name, access: input.access })
+    const config = sanitizeConfig(input.config)
+    const table = dbCreateTable({ hostUserId: userId, mode: input.mode as GameMode, name, access: input.access, config })
     sitSeat(table, 0, userId) // host takes seat 0 by default
     saveTable(table)
     this.pushLobby()
@@ -126,9 +143,12 @@ export class GameManager {
   private makeHost(t: TableRecord, restore = false): GameHost {
     const actors: SeatActor[] = t.seats.map((s) =>
       s.occupant?.kind === 'human' ? { kind: 'human', userId: s.occupant.userId } : { kind: 'bot' })
+    // Per-table turn time (host-chosen, default 20s) drives the AFK auto-move timer.
+    const turnMs = typeof t.config.turnSeconds === 'number' ? t.config.turnSeconds * 1000 : this.afk.autoMoveMs
     const host = new GameHost({
       tableId: t.id, mode: t.mode, actors, botDelayMs: this.botDelayMs,
-      afkAutoMoveMs: this.afk.autoMoveMs, afkTakeoverMs: this.afk.takeoverMs,
+      matchHands: t.config.matchHands,
+      afkAutoMoveMs: turnMs, afkTakeoverMs: this.afk.takeoverMs, autoNextMs: this.afk.autoNextMs,
       onChange: () => this.emitGameViews(t.id),
       onGameOver: () => this.emit.toTable(t.id, 'table:state', publicTable(getTable(t.id) ?? t)),
     })

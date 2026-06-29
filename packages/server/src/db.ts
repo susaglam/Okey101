@@ -49,9 +49,21 @@ export function db(): Database.Database {
   d.pragma('busy_timeout = 5000')       // wait instead of throwing SQLITE_BUSY under contention
   d.pragma('foreign_keys = ON')
   d.exec(SCHEMA)
+  migrate(d)
   seed(d)
   _db = d
   return d
+}
+
+/** Additive, idempotent migrations for DBs created by an earlier schema version.
+ *  CREATE TABLE IF NOT EXISTS never alters an existing table, so new columns must
+ *  be added here (guarded by a PRAGMA check so re-running is a no-op). */
+function migrate(d: Database.Database): void {
+  const cols = (table: string) =>
+    new Set((d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name))
+  const tableCols = cols('tables')
+  // per-table game config (matchHands, turnSeconds) — chosen by the host at creation.
+  if (!tableCols.has('config')) d.exec('ALTER TABLE tables ADD COLUMN config TEXT')
 }
 
 const SCHEMA = `
@@ -79,6 +91,7 @@ CREATE TABLE IF NOT EXISTS tables (
   access TEXT NOT NULL,
   status TEXT NOT NULL,
   seats TEXT NOT NULL,
+  config TEXT,
   created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS games (

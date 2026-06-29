@@ -29,7 +29,7 @@ let fe: ReturnType<typeof fakeEmitter>
 beforeEach(() => {
   _closeDbForTests(); db()
   fe = fakeEmitter()
-  mgr = new GameManager(fe.emitter, 0, { autoMoveMs: 0, takeoverMs: 0 }) // AFK off for flow tests
+  mgr = new GameManager(fe.emitter, 0, { autoMoveMs: 0, takeoverMs: 0, autoNextMs: 0 }) // AFK + auto-next off for flow tests
   seedUser('u-host', 'Host'); seedUser('u-2', 'Two'); seedUser('g-1', 'Misafir-1', 'guest')
 })
 const mkTable = (host = 'u-host', input: Record<string, unknown> = { mode: 'yuzbir' }): TableRec => {

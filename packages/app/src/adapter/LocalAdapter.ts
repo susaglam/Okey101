@@ -26,11 +26,14 @@ export class LocalAdapter implements Adapter {
   private scoredHandNo: number | null = null
   private history: HandRecord[] = []
   private readonly botDelayMs: number
+  private readonly autoNextMs: number
+  private autoNextTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(opts: LocalOptions) {
     this.humanSeat = opts.humanSeat
     this.seed = opts.seed
     this.botDelayMs = opts.botDelayMs ?? 0
+    this.autoNextMs = opts.autoNextMs ?? 6_000
 
     if (opts.resumeFrom) {
       const rf = opts.resumeFrom
@@ -105,7 +108,10 @@ export class LocalAdapter implements Adapter {
   }
 
   nextHand(): void {
-    if (this.getMatch().over) return
+    if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null }
+    // Guard: only a freshly-ENDED, non-final hand advances (idempotent vs the auto
+    // timer racing a manual "skip" press).
+    if (this.state.status !== 'ENDED' || this.getMatch().over) return
     this.state = reduce(this.state, { type: 'StartHand' })
     this.version++
     this.viewCb?.(this.getHumanView()) // show the fresh deal immediately
@@ -115,11 +121,25 @@ export class LocalAdapter implements Adapter {
     void this.advance()
   }
 
+  /** After a hand ends (and the match isn't over), auto-advance to the next hand
+   *  once the countdown elapses — mirrors the server's GameHost so offline and
+   *  online behave identically (GameScreen only renders the countdown). */
+  private scheduleAutoNext(): void {
+    if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null }
+    // Only when a UI is actually subscribed — keeps headless tests free of dangling timers.
+    if (this.viewCb && this.autoNextMs > 0 && this.state.status === 'ENDED' && !this.getMatch().over) {
+      this.autoNextTimer = setTimeout(() => { this.autoNextTimer = null; this.nextHand() }, this.autoNextMs)
+    }
+  }
+
   subscribe(onView: (v: PlayerView) => void, onStatus: (s: Status) => void): () => void {
     this.viewCb = onView; this.statusCb = onStatus
     onStatus('connected')
     onView(this.getHumanView())
-    return () => { this.viewCb = null; this.statusCb = null }
+    return () => {
+      this.viewCb = null; this.statusCb = null
+      if (this.autoNextTimer) { clearTimeout(this.autoNextTimer); this.autoNextTimer = null }
+    }
   }
 
   async dispatch(intent: GameEvent & { expectedVersion: number }): Promise<{ accepted: boolean; reason?: RejectionCode }> {
@@ -173,6 +193,7 @@ export class LocalAdapter implements Adapter {
       clearGame(this.tableId)
     } else {
       saveGame(this.snapshot())
+      this.scheduleAutoNext() // a non-final hand just ended → start the countdown
     }
   }
 

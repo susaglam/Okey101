@@ -85,6 +85,9 @@ function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void 
   const [tables, setTables] = useState<PublicTable[]>([])
   const [table, setTable] = useState<PublicTable | null>(null) // table we're in
   const [picking, setPicking] = useState(false)
+  // Host-chosen table settings (frozen at creation).
+  const [newHands, setNewHands] = useState(11)
+  const [newTurnSecs, setNewTurnSecs] = useState(20)
 
   useEffect(() => {
     let alive = true
@@ -163,12 +166,28 @@ function OnlineApp({ user, onLogout }: { user: ServerUser; onLogout: () => void 
       </div>
       {picking && (
         <div role="dialog" aria-label="Mod seç" onClick={() => setPicking(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--felt,#1c5e3a)', borderRadius: 14, padding: 22 }}>
-            <h2 style={{ marginTop: 0, fontSize: 18, textAlign: 'center' }}>Masa modunu seç</h2>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--felt,#1c5e3a)', borderRadius: 14, padding: 22, maxWidth: 440 }}>
+            <h2 style={{ marginTop: 0, fontSize: 18, textAlign: 'center' }}>Masa Ayarları</h2>
+            {/* Hands + turn time apply to the table being created (host-chosen). */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center', margin: '4px 0 16px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 700 }}>
+                Kaç el
+                <select value={newHands} onChange={(e) => setNewHands(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8 }}>
+                  {[1, 3, 5, 7, 11].map((n) => <option key={n} value={n}>{n} el</option>)}
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 700 }}>
+                Tur süresi
+                <select value={newTurnSecs} onChange={(e) => setNewTurnSecs(Number(e.target.value))} style={{ padding: '6px 10px', borderRadius: 8 }}>
+                  {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} sn</option>)}
+                </select>
+              </label>
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 15, textAlign: 'center', opacity: 0.85 }}>Mod seç ve aç</h3>
             <div className="variant-cards">
               {MODE_ORDER.map((id) => (
                 <div className="variant-card" key={id}>
-                  <button className="variant-start" onClick={() => { setPicking(false); void client.createTable(id, `${MODES[id].title} Masası`) }}>
+                  <button className="variant-start" onClick={() => { setPicking(false); void client.createTable(id, `${MODES[id].title} Masası`, undefined, { matchHands: newHands, turnSeconds: newTurnSecs }) }}>
                     <strong>{MODES[id].title}</strong><span className="variant-sub">{MODES[id].subtitle}</span><span className="variant-cta">Masa Aç ▸</span>
                   </button>
                 </div>

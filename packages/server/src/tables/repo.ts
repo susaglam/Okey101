@@ -14,6 +14,8 @@ export type SeatOccupant =
 export interface Seat { index: number; occupant: SeatOccupant; ready: boolean }
 export interface TableAccess { allowedGroups: string[] | null } // null = anyone (incl. guests)
 export type TableStatus = 'waiting' | 'playing' | 'ended'
+/** Host-chosen game settings, frozen at creation. */
+export interface TableConfig { matchHands?: number; turnSeconds?: number }
 
 export interface TableRecord {
   id: string
@@ -21,6 +23,7 @@ export interface TableRecord {
   mode: GameMode
   name: string
   access: TableAccess
+  config: TableConfig
   status: TableStatus
   seats: Seat[]
   createdAt: number
@@ -28,7 +31,7 @@ export interface TableRecord {
 
 interface TableRow {
   id: string; host_user_id: string | null; mode: string; name: string
-  access: string; status: string; seats: string; created_at: number
+  access: string; status: string; seats: string; config: string | null; created_at: number
 }
 
 const SEAT_COUNT = 4
@@ -38,6 +41,7 @@ function toRecord(r: TableRow): TableRecord {
   return {
     id: r.id, hostUserId: r.host_user_id, mode: r.mode as GameMode, name: r.name,
     access: safeJson<TableAccess>(r.access, { allowedGroups: null }),
+    config: r.config ? safeJson<TableConfig>(r.config, {}) : {},
     status: r.status as TableStatus,
     seats: safeJson<Seat[]>(r.seats, emptySeats()),
     createdAt: r.created_at,
@@ -45,13 +49,14 @@ function toRecord(r: TableRow): TableRecord {
 }
 function safeJson<T>(s: string, fallback: T): T { try { return JSON.parse(s) as T } catch { return fallback } }
 
-export function createTable(input: { hostUserId: string; mode: GameMode; name: string; access?: TableAccess }): TableRecord {
+export function createTable(input: { hostUserId: string; mode: GameMode; name: string; access?: TableAccess; config?: TableConfig }): TableRecord {
   const rec: TableRecord = {
     id: 't-' + randomUUID().slice(0, 8),
     hostUserId: input.hostUserId,
     mode: input.mode,
     name: input.name,
     access: input.access ?? { allowedGroups: null },
+    config: input.config ?? {},
     status: 'waiting',
     seats: emptySeats(),
     createdAt: Date.now(),
@@ -62,12 +67,13 @@ export function createTable(input: { hostUserId: string; mode: GameMode; name: s
 
 export function saveTable(t: TableRecord): void {
   db().prepare(
-    `INSERT INTO tables (id, host_user_id, mode, name, access, status, seats, created_at)
-     VALUES (@id, @host, @mode, @name, @access, @status, @seats, @created)
-     ON CONFLICT(id) DO UPDATE SET host_user_id=@host, mode=@mode, name=@name, access=@access, status=@status, seats=@seats`,
+    `INSERT INTO tables (id, host_user_id, mode, name, access, status, seats, config, created_at)
+     VALUES (@id, @host, @mode, @name, @access, @status, @seats, @config, @created)
+     ON CONFLICT(id) DO UPDATE SET host_user_id=@host, mode=@mode, name=@name, access=@access, status=@status, seats=@seats, config=@config`,
   ).run({
     id: t.id, host: t.hostUserId, mode: t.mode, name: t.name,
-    access: JSON.stringify(t.access), status: t.status, seats: JSON.stringify(t.seats), created: t.createdAt,
+    access: JSON.stringify(t.access), status: t.status, seats: JSON.stringify(t.seats),
+    config: JSON.stringify(t.config ?? {}), created: t.createdAt,
   })
 }
 
