@@ -19,6 +19,14 @@ export interface VariantConfig {
   mustRetainFinishingTile?: boolean
   matchHands?: number
   scoringModel?: 'klasik-flat' | 'yuzbir-penalty'
+  /**
+   * Eşli (partnered) mode: 4 players in 2 fixed across-the-table teams (seats 0&2
+   * vs 1&3). Each player still records their own penalties, but scores are summed
+   * by team and the match winner is the team with the best combined total. When a
+   * player finishes, their partner's leftover (base) score is WAIVED — only flat
+   * penalties stick (see scoreHand101). Default off.
+   */
+  teamMode?: boolean
 }
 
 export const KLASIK: VariantConfig = {

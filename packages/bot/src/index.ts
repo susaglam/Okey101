@@ -23,6 +23,13 @@ export function decide(view: PlayerView, legal: GameEvent['type'][], rng: () => 
 
   if (view.config.requiresOpening) {
     // ── 101 branch ──────────────────────────────────────────────────────────────
+    // Eşli (team) mode note: no special-casing is needed here. Under karşılıklı
+    // seating a player's adjacent neighbours (the only ones it feeds via a discard,
+    // or takes a floor tile from) are ALWAYS opponents — a bot can never feed or
+    // penalise its partner. Helping a partner (laying off onto their per/çift) is
+    // already supported: findLayOff scans every table meld regardless of owner.
+    // And finishing helps the team (it waives the partner's leftover), which the
+    // bot already prioritises via DeclareWin below.
     const okey = view.okey!
 
     // 0. Floor-take obligation: if we took the floor this turn (and aren't the exempt

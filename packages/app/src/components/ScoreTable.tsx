@@ -24,15 +24,20 @@ function goodColor(delta: number, lowerWins?: boolean): string {
  * that seat's net score for the hand plus any flat penalties (by type). A footer
  * row shows the running match totals.
  */
-export function ScoreTable({ history, standings, names, lowerWins }: {
+export function ScoreTable({ history, standings, names, lowerWins, teamMode }: {
   history: HandRecord[]
   standings: number[]
   names: string[]
   /** 101: a NEGATIVE delta is good (finisher credit), positive is a penalty —
    *  flip the green/red so green always means "good for that seat". */
   lowerWins?: boolean
+  /** Eşli mode: add a combined team-total footer row (seats 0&2 vs 1&3). */
+  teamMode?: boolean
 }) {
   const seats = standings.map((_, i) => i)
+  // Each seat's combined team total (its score + its partner's), shown in the
+  // team-total footer row. Partners sit across the table: seat ⊕ 2.
+  const teamTotalFor = (s: number) => (standings[s] ?? 0) + (standings[(s + 2) % seats.length] ?? 0)
   const th: React.CSSProperties = { padding: '6px 10px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.25)' }
   const td: React.CSSProperties = { padding: '6px 10px', textAlign: 'center', verticalAlign: 'top' }
 
@@ -83,6 +88,16 @@ export function ScoreTable({ history, standings, names, lowerWins }: {
                 </td>
               ))}
             </tr>
+            {teamMode && (
+              <tr>
+                <td style={{ ...td, textAlign: 'left', fontWeight: 800, opacity: 0.85 }}>Takım</td>
+                {seats.map((s) => (
+                  <td key={s} style={{ ...td, fontWeight: 800, fontSize: 15, color: '#9ad0ff' }}>
+                    {teamTotalFor(s)}
+                  </td>
+                ))}
+              </tr>
+            )}
           </tfoot>
         </table>
       )}

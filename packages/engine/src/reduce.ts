@@ -1,6 +1,6 @@
 import type { GameEvent } from './events'
 import type { GameState, PlayerState, TurnState, OpenSnapshot } from './state'
-import { nextSeat, leftSeat } from './state'
+import { nextSeat, leftSeat, partnerOf } from './state'
 import type { Tile } from './tile'
 import { tilesEqual } from './tile'
 import { buildDeck } from './deck'
@@ -482,8 +482,11 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       const deferredFed = player.pendingIslekSeat
       if (wasFirstOpen && (tookFloorNow || deferredFed != null)) {
         const fedSeat = tookFloorNow ? leftSeat(event.seat, cfg.players) : deferredFed!
+        // Eşli mode: partners never make each other eat penalties. Under karşılıklı
+        // seating the feeder is always an opponent, so this is belt-and-braces.
+        const partnerFed = cfg.teamMode === true && fedSeat === partnerOf(event.seat, cfg.players)
         const already = penaltiesApplied.some((x) => x.seat === fedSeat && x.type === 'islek')
-        if (!already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
+        if (!partnerFed && !already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
       }
 
       // Snapshot the pre-action state on the FIRST board action of the turn (here:

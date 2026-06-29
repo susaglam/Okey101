@@ -1,4 +1,5 @@
 import type { GameState } from '../state'
+import { partnerOf, teamOf } from '../state'
 import type { Tile } from '../tile'
 import { tilesEqual } from '../tile'
 
@@ -149,6 +150,15 @@ export function scoreHand101(state: GameState): number[] {
     }
   }
 
+  // Eşli (team) mode — partner waiver: when a player finishes, their PARTNER's
+  // leftover (base) score is waived ("eşi bittiği için sayıları sayılmaz"). This
+  // zeroes ONLY the base computed above; flat penalties below still stick
+  // ("cezalar hariç, cezalar aynen devam eder"). The finisher keeps their credit.
+  if (state.config.teamMode === true && hasFinisher) {
+    const partner = partnerOf(winnerSeat, n)
+    if (partner !== winnerSeat) deltas[partner] = 0
+  }
+
   // Apply flat penalties (NOT multiplied by anything).
   const penalties = state.penaltiesApplied ?? []
   for (const { seat } of penalties) {
@@ -165,4 +175,20 @@ export function scoreHand101(state: GameState): number[] {
   }
 
   return deltas
+}
+
+/**
+ * Aggregate a per-seat score array into the two eşli-mode team totals
+ * [team0 (seats 0,2…), team1 (seats 1,3…)]. Works on a single hand's deltas OR on
+ * cumulative match standings. Each player still keeps their own row; this is only
+ * the combined figure the score table and match winner use in team mode.
+ */
+export function teamScores(perSeat: number[]): [number, number] {
+  let team0 = 0
+  let team1 = 0
+  perSeat.forEach((v, seat) => {
+    if (teamOf(seat) === 0) team0 += v
+    else team1 += v
+  })
+  return [team0, team1]
 }

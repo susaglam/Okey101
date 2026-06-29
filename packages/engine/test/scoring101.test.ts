@@ -1,6 +1,6 @@
 // packages/engine/test/scoring101.test.ts
 import { describe, it, expect } from 'vitest'
-import { scoreHand101, okeyHeldPenalties } from '../src/scoring/yuzbir'
+import { scoreHand101, okeyHeldPenalties, teamScores } from '../src/scoring/yuzbir'
 import type { GameState } from '../src/state'
 import { KLASIK_101 } from '../src/config'
 import { tileFromString } from '../src/tile'
@@ -622,5 +622,103 @@ describe('exhaustion — no finisher credit', () => {
     })
     const deltas = scoreHand101(s)
     expect(deltas[0]).toBe(111)
+  })
+})
+
+// ── Eşli (team) mode — partner waiver + team aggregation ───────────────────────
+
+describe('eşli (team) mode — winner waives their partner’s leftover', () => {
+  const TEAM = { ...KLASIK_101, teamMode: true }
+
+  it('winner seat 0 → partner (seat 2) pays NOTHING for leftover; opponents pay normally', () => {
+    const s = endedState({
+      config: TEAM,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },                                              // 0 winner → −101
+        { rack: h('5R', '6R', '7R', '8R', '9R'), hasOpened: true },// 1 opponent → 35
+        { rack: h('5R', '6R', '7R', '8R', '9R'), hasOpened: true },// 2 PARTNER → waived 0
+        { rack: [], hasOpened: false },                            // 3 opponent → 202
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[0]).toBe(-101)
+    expect(deltas[1]).toBe(35)
+    expect(deltas[2]).toBe(0)   // partner's 35 waived
+    expect(deltas[3]).toBe(202)
+  })
+
+  it('a never-opened partner is also fully waived', () => {
+    const s = endedState({
+      config: TEAM,
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: [], hasOpened: false },  // 1 opponent → 202
+        { rack: [], hasOpened: false },  // 2 PARTNER never opened → waived 0 (not 202)
+        { rack: [], hasOpened: false },  // 3 opponent → 202
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[2]).toBe(0)
+    expect(deltas[1]).toBe(202)
+    expect(deltas[3]).toBe(202)
+  })
+
+  it('the partner’s FLAT penalties still stick (only the leftover is waived)', () => {
+    const okey = tileFromString('7M')
+    const s = endedState({
+      config: TEAM,
+      okey,
+      penaltiesApplied: [{ seat: 2, type: 'islek-discard' }],
+      terminal: { reason: 'win', winnerSeat: 0, winType: 'perOnly' },
+      players: [
+        { rack: [] },
+        { rack: [], hasOpened: false },
+        { rack: [tileFromString('5R'), okey], hasOpened: true }, // 2 PARTNER: 5 + okey-held + işlek
+        { rack: [], hasOpened: false },
+      ],
+    })
+    const deltas = scoreHand101(s)
+    // leftover (5) waived → 0; but flat işlek (+101) and okey-held (+101) remain.
+    expect(deltas[2]).toBe(202)
+  })
+
+  it('opponent team finishing waives ITS partner, not ours', () => {
+    const s = endedState({
+      config: TEAM,
+      terminal: { reason: 'win', winnerSeat: 1, winType: 'perOnly' }, // seat 1 wins → partner 3 waived
+      players: [
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 0 (our team) → 18
+        { rack: [] },                                    // 1 winner → −101
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 2 (our team) → 18
+        { rack: h('5R', '6R', '7R'), hasOpened: true }, // 3 PARTNER of winner → waived 0
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas[1]).toBe(-101)
+    expect(deltas[3]).toBe(0)
+    expect(deltas[0]).toBe(18)
+    expect(deltas[2]).toBe(18)
+  })
+
+  it('NO waiver on exhaustion (nobody finished) — every leftover counts', () => {
+    const s = endedState({
+      config: TEAM,
+      terminal: { reason: 'exhausted' },
+      players: [
+        { rack: h('5R', '5M'), hasOpened: true }, // 10
+        { rack: h('5R', '7R'), hasOpened: true },  // 12
+        { rack: h('5R', '6R'), hasOpened: true },  // 11
+        { rack: [], hasOpened: false },            // 202
+      ],
+    })
+    const deltas = scoreHand101(s)
+    expect(deltas).toEqual([10, 12, 11, 202])
+  })
+
+  it('teamScores sums seats 0,2 vs 1,3', () => {
+    expect(teamScores([-101, 35, 0, 202])).toEqual([-101, 237])
+    expect(teamScores([18, -101, 18, 0])).toEqual([36, -101])
   })
 })

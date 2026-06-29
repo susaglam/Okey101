@@ -80,3 +80,17 @@ export function nextSeat(seat: number, players: number): number {
 export function leftSeat(seat: number, players: number): number {
   return (seat - 1 + players) % players
 }
+
+/**
+ * Eşli (team) mode — fixed karşılıklı (across-the-table) partnership: seats 0 & 2
+ * are one team, 1 & 3 the other. The partner sits opposite (seat + 2), so a player's
+ * adjacent neighbours (the feeder/taker of a floor tile) are ALWAYS opponents.
+ */
+export function partnerOf(seat: number, players: number): number {
+  return (seat + Math.floor(players / 2)) % players
+}
+
+/** Team id (0 or 1) for `seat` — even seats vs odd seats. */
+export function teamOf(seat: number): number {
+  return seat % 2
+}

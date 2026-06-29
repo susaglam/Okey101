@@ -525,9 +525,19 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
   // Determine match winner. Direction depends on the scoring model:
   //  - 101 (yuzbir-penalty): negative = good, so the LOWEST total wins.
   //  - Klasik (points): the winner gains points, so the HIGHEST total wins.
-  const bestStanding = is101 ? Math.min(...match.standings) : Math.max(...match.standings)
-  const matchWinnerSeat = match.standings.indexOf(bestStanding)
-  const matchWinnerName = seatName(matchWinnerSeat)
+  // In eşli mode the winner is the TEAM (seats 0&2 vs 1&3) with the best combined total.
+  const isTeamMode = view.config.teamMode === true
+  let matchWinnerName: string
+  if (isTeamMode) {
+    const t0 = (match.standings[0] ?? 0) + (match.standings[2] ?? 0)
+    const t1 = (match.standings[1] ?? 0) + (match.standings[3] ?? 0)
+    const team0Wins = is101 ? t0 <= t1 : t0 >= t1
+    const winners = team0Wins ? [0, 2] : [1, 3]
+    matchWinnerName = `${team0Wins ? 1 : 2}. Takım (${winners.map(seatName).join(' + ')})`
+  } else {
+    const bestStanding = is101 ? Math.min(...match.standings) : Math.max(...match.standings)
+    matchWinnerName = seatName(match.standings.indexOf(bestStanding))
+  }
 
   const handleTakeDiscard = () => {
     send({ type: 'DrawFromDiscard', seat: view.seat })
@@ -975,7 +985,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <h2>📊 Skor Tabelası</h2>
               <button className="modal-close" onClick={() => setShowScores(false)} aria-label="Kapat">Kapat</button>
             </div>
-            <ScoreTable history={history} standings={match.standings} names={SEAT_NAMES.map((_, i) => seatName(i))} lowerWins={is101} />
+            <ScoreTable history={history} standings={match.standings} names={SEAT_NAMES.map((_, i) => seatName(i))} lowerWins={is101} teamMode={isTeamMode} />
           </div>
         </div>
       )}
@@ -1047,6 +1057,19 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
               <option value="hard">Zor</option>
             </select>
           </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={settings.teamMode}
+              onChange={e => updateSettings({ teamMode: e.target.checked })}
+            />
+            Eşli mod (Sen + karşı)
+          </label>
+          {settings.teamMode !== (view.config.teamMode === true) && (
+            <span style={{ fontSize: 12, opacity: 0.7, marginTop: -4 }}>
+              ⓘ Eşli mod değişikliği sonraki oyunda geçerli olur.
+            </span>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span>Bot isimleri:</span>
             {[0, 1, 2].map((i) => (
@@ -1090,6 +1113,7 @@ export default function GameScreen({ adapter, onExitToMenu, onRestart, isResumed
             handNo={match.handNo}
             totalHands={match.totalHands}
             lowerWins={is101}
+            teamMode={isTeamMode}
           />
 
           {match.over ? (

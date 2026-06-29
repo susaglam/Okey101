@@ -6,6 +6,7 @@ import { LocalAdapter } from './adapter/LocalAdapter'
 import { KLASIK, KLASIK_101 } from '@cs-okey/engine'
 import { clearGame, loadGame, isResumableSave, hasSavedGame } from './persistence'
 import type { SaveData } from './persistence'
+import { loadSettings } from './settings'
 
 type View = 'menu' | 'game' | 'help'
 type Variant = 'klasik' | 'yuzbir'
@@ -29,7 +30,11 @@ export default function App() {
       // seed is restored from the snapshot (rf.seed ?? state.rngSeed) inside LocalAdapter.
       return new LocalAdapter({ seed: gameSeed, humanSeat: 0, resumeFrom: pendingResume, botDelayMs })
     }
-    return new LocalAdapter({ seed: gameSeed, humanSeat: 0, variant: variantId === 'yuzbir' ? KLASIK_101 : KLASIK, botDelayMs })
+    // Bake the current Eşli-mode preference into the variant config at game start
+    // (changing the setting only affects the NEXT new game; resumes keep their own).
+    const teamMode = loadSettings().teamMode
+    const base = variantId === 'yuzbir' ? KLASIK_101 : KLASIK
+    return new LocalAdapter({ seed: gameSeed, humanSeat: 0, variant: { ...base, teamMode }, botDelayMs })
   }, [gameKey, variantId, pendingResume, gameSeed])
 
   const handleStart = (v: Variant) => {
