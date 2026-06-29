@@ -42,9 +42,13 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (username.trim().length < 2) return reply.code(400).send({ error: 'Kullanıcı adı en az 2 karakter.' })
     if (usernameTaken(username.trim())) return reply.code(400).send({ error: 'Bu kullanıcı adı zaten alınmış.' })
     if (!getGroup(groupId)) return reply.code(400).send({ error: 'Geçersiz grup.' })
+    // No predictable default password: if the admin didn't supply a strong one,
+    // mint a random one-time password and return it ONCE so it can't be guessed.
+    const provided = typeof password === 'string' && password.length >= 6
+    const pw = provided ? password : randomBytes(12).toString('base64url')
     const id = 'u-' + randomBytes(8).toString('hex')
-    insertUser({ id, username: username.trim(), email: email?.trim() || undefined, passwordHash: bcrypt.hashSync(password || 'okey', COST), groupId })
-    return { user: publicUser(getUserById(id)!) }
+    insertUser({ id, username: username.trim(), email: email?.trim() || undefined, passwordHash: bcrypt.hashSync(pw, COST), groupId })
+    return { user: publicUser(getUserById(id)!), tempPassword: provided ? undefined : pw }
   })
 
   app.patch('/admin/users/:id', async (req, reply) => {

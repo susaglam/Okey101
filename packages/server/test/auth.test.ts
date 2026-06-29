@@ -124,6 +124,23 @@ describe('admin API gating', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json().group.features.hint).toBe(true)
   })
+
+  it('admin-created user without a password gets a random one-time password (no fixed default)', async () => {
+    const adminTok = (await app.inject({ method: 'POST', url: '/auth/login', payload: { username: 'admin', password: 'admin' } })).json().accessToken
+    const res = await app.inject({
+      method: 'POST', url: '/admin/users',
+      headers: { authorization: `Bearer ${adminTok}` },
+      payload: { username: 'Yenikullanici', groupId: 'normal' },
+    })
+    expect(res.statusCode).toBe(200)
+    const { tempPassword } = res.json()
+    expect(typeof tempPassword).toBe('string')
+    expect(tempPassword.length).toBeGreaterThanOrEqual(12)
+    expect(tempPassword).not.toBe('okey')
+    // the minted password works; the old fixed default does NOT
+    expect((await app.inject({ method: 'POST', url: '/auth/login', payload: { username: 'Yenikullanici', password: tempPassword } })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'POST', url: '/auth/login', payload: { username: 'Yenikullanici', password: 'okey' } })).statusCode).toBe(401)
+  })
 })
 
 describe('sessions reuse-detection (unit)', () => {
