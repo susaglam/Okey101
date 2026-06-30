@@ -49,6 +49,7 @@ import { flyTile, animationsEnabled } from '../anim/fly'
 import { playSfx, setSoundEnabled, type Sfx } from '../anim/sound'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
+import { PenaltyLog, type PenaltyEvent } from '../components/PenaltyLog'
 import { CenterMelds } from '../components/CenterMelds'
 import type { HandRecord } from '../match'
 import { HelpContent } from './HelpContent'
@@ -114,6 +115,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showScores, setShowScores] = useState(false)
+  const [showPenalties, setShowPenalties] = useState(false)
   const [history, setHistory] = useState<HandRecord[]>(() => adapter.getHistory())
   const [toast, setToast] = useState<string | null>(null)
   // End-of-hand flow: a brief board-level "finish" celebration (the winning tile
@@ -580,6 +582,18 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     return keys
   })()
 
+  // Penalty audit log: every penalty-point event across the match — past hands from the
+  // score history, plus the CURRENT hand live from the view (unless it's already been
+  // recorded, to avoid double-counting the moment a hand ends).
+  const penaltyEvents: PenaltyEvent[] = (() => {
+    const out: PenaltyEvent[] = []
+    for (const h of history) for (const p of h.penalties) out.push({ seat: p.seat, type: p.type, tile: p.tile, handNo: h.handNo })
+    if (!history.some((h) => h.handNo === view.handNo)) {
+      for (const p of (view.penaltyLog ?? [])) out.push({ seat: p.seat, type: p.type, tile: p.tile, handNo: view.handNo })
+    }
+    return out
+  })()
+
   // Determine hand result text
   let handResultLine: string
   if (view.terminal?.reason === 'win') {
@@ -965,9 +979,13 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             <span style={{ background: 'linear-gradient(180deg, #fbf6ea, #e8dcc4)', color: '#5a4420', borderRadius: 7, padding: '2px 8px', fontSize: 12, fontWeight: 800, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 1px rgba(0,0,0,0.25)' }}>{view.you.rack.length}</span>
             <span style={{ background: 'rgba(0,0,0,.42)', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 800, color: '#ffd27a', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.3)' }}>{standingsForSeat}</span>
             {(view.penalties?.[view.seat] ?? 0) > 0 && (
-              <span title={`${view.penalties![view.seat]} ceza (×101)`} style={{ background: 'rgba(200,40,40,.92)', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 11, fontWeight: 800 }}>
+              <button
+                onClick={() => { setHistory(adapter.getHistory()); setShowPenalties(true) }}
+                title="Ceza detayları"
+                style={{ background: 'rgba(200,40,40,.92)', color: '#fff', borderRadius: 8, padding: '2px 7px', fontSize: 11, fontWeight: 800, border: 'none', cursor: 'pointer' }}
+              >
                 ⚠{view.penalties![view.seat]}
-              </span>
+              </button>
             )}
           </div>
         </div>
@@ -1032,6 +1050,15 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       )}
       <button
         className="hud-btn"
+        aria-label="Ceza Kaydı"
+        title="Ceza Kaydı"
+        onClick={() => { setHistory(adapter.getHistory()); setShowPenalties(true) }}
+        style={{ position: 'fixed', top: 12, right: 196, zIndex: 210 }}
+      >
+        ⚠
+      </button>
+      <button
+        className="hud-btn"
         aria-label="Skor Tabelası"
         title="Skor Tabelası"
         onClick={() => { setHistory(adapter.getHistory()); setShowScores(true) }}
@@ -1057,6 +1084,10 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       >
         ⚙
       </button>
+
+      {showPenalties && (
+        <PenaltyLog events={penaltyEvents} names={SEAT_NAMES.map((_, i) => seatName(i))} onClose={() => setShowPenalties(false)} />
+      )}
 
       {showHelp && (
         <div

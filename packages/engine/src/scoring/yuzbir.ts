@@ -1,4 +1,4 @@
-import type { GameState } from '../state'
+import type { GameState, PenaltyEntry } from '../state'
 import { partnerOf, teamOf } from '../state'
 import type { Tile } from '../tile'
 import { tilesEqual } from '../tile'
@@ -37,18 +37,18 @@ function leftoverSum(rack: Tile[], okey: Tile | undefined): number {
  * Exposed so the score table can show it as a distinct line, and so scoreHand101
  * and the match history agree.
  */
-export function okeyHeldPenalties(state: GameState): { seat: number; type: string }[] {
+export function okeyHeldPenalties(state: GameState): PenaltyEntry[] {
   const okey = state.okey
   const term = state.terminal
   if (!term || okey == null) return []
   const winnerSeat = term.reason === 'win' && term.winnerSeat != null ? term.winnerSeat : -1
-  const out: { seat: number; type: string }[] = []
+  const out: PenaltyEntry[] = []
   for (let seat = 0; seat < state.config.players; seat++) {
     if (seat === winnerSeat) continue
     const p = state.players[seat]!
     if (p.hasOpened !== true) continue
     for (const t of p.rack) {
-      if (t.kind === 'NUMBER' && tilesEqual(t, okey)) out.push({ seat, type: 'okey-held' })
+      if (t.kind === 'NUMBER' && tilesEqual(t, okey)) out.push({ seat, type: 'okey-held', tile: okey })
     }
   }
   return out

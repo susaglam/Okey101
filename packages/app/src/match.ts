@@ -1,4 +1,5 @@
 // packages/app/src/match.ts
+import type { Tile } from '@cs-okey/engine'
 
 export interface MatchState {
   handNo: number
@@ -12,7 +13,7 @@ export interface MatchState {
 export interface HandRecord {
   handNo: number
   deltas: number[] // net score per seat for this hand
-  penalties: { seat: number; type: string }[] // flat penalties applied this hand
+  penalties: { seat: number; type: string; tile?: Tile }[] // flat penalties this hand (+ the triggering tile, for the audit log)
   winnerSeat?: number
   winType?: 'perOnly' | 'pairs'
   reason?: 'win' | 'exhausted' | 'hand-void'

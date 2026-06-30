@@ -7,6 +7,10 @@ export type Phase = 'DRAW' | 'DISCARD'
 /** State captured just before a player's FIRST open of a turn, so the open can be
  *  retracted ("Taşları Geri Al") any time before that turn's discard. Lives on the
  *  turn, so it vanishes the moment the turn advances — an open+discard is final. */
+/** A flat penalty applied to a seat, with the tile that triggered it (for the audit
+ *  log). `type`: 'okey-discard' | 'islek-discard' | 'islek' (fed an opener) | 'okey-held'. */
+export interface PenaltyEntry { seat: number; type: string; tile?: Tile }
+
 export interface OpenSnapshot {
   rack: Tile[]
   hasOpened: boolean
@@ -14,7 +18,7 @@ export interface OpenSnapshot {
   openedValue?: number
   declaredCift?: boolean
   tableMelds: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
-  penaltiesApplied: { seat: number; type: string }[]
+  penaltiesApplied: PenaltyEntry[]
 }
 
 export interface TurnState {
@@ -76,7 +80,7 @@ export interface GameState {
   terminal?: Terminal
   tableMelds?: { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }[]
   rizikoActive?: boolean
-  penaltiesApplied?: { seat: number; type: string }[]
+  penaltiesApplied?: PenaltyEntry[]
 }
 
 export function nextSeat(seat: number, players: number): number {

@@ -308,7 +308,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       let penaltiesApplied = state.penaltiesApplied ?? []
       if (cfg.requiresOpening && tile && tile.kind === 'NUMBER' && state.okey && tilesEqual(tile, state.okey)) {
         const already = penaltiesApplied.some((x) => x.seat === seat && x.type === 'okey-discard')
-        if (!already) penaltiesApplied = [...penaltiesApplied, { seat, type: 'okey-discard' }]
+        if (!already) penaltiesApplied = [...penaltiesApplied, { seat, type: 'okey-discard', tile }]
       }
 
       // 101 penalty: discarding an "işlek" tile — one that could be PLAYED onto an
@@ -318,7 +318,7 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
       // itself is excluded above; a finishing discard already returned, so it can't
       // be penalised here.
       if (cfg.requiresOpening && isWorkableDiscard(tile!, state.tableMelds ?? [], state.okey, cfg)) {
-        penaltiesApplied = [...penaltiesApplied, { seat, type: 'islek-discard' }]
+        penaltiesApplied = [...penaltiesApplied, { seat, type: 'islek-discard', tile: tile! }]
       }
 
       // Stock exhaustion: if there are no tiles left to draw, the hand ends NOW
@@ -496,7 +496,10 @@ export function reduce(state: GameState | null, event: GameEvent): GameState {
         // seating the feeder is always an opponent, so this is belt-and-braces.
         const partnerFed = cfg.teamMode === true && fedSeat === partnerOf(event.seat, cfg.players)
         const already = penaltiesApplied.some((x) => x.seat === fedSeat && x.type === 'islek')
-        if (!partnerFed && !already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek' }]
+        // The fed tile is the floor tile just taken (when taken this turn); a deferred
+        // çift-take has no handy reference, so leave the tile off in that case.
+        const fedTile = tookFloorNow ? (state.turn as TurnState).floorTileTaken : undefined
+        if (!partnerFed && !already) penaltiesApplied = [...penaltiesApplied, { seat: fedSeat, type: 'islek', tile: fedTile }]
       }
 
       // Snapshot the pre-action state on the FIRST board action of the turn (here:

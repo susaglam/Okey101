@@ -533,7 +533,7 @@ describe('okeyHeldPenalties', () => {
         { rack: [tileFromString('X')], hasOpened: true },           // false joker ≠ okey → no
       ],
     })
-    expect(okeyHeldPenalties(s)).toEqual([{ seat: 0, type: 'okey-held' }])
+    expect(okeyHeldPenalties(s)).toEqual([{ seat: 0, type: 'okey-held', tile: okey }])
   })
 
   it('never charges the finisher (empty rack)', () => {

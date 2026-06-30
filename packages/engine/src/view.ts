@@ -37,6 +37,9 @@ export interface PlayerView {
   rizikoActive: boolean
   /** Flat penalty count per seat (index = seat) applied THIS hand. */
   penalties: number[]
+  /** Per-penalty detail applied THIS hand (seat + type + the tile that caused it) —
+   *  public info (the discarded/fed tile is observable), used for the penalty audit log. */
+  penaltyLog?: { seat: number; type: string; tile?: Tile }[]
   version: number
 }
 
@@ -78,6 +81,7 @@ export function redactFor(state: GameState, seat: number, version: number): Play
     tableMelds: state.tableMelds ?? [],
     rizikoActive: state.rizikoActive ?? false,
     penalties: Array.from({ length: state.config.players }, (_, s) => penaltyCount(s)),
+    penaltyLog: applied.map((p) => ({ seat: p.seat, type: p.type, tile: p.tile })),
     version,
   }
 }
