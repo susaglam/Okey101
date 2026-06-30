@@ -87,6 +87,7 @@ function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogo
   const [table, setTable] = useState<PublicTable | null>(null) // table we're in
   const [picking, setPicking] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [adminTableId, setAdminTableId] = useState<string | null>(null) // table whose admin controls are open
   // Host-chosen table settings (frozen at creation).
   const [newHands, setNewHands] = useState(11)
   const [newTurnSecs, setNewTurnSecs] = useState(20)
@@ -98,7 +99,9 @@ function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogo
     void client.connect().then(() => { if (alive) setConnected(true) }).catch(() => { if (alive) onSessionLost() })
     const offLobby = client.on<PublicTable[]>('lobby:tables', (t) => setTables(t))
     const offState = client.on<PublicTable>('table:state', (t) => setTable(t))
-    return () => { alive = false; offLobby(); offState(); client.disconnect() }
+    // A table we're in was closed (admin delete / auto-cleanup) → return to the lobby.
+    const offClosed = client.on<{ tableId: string }>('table:closed', (p) => setTable((cur) => (cur && cur.id === p.tableId ? null : cur)))
+    return () => { alive = false; offLobby(); offState(); offClosed(); client.disconnect() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -163,14 +166,37 @@ function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogo
           <strong style={{ fontSize: 18 }}>Masalar</strong>
           <button onClick={() => setPicking(true)} style={{ fontSize: 14, padding: '8px 16px' }}>+ Yeni Masa</button>
         </div>
-        {tables.length === 0 ? <p style={{ opacity: 0.7, textAlign: 'center' }}>Açık masa yok. Yeni masa aç.</p> : tables.map((t) => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(0,0,0,.22)', borderRadius: 10, padding: '10px 14px' }}>
-            <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: 'linear-gradient(180deg,#f0b53e,#d2811a)', color: '#3a2400' }}>{MODES[t.mode].title}</span>
-            <span style={{ flex: 1, fontWeight: 700 }}>{t.name}</span>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>{t.seats.filter((s) => s.occupant?.kind === 'human').length}/4 · {t.status}</span>
-            <button onClick={() => void client.joinTable(t.id)} style={{ fontSize: 13 }}>Katıl</button>
+        {tables.length === 0 ? <p style={{ opacity: 0.7, textAlign: 'center' }}>Açık masa yok. Yeni masa aç.</p> : tables.map((t) => {
+          const emptySeats = t.seats.filter((s) => s.occupant == null).map((s) => s.index)
+          return (
+          <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(0,0,0,.22)', borderRadius: 10, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: 'linear-gradient(180deg,#f0b53e,#d2811a)', color: '#3a2400' }}>{MODES[t.mode].title}</span>
+              <span style={{ flex: 1, fontWeight: 700 }}>{t.name}</span>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>{t.seats.filter((s) => s.occupant?.kind === 'human').length}/4 · {t.status}</span>
+              {cu.isAdmin && <button onClick={() => setAdminTableId((id) => (id === t.id ? null : t.id))} title="Yönetici kontrolleri" style={{ fontSize: 13 }}>🛠</button>}
+              <button onClick={() => void client.joinTable(t.id)} style={{ fontSize: 13 }}>Katıl</button>
+            </div>
+            {cu.isAdmin && adminTableId === t.id && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid rgba(255,255,255,.12)', paddingTop: 8 }}>
+                {t.seats.map((s) => (
+                  <div key={s.index} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    <span style={{ minWidth: 64, opacity: 0.8 }}>Koltuk {s.index + 1}</span>
+                    <span style={{ flex: 1 }}>{s.occupant == null ? <em style={{ opacity: 0.6 }}>boş</em> : s.occupant.kind === 'bot' ? '🤖 Bot' : `👤 ${s.occupant.name}`}</span>
+                    {s.occupant?.kind === 'human' && t.status === 'waiting' && emptySeats.length > 0 && (
+                      <select value="" onChange={(e) => { const to = Number(e.target.value); if (!Number.isNaN(to)) void client.adminMove(t.id, s.index, to) }} style={{ fontSize: 12 }}>
+                        <option value="">→ taşı</option>
+                        {emptySeats.map((es) => <option key={es} value={es}>Koltuk {es + 1}</option>)}
+                      </select>
+                    )}
+                    {s.occupant?.kind === 'human' && <button onClick={() => void client.adminKick(t.id, s.index)} style={{ fontSize: 12 }}>✕ Çıkar</button>}
+                  </div>
+                ))}
+                <button onClick={() => { if (window.confirm('Masa silinsin mi?')) void client.adminDeleteTable(t.id) }} style={{ alignSelf: 'flex-start', fontSize: 12, color: '#f0a0a0' }}>🗑 Masayı Sil</button>
+              </div>
+            )}
           </div>
-        ))}
+        )})}
       </div>
       {picking && (
         <div role="dialog" aria-label="Mod seç" onClick={() => setPicking(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

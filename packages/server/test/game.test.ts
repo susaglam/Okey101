@@ -99,6 +99,40 @@ describe('seating + start + redaction', () => {
   })
 })
 
+describe('table cleanup + admin moderation', () => {
+  it('sweeps an empty waiting room after the grace, keeps a fresh one, hard-caps old ones', () => {
+    const t = mkTable()           // host seated at seat 0
+    mgr.stand('u-host', t.id)     // → empty waiting room
+    expect(mgr.cleanupTables(t.createdAt + 60_000)).toBe(0)      // 1 min: within grace
+    expect(mgr.lobby()).toHaveLength(1)
+    expect(mgr.cleanupTables(t.createdAt + 11 * 60_000)).toBe(1) // 11 min empty → removed
+    expect(mgr.lobby()).toHaveLength(0)
+    // hard cap: even a non-empty table is reclaimed at 24h+
+    const t2 = mkTable()
+    expect(mgr.cleanupTables(t2.createdAt + 25 * 3_600_000)).toBe(1)
+  })
+
+  it('only an admin can delete a table', () => {
+    const t = mkTable()
+    expect(mgr.adminDeleteTable('u-2', t.id).ok).toBe(false)     // normal user blocked
+    expect(mgr.adminDeleteTable('u-admin', t.id).ok).toBe(true)  // admin allowed
+    expect(mgr.lobby()).toHaveLength(0)
+  })
+
+  it('admin can move a player to an empty seat and kick one (waiting room)', async () => {
+    const t = mkTable()
+    expect(mgr.sit('u-2', t.id, 1).ok).toBe(true)
+    expect(mgr.adminMove('u-admin', t.id, 1, 2).ok).toBe(true)
+    let tab = mgr.lobby()[0]!
+    expect(tab.seats[2]!.occupant).toEqual({ kind: 'human', name: 'Two' })
+    expect(tab.seats[1]!.occupant).toBeNull()
+    expect((await mgr.adminKick('u-admin', t.id, 0)).ok).toBe(true)
+    expect(mgr.lobby()[0]!.seats[0]!.occupant).toBeNull()
+    // non-admin moderation is rejected
+    expect((await mgr.adminKick('u-2', t.id, 2)).ok).toBe(false)
+  })
+})
+
 describe('AFK (host-level): safe auto-move + bot takeover', () => {
   it('auto-plays for an idle human, then a bot takes the seat over after continuous absence', async () => {
     const changes: { seat: number; kind: string }[] = []

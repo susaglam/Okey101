@@ -233,7 +233,102 @@ export class GameManager {
     }
   }
 
-  disposeAll(): void { for (const h of this.hosts.values()) h.dispose() }
+  // ── table lifecycle / cleanup ───────────────────────────────────────────────
+  /** Fully remove a table: dispose its host (timers), drop the row + game, and tell
+   *  anyone in the room to return to the lobby. */
+  private removeTable(tableId: string): void {
+    this.hosts.get(tableId)?.dispose()
+    this.hosts.delete(tableId)
+    deleteTable(tableId)
+    this.emit.toTable(tableId, 'table:closed', { tableId })
+  }
+
+  private gameUpdatedAt(tableId: string): number {
+    const r = db().prepare('SELECT updated_at FROM games WHERE table_id = ?').get(tableId) as { updated_at: number } | undefined
+    return r?.updated_at ?? 0
+  }
+
+  /** Sweep stale tables so abandoned games / empty rooms don't live forever. A
+   *  finished or abandoned match goes stale once the bots stop moving; an empty
+   *  waiting room is reclaimed quickly; everything is hard-capped at 24h. Pure-ish:
+   *  `now` is injected so it's testable. Returns how many were removed. */
+  cleanupTables(now: number): number {
+    const EMPTY_MS = 10 * 60_000        // a waiting room with nobody seated
+    const WAITING_STALE_MS = 2 * 3_600_000 // a waiting room nobody ever starts
+    const PLAYING_STALE_MS = 45 * 60_000   // a game with no moves (match over / abandoned)
+    const MAX_AGE_MS = 24 * 3_600_000      // hard cap regardless of state
+    let removed = 0
+    for (const t of listTables()) {
+      const age = now - t.createdAt
+      let dead = age > MAX_AGE_MS
+      if (!dead && (t.status === 'playing' || t.status === 'ended')) {
+        const idle = now - (this.gameUpdatedAt(t.id) || t.createdAt)
+        dead = idle > PLAYING_STALE_MS
+      } else if (!dead) { // waiting
+        dead = (humanCount(t) === 0 && age > EMPTY_MS) || age > WAITING_STALE_MS
+      }
+      if (dead) { this.removeTable(t.id); removed++ }
+    }
+    if (removed > 0) this.pushLobby()
+    return removed
+  }
+
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
+  /** Start the periodic stale-table sweep (production). */
+  startCleanup(intervalMs = 5 * 60_000): void {
+    if (this.cleanupTimer) return
+    this.cleanupTimer = setInterval(() => { try { this.cleanupTables(Date.now()) } catch { /* best-effort */ } }, intervalMs)
+  }
+  stopCleanup(): void { if (this.cleanupTimer) { clearInterval(this.cleanupTimer); this.cleanupTimer = null } }
+
+  // ── admin moderation (gated by the caller's CURRENT group isAdmin) ──────────
+  isAdmin(userId: string): boolean {
+    const u = getUserById(userId)
+    return !!u && getGroup(u.groupId)?.isAdmin === true
+  }
+
+  adminDeleteTable(userId: string, tableId: string): { ok: boolean; error?: string } {
+    if (!this.isAdmin(userId)) return { ok: false, error: 'Yetkisiz.' }
+    if (!getTable(tableId)) return { ok: false, error: 'Masa bulunamadı.' }
+    this.removeTable(tableId)
+    this.pushLobby()
+    return { ok: true }
+  }
+
+  /** Remove the occupant of a seat. Waiting → seat emptied; playing → a bot takes over. */
+  async adminKick(userId: string, tableId: string, seat: number): Promise<{ ok: boolean; error?: string }> {
+    if (!this.isAdmin(userId)) return { ok: false, error: 'Yetkisiz.' }
+    const t = getTable(tableId)
+    if (!t || seat < 0 || seat >= t.seats.length) return { ok: false, error: 'Geçersiz.' }
+    if (t.status === 'waiting') {
+      t.seats[seat]!.occupant = null; t.seats[seat]!.ready = false
+      saveTable(t); this.emit.toTable(tableId, 'table:state', publicTable(t)); this.pushLobby()
+      return { ok: true }
+    }
+    // Playing: hand the seat to a bot (the host keeps the game moving).
+    const host = this.hosts.get(tableId)
+    if (host) await host.kickToBot(seat)
+    t.seats[seat]!.occupant = { kind: 'bot' }
+    saveTable(t); this.emit.toTable(tableId, 'table:state', publicTable(t)); this.pushLobby()
+    return { ok: true }
+  }
+
+  /** Move a seated player to an empty seat (waiting room only). */
+  adminMove(userId: string, tableId: string, from: number, to: number): { ok: boolean; error?: string } {
+    if (!this.isAdmin(userId)) return { ok: false, error: 'Yetkisiz.' }
+    const t = getTable(tableId)
+    if (!t) return { ok: false, error: 'Masa bulunamadı.' }
+    if (t.status !== 'waiting') return { ok: false, error: 'Oyun başladı — koltuk değiştirilemez.' }
+    if (from < 0 || to < 0 || from >= t.seats.length || to >= t.seats.length) return { ok: false, error: 'Geçersiz koltuk.' }
+    const src = t.seats[from]!, dst = t.seats[to]!
+    if (!src.occupant || dst.occupant) return { ok: false, error: 'Kaynak boş ya da hedef dolu.' }
+    dst.occupant = src.occupant; dst.ready = src.ready
+    src.occupant = null; src.ready = false
+    saveTable(t); this.emit.toTable(tableId, 'table:state', publicTable(t)); this.pushLobby()
+    return { ok: true }
+  }
+
+  disposeAll(): void { this.stopCleanup(); for (const h of this.hosts.values()) h.dispose() }
 }
 
 interface GameRow { state: string; version: number; standings: string; history: string; seed: number; scored_hand_no: number }

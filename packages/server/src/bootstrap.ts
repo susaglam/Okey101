@@ -34,6 +34,8 @@ export async function bootstrap(opts: { botDelayMs?: number; afk?: ManagerAfk } 
 
   const manager = createSocketLayer(io, opts.botDelayMs ?? 0, opts.afk ?? {})
   manager.restoreAll()
+  manager.cleanupTables(Date.now()) // sweep stale tables once on boot…
+  manager.startCleanup()            // …then periodically
 
   const close = async () => {
     try { manager.disposeAll(); await io.close(); await app.close(); db().pragma('wal_checkpoint(TRUNCATE)') } catch { /* best-effort */ }

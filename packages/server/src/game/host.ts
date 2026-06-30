@@ -275,6 +275,16 @@ export class GameHost {
     if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) { this.armAfk(); this.onChange() }
   }
 
+  /** Admin removed a human mid-game → a bot takes the seat (keeps the game moving). */
+  async kickToBot(seat: number): Promise<void> {
+    if (seat < 0 || seat >= this.actors.length) return
+    this.clearAfkAll()
+    this.actors[seat] = { kind: 'bot' }
+    this.onActorChange(seat, { kind: 'bot' })
+    if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) await this.advance()
+    else this.onChange()
+  }
+
   /** Resume timers after a server restart (restore). Re-arms the AFK clock + countdown
    *  ring for a human turn, drives bots whose turn it is, and re-schedules auto-next on
    *  an ended hand — so a redeploy never freezes an in-progress game. */

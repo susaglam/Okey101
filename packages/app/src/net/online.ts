@@ -55,6 +55,10 @@ export class OnlineClient {
   start<T = unknown>(tableId: string) { return this.request<T>('table:start', { tableId }) }
   nextHand<T = unknown>(tableId: string) { return this.request<T>('table:next', { tableId }) }
   restart<T = unknown>(tableId: string) { return this.request<T>('table:restart', { tableId }) }
+  // Admin moderation (server re-checks isAdmin).
+  adminDeleteTable<T = unknown>(tableId: string) { return this.request<T>('admin:deleteTable', { tableId }) }
+  adminKick<T = unknown>(tableId: string, seat: number) { return this.request<T>('admin:kick', { tableId, seat }) }
+  adminMove<T = unknown>(tableId: string, from: number, to: number) { return this.request<T>('admin:move', { tableId, from, to }) }
   leave<T = unknown>(tableId: string) { return this.request<T>('table:leave', { tableId }) }
   /** Send a game move. `event` is the GameEvent WITHOUT seat (the server forces the seat). */
   intent<T = unknown>(tableId: string, baseVersion: number, event: unknown) { return this.request<T>('intent', { tableId, baseVersion, event }) }

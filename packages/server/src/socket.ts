@@ -51,6 +51,11 @@ export function createSocketLayer(io: SocketServer, botDelayMs = 0, afk: Manager
     socket.on('table:next', (p: { tableId?: string }, cb: Ack) => { void manager.nextHand(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
     socket.on('table:restart', (p: { tableId?: string }, cb: Ack) => { void manager.restartMatch(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
 
+    // ── admin moderation (server re-checks isAdmin per call) ──────────────────
+    socket.on('admin:deleteTable', (p: { tableId?: string }, cb: Ack) => ack(cb, manager.adminDeleteTable(userId, String(p?.tableId ?? ''))))
+    socket.on('admin:kick', (p: { tableId?: string; seat?: number }, cb: Ack) => { void manager.adminKick(userId, String(p?.tableId ?? ''), Number(p?.seat)).then((r) => ack(cb, r)) })
+    socket.on('admin:move', (p: { tableId?: string; from?: number; to?: number }, cb: Ack) => ack(cb, manager.adminMove(userId, String(p?.tableId ?? ''), Number(p?.from), Number(p?.to))))
+
     socket.on('intent', (p: { tableId?: string; baseVersion?: number; event?: unknown }, cb: Ack) => {
       const event = validateIntent(p?.event)
       if (!event) return ack(cb, { ok: false, code: 'bad-intent' })
