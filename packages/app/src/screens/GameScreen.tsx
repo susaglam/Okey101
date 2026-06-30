@@ -466,6 +466,9 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const canIslek = user ? can('islekMarkers', user) : true
   const canHint = user ? can('hint', user) : true
   const canDrag = user ? can('dragAssists', user) : true
+  // Okey shown face-down (easy to spot) only with the okeyHelper feature; otherwise it
+  // appears as its real number/colour. The engine treats the okey identically either way.
+  const canOkeyHelper = user ? can('okeyHelper', user) : true
 
   // LAYOUT-DRIVEN opening (the player's rack arrangement is the source of truth):
   // parse the rack into the player's intended meld segments and value THOSE — the
@@ -539,7 +542,9 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   // Find first rack tile + meld index that produces a legal LayOff
   type LayOffTarget = { meldIndex: number; tile: typeof view.you.rack[0] } | null
   const layOffTarget: LayOffTarget = (() => {
-    if (!canDrag || !is101 || !view.you.hasOpened || !view.okey) return null // auto-İşle is a drag assist
+    // Lay-off (işleme) is a core okey RULE, not a per-user assist — the İşle button
+    // works for everyone. Only the green drag-highlighting (dragLayoffTargets) is gated.
+    if (!is101 || !view.you.hasOpened || !view.okey) return null
     const tableMelds = view.tableMelds
     const okey = view.okey
     for (let mi = 0; mi < tableMelds.length; mi++) {
@@ -995,6 +1000,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
           selectedSlot={selectedSlot}
           onSelectSlot={setSelectedSlot}
           layableKeys={layableKeys}
+          okeyFaceDown={canOkeyHelper}
         />
         {/* Rack tools — absolutely placed at the rack's RIGHT edge (out of flow, so
             they don't widen the shared column), vertically centred on the rack. */}

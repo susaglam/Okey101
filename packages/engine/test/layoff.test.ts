@@ -43,9 +43,19 @@ describe('canLayOff — a lay-off must NOT change the okey it stands for', () =>
     expect(canLayOff(h('4R', '5R', '6R'), h('8M'), W, KLASIK_101)).toBe(false)  // wrong colour
   })
 
-  it('never lays off onto a pair / short meld, and never lays the okey tile itself', () => {
+  it('never lays off onto a pair / short meld', () => {
     expect(canLayOff([tileFromString('13S'), W], h('13S'), W, KLASIK_101)).toBe(false) // pair target
-    expect(canLayOff(h('10S', '11S', '12S'), [W], W, KLASIK_101)).toBe(false)          // laying the okey
+  })
+
+  it('LAYS the okey itself onto a valid run/group (PO 2026-06-30)', () => {
+    expect(canLayOff(h('10S', '11S', '12S'), [W], W, KLASIK_101)).toBe(true) // okey extends the run as 13
+    expect(canLayOff(h('5R', '6R', '7R'), [W], W, KLASIK_101)).toBe(true)    // okey extends as 8 (or 4)
+    expect(canLayOff(h('7R', '7K', '7M'), [W], W, KLASIK_101)).toBe(true)    // okey completes the 4th colour 7
+  })
+
+  it('laying the okey keeps an EXISTING okey on the meld unchanged', () => {
+    // [10S,11S,okey(=12)] + another okey → 10-11-12-13; the original okey stays 12.
+    expect(canLayOff([...h('10S', '11S'), W], [W], W, KLASIK_101)).toBe(true)
   })
 
   it('MULTIPLE okeys: extending the end keeps both okey numbers; the wrong end shifts them', () => {

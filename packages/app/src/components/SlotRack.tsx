@@ -126,6 +126,7 @@ export function SlotRack({
   selectedSlot,
   onSelectSlot,
   layableKeys,
+  okeyFaceDown = true,
 }: {
   layout: SlotLayout
   okey?: Tile
@@ -135,6 +136,9 @@ export function SlotRack({
   onSelectSlot: (slot: number | null) => void
   /** Keys (tileToString) of rack tiles that can be laid off onto a table meld — marked "işlek". */
   layableKeys?: Set<string>
+  /** Show the okey wild FACE-DOWN (blank, easy to spot). Gated by the okeyHelper
+   *  feature — when off, the okey appears as its real number/colour. Default on. */
+  okeyFaceDown?: boolean
 }) {
   const cols = layout.length / 2
   const backRow = layout.slice(0, cols)
@@ -151,10 +155,11 @@ export function SlotRack({
 
     const layable = tile !== null && !!layableKeys && layableKeys.has(tileToString(tile))
 
-    // The real okey wild (number+colour == okey) is shown blank/face-down in hand.
-    // The sahte okey (FALSE_JOKER) keeps its ♣ mark so the two wilds stay distinct.
+    // The real okey wild (number+colour == okey) is shown blank/face-down in hand —
+    // but ONLY when the okeyHelper feature is on; otherwise it looks like its real
+    // numbered tile. The sahte okey (FALSE_JOKER) keeps its ♣ mark regardless.
     const isOkey =
-      tile !== null && okey != null && tile.kind === 'NUMBER' &&
+      okeyFaceDown && tile !== null && okey != null && tile.kind === 'NUMBER' &&
       tile.number === okey.number && tile.color === okey.color
 
     return (

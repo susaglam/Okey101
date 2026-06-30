@@ -10,8 +10,8 @@ import bcrypt from 'bcryptjs'
 
 // ── Feature flags / seed groups (mirrors the client's auth.ts; will be the single
 //    source once the client talks to the server). ──────────────────────────────
-export type Feature = 'islekMarkers' | 'hint' | 'dragAssists'
-export const FEATURE_IDS: Feature[] = ['islekMarkers', 'hint', 'dragAssists']
+export type Feature = 'islekMarkers' | 'hint' | 'dragAssists' | 'okeyHelper'
+export const FEATURE_IDS: Feature[] = ['islekMarkers', 'hint', 'dragAssists', 'okeyHelper']
 const allFeatures = (on: boolean) =>
   Object.fromEntries(FEATURE_IDS.map((f) => [f, on])) as Record<Feature, boolean>
 
@@ -64,6 +64,21 @@ function migrate(d: Database.Database): void {
   const tableCols = cols('tables')
   // per-table game config (matchHands, turnSeconds) — chosen by the host at creation.
   if (!tableCols.has('config')) d.exec('ALTER TABLE tables ADD COLUMN config TEXT')
+
+  // Backfill newly-added feature flags onto existing groups (so a new feature like
+  // okeyHelper appears in the matrix with a sensible default): ON for the builtin
+  // non-guest groups, OFF for guest + custom groups. Idempotent — only writes when a
+  // flag is missing.
+  const groups = d.prepare('SELECT id, features, builtin FROM groups').all() as { id: string; features: string; builtin: number }[]
+  for (const g of groups) {
+    let feats: Record<string, boolean> = {}
+    try { feats = JSON.parse(g.features) } catch { /* corrupt → reset below */ }
+    let changed = false
+    for (const f of FEATURE_IDS) {
+      if (!(f in feats)) { feats[f] = g.builtin === 1 && g.id !== 'guest'; changed = true }
+    }
+    if (changed) d.prepare('UPDATE groups SET features = ? WHERE id = ?').run(JSON.stringify(feats), g.id)
+  }
 }
 
 const SCHEMA = `

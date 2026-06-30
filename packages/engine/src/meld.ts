@@ -164,11 +164,16 @@ function okeyNumbers(meld: Tile[], okey: Tile): number[] {
   return out
 }
 
-function sameMultiset(a: number[], b: number[]): boolean {
-  if (a.length !== b.length) return false
-  const sa = [...a].sort((x, y) => x - y)
-  const sb = [...b].sort((x, y) => x - y)
-  return sa.every((v, i) => v === sb[i])
+/** Is every element of `a` present in `b` with at least the same multiplicity? */
+function isSubMultiset(a: number[], b: number[]): boolean {
+  const counts = new Map<number, number>()
+  for (const x of b) counts.set(x, (counts.get(x) ?? 0) + 1)
+  for (const x of a) {
+    const c = counts.get(x) ?? 0
+    if (c === 0) return false
+    counts.set(x, c - 1)
+  }
+  return true
 }
 
 /**
@@ -176,20 +181,25 @@ function sameMultiset(a: number[], b: number[]): boolean {
  * any okey already on the table represents? (The okey is fixed where it was placed;
  * only an explicit TakeOkey may move it — PO 2026-06-23.)
  *
- * True iff: the target is a run/group (≥3 tiles, never a pair); no addition is the
- * okey wild itself; the merged meld is structurally valid; AND every okey in the
- * ORIGINAL meld represents the SAME number afterwards (multiset of okey numbers
- * unchanged — so e.g. laying yellow-8 onto [10🟡,11🟡,okey(=12)] is REJECTED because
- * it would silently reinterpret the okey as 9).
+ * True iff: the target is a run/group (≥3 tiles, never a pair); the merged meld is
+ * structurally valid; AND every okey ALREADY in the meld keeps the SAME represented
+ * number afterwards — only a freshly-laid okey may introduce a new value. So:
+ *  - laying yellow-8 onto [10🟡,11🟡,okey(=12)] is REJECTED (would reinterpret okey as 9),
+ *  - laying the OKEY onto [2🔵,3🔵,4🔵,5🔵] is ALLOWED (the wild extends the run as 6;
+ *    the player may işle the okey itself — PO 2026-06-30).
  */
 export function canLayOff(meldTiles: Tile[], additions: Tile[], okey: Tile, config: VariantConfig): boolean {
   if (additions.length === 0) return false
   if (meldTiles.length < 3) return false // pairs / short melds are never lay-off targets
-  // You cannot lay off the okey wild itself (it must complete one of your own melds).
-  if (additions.some((t) => isWildTile(t, okey))) return false
 
   const merged = [...meldTiles, ...additions]
   if (!isValidMeldSet([merged], okey, config)) return false
 
-  return sameMultiset(okeyNumbers(meldTiles, okey), okeyNumbers(merged, okey))
+  // Existing okeys must keep their value; the okeys we just added account for any new
+  // represented numbers (so a lone okey can extend a meld, but real tiles can't shift
+  // an okey already on the table).
+  const orig = okeyNumbers(meldTiles, okey)
+  const mergedNums = okeyNumbers(merged, okey)
+  const addedOkeys = additions.filter((t) => isWildTile(t, okey)).length
+  return mergedNums.length === orig.length + addedOkeys && isSubMultiset(orig, mergedNums)
 }
