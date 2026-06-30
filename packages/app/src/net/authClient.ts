@@ -72,11 +72,14 @@ export function refresh(): Promise<ServerUser | null> {
  *  401 (expired access token), refreshes ONCE via the cookie and retries. Returns the
  *  parsed JSON (or { error } on failure). */
 export async function adminFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  // Only declare a JSON body when there actually IS one — Fastify rejects an empty
+  // body sent with Content-Type: application/json (400), which broke DELETEs.
+  const hasBody = init.body != null
   const call = () => fetch(BASE + path, {
     ...init,
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
       ...(init.headers ?? {}),
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
     },

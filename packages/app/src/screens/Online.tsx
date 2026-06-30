@@ -9,7 +9,7 @@ import { OnlineClient } from '../net/online'
 import { OnlineAdapter } from '../adapter/OnlineAdapter'
 import { register, login, guest, logout, refresh, type ServerUser } from '../net/authClient'
 import { MODES, MODE_ORDER, type GameMode } from '../modes'
-import { setHumanName } from '../names'
+import { setHumanName, setSeatNames } from '../names'
 import type { CurrentUser } from '../auth'
 
 // Adapt the server user to the shape GameScreen's feature-gating expects.
@@ -109,6 +109,14 @@ function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogo
   const mySeat = table ? table.seats.findIndex((s) => s.occupant?.kind === 'human' && s.occupant.name === user.username) : -1
   const isHost = !!table && table.hostUserId === user.id
   const adapter = useMemo(() => (table && table.status === 'playing' && mySeat >= 0 ? new OnlineAdapter(client, table.id) : null), [client, table?.id, table?.status, mySeat])
+
+  // ONLINE seat names come from the table's occupants (any seat may be the local human
+  // or another real player) — so the game shows real usernames, not offline bot labels.
+  useEffect(() => {
+    if (table && table.status === 'playing') {
+      setSeatNames(table.seats.map((s, i) => (s.occupant?.kind === 'human' ? s.occupant.name : `Bot ${i + 1}`)))
+    }
+  }, [table])
 
   if (!connected) return <div className="menu"><h1>♣ CS OKEY</h1><p>Sunucuya bağlanıyor…</p></div>
 

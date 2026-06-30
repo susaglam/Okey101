@@ -122,6 +122,21 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_family ON sessions (family_id);
+-- In-app feedback: bug reports + suggestions. Stored here (admin reviews them in the
+-- panel) — no email. screenshot is an optional data-URL (base64) image.
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  username TEXT,
+  kind TEXT NOT NULL,
+  category TEXT,
+  message TEXT NOT NULL,
+  screenshot TEXT,
+  table_id TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback (created_at);
 `
 
 function seed(d: Database.Database): void {

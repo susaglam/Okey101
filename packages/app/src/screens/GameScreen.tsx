@@ -43,6 +43,7 @@ import { SlotRack } from '../components/SlotRack'
 import { MyDiscardTarget } from '../components/MyDiscardTarget'
 import { TileView } from '../components/Tile'
 import { TurnRing } from '../components/TurnRing'
+import { FeedbackWidget } from '../components/FeedbackWidget'
 import { StockPile } from '../components/StockPile'
 import { flyTile, animationsEnabled } from '../anim/fly'
 import { playSfx, setSoundEnabled, type Sfx } from '../anim/sound'
@@ -566,11 +567,10 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     for (const tile of view.you.rack) {
       const key = tileToString(tile)
       if (keys.has(key)) continue
-      for (const meld of view.tableMelds) {
-        // Pairs are not lay-off targets, so a tile that only "fits" a pair is not işlek.
-        if (meld.kind === 'pair') continue
-        if (canLayOff(meld.tiles, [tile], okey, view.config)) { keys.add(key); break }
-      }
+      // Use the SAME oracle as the işlek-discard penalty so the marking matches what's
+      // penalised: a tile is işlek if it lays off onto a run/group OR can replace an
+      // okey already on the table (okey-swap) — the latter was previously missed.
+      if (isWorkableDiscard(tile, view.tableMelds, okey, view.config)) keys.add(key)
     }
     return keys
   })()
@@ -758,6 +758,8 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveDrag(null)}
     >
+    {/* In-app bug report / suggestion (online build) — bottom-right, stored for admins. */}
+    {import.meta.env.VITE_ONLINE === '1' && <FeedbackWidget />}
     {/* Dragged tile floats above the rack/table (portal) — never clipped/hidden. */}
     <DragOverlay dropAnimation={null} zIndex={1000}>
       {activeDrag?.kind === 'stock' ? (
@@ -953,7 +955,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             }}
           >
             {myTurnRing && <TurnRing deadlineMs={myTurnRing.deadlineMs} budgetMs={myTurnRing.budgetMs} radius={12} />}
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, #5e6fb0 0%, #2c3768 100%)', border: '1.5px solid rgba(255,238,205,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.45)' }}>S</div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, #5e6fb0 0%, #2c3768 100%)', border: '1.5px solid rgba(255,238,205,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.45)' }}>{seatName(view.seat).charAt(0).toUpperCase() || 'S'}</div>
             <span style={{ fontWeight: 700, fontSize: 14, textShadow: '0 1px 1px rgba(0,0,0,0.4)', letterSpacing: 0.2 }}>{seatName(view.seat)}</span>
             <span style={{ background: 'linear-gradient(180deg, #fbf6ea, #e8dcc4)', color: '#5a4420', borderRadius: 7, padding: '2px 8px', fontSize: 12, fontWeight: 800, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 1px rgba(0,0,0,0.25)' }}>{view.you.rack.length}</span>
             <span style={{ background: 'rgba(0,0,0,.42)', borderRadius: 6, padding: '2px 7px', fontSize: 11, fontWeight: 800, color: '#ffd27a', boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.3)' }}>{standingsForSeat}</span>

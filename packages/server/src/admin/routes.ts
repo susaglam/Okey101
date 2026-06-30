@@ -12,6 +12,7 @@ import {
 import { FEATURE_IDS, type Feature } from '../db.ts'
 import { requireAuth } from '../auth/routes.ts'
 import { revokeAllForUser } from '../auth/sessions.ts'
+import { listFeedback, getFeedback, setFeedbackStatus, deleteFeedback } from '../feedback/repo.ts'
 
 const COST = Number(process.env.BCRYPT_COST ?? 12)
 
@@ -104,4 +105,21 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     deleteGroup(id)
     return { ok: true }
   })
+
+  // ── Feedback (bug reports + suggestions) ────────────────────────────────────
+  // The list omits screenshots (they can be large); fetch one screenshot on demand.
+  app.get('/admin/feedback', async () => ({ items: listFeedback() }))
+  app.get('/admin/feedback/:id', async (req, reply) => {
+    const fb = getFeedback((req.params as { id: string }).id)
+    if (!fb) return reply.code(404).send({ error: 'Bulunamadı.' })
+    return { feedback: fb }
+  })
+  app.patch('/admin/feedback/:id', async (req, reply) => {
+    const id = (req.params as { id: string }).id
+    if (!getFeedback(id)) return reply.code(404).send({ error: 'Bulunamadı.' })
+    const status = (req.body as { status?: string })?.status === 'resolved' ? 'resolved' : 'open'
+    setFeedbackStatus(id, status)
+    return { ok: true, status }
+  })
+  app.delete('/admin/feedback/:id', async (req) => { deleteFeedback((req.params as { id: string }).id); return { ok: true } })
 }

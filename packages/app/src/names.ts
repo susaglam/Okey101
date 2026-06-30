@@ -36,6 +36,14 @@ export function setBotNames(botNames: readonly string[] | undefined): void {
   rebuild()
 }
 
+/** ONLINE: set every seat's display name directly from the table's occupants (the
+ *  local human may sit at ANY seat, and other seats can be real humans, so the
+ *  offline "seat 0 = me, 1–3 = bots" model doesn't apply). Seat-indexed; blanks fall
+ *  back to a generic label. */
+export function setSeatNames(names: readonly (string | undefined)[]): void {
+  liveNames = Array.from({ length: 4 }, (_, i) => names[i]?.trim() || `Oyuncu ${i + 1}`)
+}
+
 export function seatName(seat: number): string {
   return liveNames[seat] ?? `Oyuncu ${seat}`
 }

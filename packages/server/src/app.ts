@@ -14,6 +14,7 @@ import { ENGINE_NAME } from '@cs-okey/engine'
 import { db } from './db.ts'
 import { authRoutes } from './auth/routes.ts'
 import { adminRoutes } from './admin/routes.ts'
+import { feedbackRoutes } from './feedback/routes.ts'
 
 export const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173')
   .split(',').map((s) => s.trim()).filter(Boolean)
@@ -52,6 +53,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(authRoutes)
   await app.register(adminRoutes)
+  await app.register(feedbackRoutes)
 
   // Serve the built SPA from the SAME origin (so cookies/CORS are trivial) when a
   // build exists (production image). Non-API GET routes fall back to index.html so
@@ -59,7 +61,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   const SPA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../app/dist')
   if (existsSync(SPA_DIR)) {
     await app.register(staticPlugin, { root: SPA_DIR, wildcard: false })
-    const API_PREFIXES = ['/auth', '/admin', '/socket.io', '/health', '/ready']
+    const API_PREFIXES = ['/auth', '/admin', '/socket.io', '/health', '/ready', '/feedback']
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !API_PREFIXES.some((p) => req.url.startsWith(p))) {
         return reply.sendFile('index.html')
