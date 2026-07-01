@@ -506,6 +506,23 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       })
   }
 
+  // Open EXACTLY the tiles the player arranged. The meld tiles are the SAME objects as
+  // in the layout (parseMeldSegments returns layout refs), so we optimistically null
+  // THOSE precise slots by identity — never a value-duplicate elsewhere. This stops the
+  // "Seri Aç grabbed the other copy and scrambled my rack" bug: the untouched tiles
+  // stay exactly where they were arranged.
+  const handleOpen = (melds: Tile[][]) => {
+    const opened = new Set<Tile>(melds.flat())
+    const optimistic = currentLayout.map((t) => (t && opened.has(t) ? null : t))
+    setLayout(optimistic)
+    setSelectedSlot(null)
+    adapter
+      .dispatch({ type: 'OpenMeld', seat: view.seat, melds, expectedVersion: adapter.currentVersion() } as GameEvent & { expectedVersion: number })
+      .then((res) => {
+        if (!res.accepted) { showReject(res.reason); setLayout(reconcile(optimistic, view.you.rack)) }
+      })
+  }
+
   const handleArrange = () => {
     if (!view.okey) return
     const okey = view.okey
@@ -973,7 +990,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             <button
               disabled={!canOpenSeri}
               title="İstakadaki perlerinle aç (toplam ≥101)"
-              onClick={() => { if (canOpenSeri) send({ type: 'OpenMeld', seat: view.seat, melds: openSeriMelds }) }}
+              onClick={() => { if (canOpenSeri) handleOpen(openSeriMelds) }}
             >
               Aç (≥101)
             </button>
@@ -982,7 +999,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             <button
               disabled={!canOpenCift}
               title="5 çift ile aç"
-              onClick={() => { if (canOpenCift) send({ type: 'OpenMeld', seat: view.seat, melds: openCiftMelds }) }}
+              onClick={() => { if (canOpenCift) handleOpen(openCiftMelds) }}
             >
               Çift Aç
             </button>
@@ -1026,7 +1043,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             <button
               disabled={layableSeriMelds === null}
               title="İstakada dizdiğin seri/grupları yere aç (okey nereye koyduysan o)"
-              onClick={() => { if (layableSeriMelds) send({ type: 'OpenMeld', seat: view.seat, melds: layableSeriMelds }) }}
+              onClick={() => { if (layableSeriMelds) handleOpen(layableSeriMelds) }}
             >
               Seri Aç
             </button>
@@ -1035,7 +1052,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             <button
               disabled={layablePairs101 === null}
               title="Yerdeki çift sırasına yeni çift(ler) aç"
-              onClick={() => { if (layablePairs101) send({ type: 'OpenMeld', seat: view.seat, melds: layablePairs101 }) }}
+              onClick={() => { if (layablePairs101) handleOpen(layablePairs101) }}
             >
               Çift Aç
             </button>
