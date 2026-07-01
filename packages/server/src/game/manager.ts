@@ -162,7 +162,22 @@ export class GameManager {
   async intent(userId: string, tableId: string, baseVersion: number, event: GameEvent) {
     const host = this.hosts.get(tableId)
     if (!host) return { ok: false, code: 'no-game' as const }
+    // Auto-reclaim: if a bot took this human's seat over while they were idle, hand
+    // control straight back the moment they act again (they still own the table seat).
+    const t = getTable(tableId)
+    if (t) { const seat = seatOf(t, userId); if (seat >= 0 && host.seatForUser(userId) < 0) await host.reclaim(seat, userId) }
     return host.applyIntent(userId, baseVersion, event)
+  }
+
+  /** A returning human reclaims their (bot-taken-over) seat WITHOUT leaving the table. */
+  async reclaim(userId: string, tableId: string): Promise<{ ok: boolean; error?: string }> {
+    const t = getTable(tableId)
+    const host = this.hosts.get(tableId)
+    if (!t || !host) return { ok: false, error: 'Masa bulunamadı.' }
+    const seat = seatOf(t, userId)
+    if (seat < 0) return { ok: false, error: 'Bu masada koltuğun yok.' }
+    await host.reclaim(seat, userId)
+    return { ok: true }
   }
   async nextHand(userId: string, tableId: string) {
     const t = getTable(tableId)
@@ -197,11 +212,12 @@ export class GameManager {
     if (!host || !t) return
     const history = host.getHistory()
     const turnTimer = host.turnTimer()
+    const botSeats = host.botSeats()
     for (const s of t.seats) {
       if (s.occupant?.kind !== 'human') continue
       this.emit.toUser(s.occupant.userId, 'game:view', {
         tableId, view: host.viewFor(s.index), legal: host.legalFor(s.index),
-        match: host.matchState(), history, turnTimer,
+        match: host.matchState(), history, turnTimer, botSeats,
       })
     }
   }
@@ -216,7 +232,7 @@ export class GameManager {
     const host = this.hosts.get(tableId)
     if (host && t.status === 'playing') {
       const seat = seatOf(t, userId)
-      if (seat >= 0) { void host.reclaim(seat, userId); this.emit.toUser(userId, 'game:view', { tableId, view: host.viewFor(seat), legal: host.legalFor(seat), match: host.matchState(), history: host.getHistory(), turnTimer: host.turnTimer() }) }
+      if (seat >= 0) { void host.reclaim(seat, userId); this.emit.toUser(userId, 'game:view', { tableId, view: host.viewFor(seat), legal: host.legalFor(seat), match: host.matchState(), history: host.getHistory(), turnTimer: host.turnTimer(), botSeats: host.botSeats() }) }
     }
     return { ok: true }
   }

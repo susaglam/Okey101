@@ -50,6 +50,7 @@ export function createSocketLayer(io: SocketServer, botDelayMs = 0, afk: Manager
     socket.on('table:start', (p: { tableId?: string }, cb: Ack) => { void manager.start(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
     socket.on('table:next', (p: { tableId?: string }, cb: Ack) => { void manager.nextHand(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
     socket.on('table:restart', (p: { tableId?: string }, cb: Ack) => { void manager.restartMatch(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
+    socket.on('table:reclaim', (p: { tableId?: string }, cb: Ack) => { void manager.reclaim(userId, String(p?.tableId ?? '')).then((r) => ack(cb, r)) })
 
     // ── admin moderation (server re-checks isAdmin per call) ──────────────────
     socket.on('admin:deleteTable', (p: { tableId?: string }, cb: Ack) => ack(cb, manager.adminDeleteTable(userId, String(p?.tableId ?? ''))))

@@ -97,6 +97,15 @@ describe('seating + start + redaction', () => {
     // non-host → rejected
     expect((await mgr.restartMatch('u-2', t.id)).ok).toBe(false)
   })
+
+  it('reclaim: a seated user can reclaim their seat mid-game; a non-seated user cannot', async () => {
+    const t = mkTable()
+    expect(mgr.sit('u-2', t.id, 1).ok).toBe(true)
+    await mgr.start('u-host', t.id)
+    expect((await mgr.reclaim('u-host', t.id)).ok).toBe(true) // seated (seat 0)
+    expect((await mgr.reclaim('u-2', t.id)).ok).toBe(true)    // seated (seat 1)
+    expect((await mgr.reclaim('g-1', t.id)).ok).toBe(false)   // never seated
+  })
 })
 
 describe('table cleanup + admin moderation', () => {

@@ -24,5 +24,7 @@ export interface GameAdapter extends Adapter {
   nextHand(): void
   /** The active turn's countdown for the UI ring, or null (offline / bot turn / no timer). */
   turnTimer?(): TurnTimer | null
+  /** Seats currently played by a bot (online AFK takeover); [] offline. */
+  botSeats?(): number[]
 }
 export interface LocalOptions { seed: number; humanSeat: number; /** Game mode — drives the rules (with variant). */ mode?: GameMode; /** Lobby table id — the save-slot key. Defaults to the mode (legacy single-table). */ tableId?: string; difficulty?: 'easy'; matchHands?: number; variant?: VariantConfig; resumeFrom?: SaveData; /** Delay between bot moves (ms) so each is visible. 0 = instant (default, tests). */ botDelayMs?: number; /** Countdown (ms) after a non-final hand ends before auto-starting the next. 0 disables (tests). Default 6000. */ autoNextMs?: number }

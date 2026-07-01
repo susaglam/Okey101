@@ -125,7 +125,7 @@ function OnlineApp({ user, onLogout, onSessionLost }: { user: ServerUser; onLogo
 
   // ── in a PLAYING table we're seated at → the game ──────────────────────────
   if (table && table.status === 'playing' && adapter) {
-    return <GameScreen adapter={adapter} user={cu} onExitToMenu={() => setTable(null)} onRestart={() => { void client.restart(table.id) }} />
+    return <GameScreen adapter={adapter} user={cu} onExitToMenu={() => setTable(null)} onRestart={() => { void client.restart(table.id) }} onReclaim={() => { void client.reclaim(table.id) }} />
   }
 
   // ── in a table (waiting room) ──────────────────────────────────────────────

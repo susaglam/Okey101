@@ -117,7 +117,7 @@ const REJECT_MSG: Record<RejectionCode, string> = {
   'unknown': 'Hamle reddedildi',
 }
 
-export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isResumed }: {
+export default function GameScreen({ adapter, user, onExitToMenu, onRestart, onReclaim, isResumed }: {
   adapter: GameAdapter
   /** The signed-in player — gates the assist features by their group (guests get none).
    *  Optional: when omitted (tests/legacy), all assists are enabled. */
@@ -126,6 +126,8 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   onExitToMenu?: () => void
   /** Start a fresh match of the same variant (from the match-over screen). */
   onRestart?: () => void
+  /** Reclaim the seat from a bot that took over while idle (online). */
+  onReclaim?: () => void
   /** True when this game was RESUMED from a save (so the deal flourish is skipped
    *  on the restored mid-hand view; a fresh game still animates its first deal). */
   isResumed?: boolean
@@ -439,6 +441,19 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     }
   }, [view?.handNo, view?.turn.seat, view?.turn.phase, view?.stockCount])
 
+  // Auto-reclaim: if a bot took our seat over (AFK) while we were idle, grab control
+  // back the moment the player returns — on window focus OR their first tap — WITHOUT
+  // leaving the table. Only armed while our own seat is actually bot-controlled.
+  useEffect(() => {
+    const mine = view != null && !!onReclaim && (adapter.botSeats?.() ?? []).includes(view.seat)
+    if (!mine || !onReclaim) return
+    const grab = () => onReclaim()
+    window.addEventListener('focus', grab)
+    window.addEventListener('pointerdown', grab)
+    return () => { window.removeEventListener('focus', grab); window.removeEventListener('pointerdown', grab) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.seat, (adapter.botSeats?.() ?? []).join(','), onReclaim])
+
   // Turn-timer audio: a clock tick each of the FINAL 10 seconds of the human's own turn,
   // and a bell when it reaches zero (the instant the server's auto-action fires).
   const tickRef = useRef<number>(999)
@@ -481,6 +496,8 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   if (!view) return null
 
   const isMyTurn = view.turn.seat === view.seat && view.status === 'PLAYING'
+  // A bot took our seat over while idle (online) — offer to reclaim it.
+  const iAmBotControlled = !!onReclaim && (adapter.botSeats?.() ?? []).includes(view.seat)
   // Single source of truth for action gating (engine legality for the human seat).
   const legal = adapter.legalMoves()
   // Server-enforced turn countdown (online only; null offline / bot turn) — drives the
@@ -1213,6 +1230,22 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
 
       {showPenalties && (
         <PenaltyLog events={penaltyEvents} names={SEAT_NAMES.map((_, i) => seatName(i))} onClose={() => setShowPenalties(false)} />
+      )}
+
+      {/* A bot took our seat over while idle → prominent reclaim button (also auto-reclaims
+          on focus/tap). */}
+      {iAmBotControlled && (
+        <button
+          onClick={() => onReclaim?.()}
+          style={{
+            position: 'fixed', top: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 420,
+            padding: '10px 22px', borderRadius: 12, border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(180deg,#6db36d,#3f7a3f)', color: '#07210a', fontWeight: 900, fontSize: 15,
+            boxShadow: '0 4px 0 #275227, 0 6px 16px rgba(0,0,0,.5)',
+          }}
+        >
+          🎮 Sistem senin yerine oynuyor — Kontrolü Al
+        </button>
       )}
 
       {showHelp && (

@@ -55,6 +55,7 @@ export class OnlineClient {
   start<T = unknown>(tableId: string) { return this.request<T>('table:start', { tableId }) }
   nextHand<T = unknown>(tableId: string) { return this.request<T>('table:next', { tableId }) }
   restart<T = unknown>(tableId: string) { return this.request<T>('table:restart', { tableId }) }
+  reclaim<T = unknown>(tableId: string) { return this.request<T>('table:reclaim', { tableId }) }
   // Admin moderation (server re-checks isAdmin).
   adminDeleteTable<T = unknown>(tableId: string) { return this.request<T>('admin:deleteTable', { tableId }) }
   adminKick<T = unknown>(tableId: string, seat: number) { return this.request<T>('admin:kick', { tableId, seat }) }

@@ -8,7 +8,7 @@ import type { GameAdapter, RejectionCode, Status, TurnTimer } from './Adapter'
 import type { MatchState, HandRecord } from '../match'
 import type { OnlineClient } from '../net/online'
 
-interface GameViewMsg { tableId: string; view: PlayerView; legal: GameEvent['type'][]; match: MatchState; history?: HandRecord[]; turnTimer?: TurnTimer | null }
+interface GameViewMsg { tableId: string; view: PlayerView; legal: GameEvent['type'][]; match: MatchState; history?: HandRecord[]; turnTimer?: TurnTimer | null; botSeats?: number[] }
 
 export class OnlineAdapter implements GameAdapter {
   private viewCb: ((v: PlayerView) => void) | null = null
@@ -17,6 +17,7 @@ export class OnlineAdapter implements GameAdapter {
   private match: MatchState
   private history: HandRecord[] = []
   private timer: TurnTimer | null = null
+  private bots: number[] = []
 
   constructor(private client: OnlineClient, private tableId: string, initialMatch?: MatchState) {
     this.match = initialMatch ?? { handNo: 1, totalHands: 11, standings: [0, 0, 0, 0], over: false }
@@ -30,6 +31,7 @@ export class OnlineAdapter implements GameAdapter {
       this.lastView = p.view; this.legal = p.legal; this.match = p.match
       if (Array.isArray(p.history)) this.history = p.history
       this.timer = p.turnTimer ?? null
+      this.bots = Array.isArray(p.botSeats) ? p.botSeats : []
       this.viewCb?.(p.view)
     })
     if (this.lastView) onView(this.lastView)
@@ -54,5 +56,6 @@ export class OnlineAdapter implements GameAdapter {
   getMatch(): MatchState { return this.match }
   getHistory(): HandRecord[] { return this.history }
   turnTimer(): TurnTimer | null { return this.timer }
+  botSeats(): number[] { return this.bots }
   nextHand(): void { void this.client.nextHand(this.tableId) }
 }

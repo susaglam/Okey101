@@ -116,6 +116,9 @@ export class GameHost {
   get matchOver(): boolean { return this.state.handNo >= this.totalHands && this.state.status === 'ENDED' }
   get turnSeat(): number { return this.state.turn.seat }
   get players(): number { return this.config.players }
+  /** Seats currently played by a bot (incl. AFK takeovers) — so a returning human can
+   *  see their seat is bot-controlled and reclaim it. */
+  botSeats(): number[] { return this.actors.map((a, i) => (a.kind === 'bot' ? i : -1)).filter((i) => i >= 0) }
 
   isHumanSeat(seat: number): boolean { return this.actors[seat]?.kind === 'human' }
   seatForUser(userId: string): number {
@@ -266,13 +269,19 @@ export class GameHost {
     if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) await this.advance()
   }
 
-  /** A returning human re-binds to their seat (the table still records them there). */
+  /** A returning human re-binds to their seat (the table still records them there). No-op
+   *  if the seat is already this human's (avoids needless churn). */
   async reclaim(seat: number, userId: string): Promise<void> {
     if (seat < 0 || seat >= this.actors.length) return
+    const a = this.actors[seat]
+    if (a?.kind === 'human' && a.userId === userId) return // already in control
     this.actors[seat] = { kind: 'human', userId }
     this.onActorChange(seat, { kind: 'human', userId })
     this.clearAfkAll()
-    if (this.state.status === 'PLAYING' && this.state.turn.seat === seat) { this.armAfk(); this.onChange() }
+    if (this.state.status === 'PLAYING') {
+      if (this.state.turn.seat === seat) this.armAfk() // their turn now → start their clock
+      this.onChange() // refresh everyone's view so the reclaimed seat drops out of botSeats
+    }
   }
 
   /** Admin removed a human mid-game → a bot takes the seat (keeps the game moving). */
