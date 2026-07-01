@@ -341,7 +341,11 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     if (firstRun || !prev || prev.handNo !== view.handNo) return
     // Hand ended → applause for the whole table; a longer ovation for an okey-finish.
     if (!prev.terminal && view.terminal) {
-      if (view.terminal.reason === 'win') playSfx(isOkeyFinish(view) ? 'applauseLong' : 'applause')
+      if (view.terminal.reason === 'win') {
+        const t = view.terminal
+        // Distinct fanfare per finish type — okey > elden > çift > normal.
+        playSfx(isOkeyFinish(view) ? 'winOkey' : t.eldenBitme ? 'winElden' : t.winType === 'pairs' ? 'winPairs' : 'winNormal')
+      }
       else playSfx('lose') // draw / stock exhausted — no celebration
       return
     }
@@ -382,7 +386,8 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     if (view?.status !== 'ENDED') { setEndReady(false); return }
     if (view.terminal?.reason !== 'win' || !animationsEnabled()) { setEndReady(true); return }
     setEndReady(false)
-    const id = setTimeout(() => setEndReady(true), 1600)
+    // Let the winner's celebration linger through most of the next-hand countdown.
+    const id = setTimeout(() => setEndReady(true), 4200)
     return () => clearTimeout(id)
   }, [view?.status, view?.handNo])
 
@@ -393,6 +398,22 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
     const id = setInterval(() => setNextIn((n) => (n > 0 ? n - 1 : 0)), 1000)
     return () => clearInterval(id)
   }, [view?.status, view?.handNo, match.over])
+
+  // Last-turn warning (gated by lastTurnWarn): when the stock is about to run out on the
+  // player's (likely final) turn, nudge them to open — or warn "son turdasın". The exact
+  // message needs the opening check computed later in render, so it's stashed in a ref;
+  // this fires it once per hand when it becomes relevant.
+  const lastTurnMsgRef = useRef<string | null>(null)
+  const warnedHandRef = useRef<number>(-1)
+  useEffect(() => {
+    if (!view) return
+    const msg = lastTurnMsgRef.current
+    if (msg && warnedHandRef.current !== view.handNo) {
+      warnedHandRef.current = view.handNo
+      playSfx('warn')
+      setToast(msg)
+    }
+  }, [view?.handNo, view?.turn.seat, view?.turn.phase, view?.stockCount])
 
   if (!view) return null
 
@@ -471,6 +492,7 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   // Okey shown face-down (easy to spot) only with the okeyHelper feature; otherwise it
   // appears as its real number/colour. The engine treats the okey identically either way.
   const canOkeyHelper = user ? can('okeyHelper', user) : true
+  const canLastTurnWarn = user ? can('lastTurnWarn', user) : true
 
   // LAYOUT-DRIVEN opening (the player's rack arrangement is the source of truth):
   // parse the rack into the player's intended meld segments and value THOSE — the
@@ -507,6 +529,14 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const canOpenSeri = is101 && !view.you.hasOpened && validSeriMelds.length > 0 && handMeldValue >= openingThreshold
   const canOpenCift = is101 && !view.you.hasOpened && pairSegments.length >= pairsNeeded
   const standingsForSeat = match.standings[view.seat] ?? 0
+
+  // Feed the last-turn warning (consumed by the effect above): only on the player's own
+  // low-stock turn. Prefer "open your hand" when they actually can; else a plain warning.
+  lastTurnMsgRef.current = (canLastTurnWarn && is101 && isMyTurn && view.status === 'PLAYING' && view.stockCount <= view.config.players)
+    ? (!view.you.hasOpened && (canOpenSeri || canOpenCift)
+        ? '⚠ Son tur olabilir — elini aç! (5 çift / 101 hazır)'
+        : '⚠ Son turdasın — sana başka taş gelmeyebilir')
+    : null
   const openSeriMelds = validSeriMelds
   // "Çift Aç" lays ALL the pairs the player arranged adjacently (not just the first
   // 5) in one press — pairs scattered elsewhere are left untouched. Keep ≥1 tile to

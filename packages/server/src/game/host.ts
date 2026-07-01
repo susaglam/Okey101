@@ -6,7 +6,7 @@
 import {
   reduce, RuleError, redactFor, legalMoves as legalMovesKlasik, legalMoves101,
   makeRng, deriveSeed, scoreHand, scoreHand101, okeyHeldPenalties,
-  isWorkableDiscard, tilesEqual,
+  isWorkableDiscard, tilesEqual, suggestDiscard,
   type GameState, type GameEvent, type PlayerView, type VariantConfig, type Tile,
 } from '@cs-okey/engine'
 import { decide } from '@cs-okey/bot'
@@ -295,11 +295,21 @@ export class GameHost {
     else { this.armAfk(); this.onChange() }
   }
 
-  /** Discard a tile that is NOT işlek and not the okey (falls back gracefully). */
+  /** Choose an idle player's auto-discard. Uses the SAME oracle as the İpucu
+   *  (suggestDiscard) so it throws a genuine leftover — never the okey, never an işlek
+   *  tile, and never a tile that's part of a run/group/pair the hand has formed (so an
+   *  auto-move doesn't break the player's perler/çiftler). Falls back gracefully. */
   private safeDiscard(seat: number): GameEvent {
     const p = this.state.players.find((x) => x.seat === seat)!
     const okey = this.state.okey
     const isOkey = (t: Tile) => okey != null && t.kind === 'NUMBER' && tilesEqual(t, okey)
+    if (okey) {
+      try {
+        const tile = suggestDiscard(p.rack, okey, this.config,
+          (t) => isWorkableDiscard(t, this.state.tableMelds ?? [], okey, this.config))
+        if (tile && !isOkey(tile)) return { type: 'Discard', seat, tile }
+      } catch { /* fall through to the simple safe pick */ }
+    }
     const safe = p.rack.find((t) => !isOkey(t) && !isWorkableDiscard(t, this.state.tableMelds ?? [], okey, this.config))
     const tile = safe ?? p.rack.find((t) => !isOkey(t)) ?? p.rack[0]!
     return { type: 'Discard', seat, tile }

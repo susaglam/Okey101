@@ -111,6 +111,11 @@ export type Sfx =
   | 'funny'     // someone discarded an işlek tile — a comic slide
   | 'applause'  // a player finished the hand
   | 'applauseLong' // an okey-finish — longer applause + a "bravo" flourish
+  | 'warn'      // last-turn warning (stock about to run out — open/act now)
+  | 'winNormal' // a regular (per/run) finish
+  | 'winPairs'  // a çift (5-pairs) finish
+  | 'winElden'  // elden bitme (nobody else opened) — the big one
+  | 'winOkey'   // finishing ON the okey — the grandest
 
 /** Play a named sound effect (no-op when sound is disabled/unavailable). */
 export function playSfx(name: Sfx): void {
@@ -201,6 +206,50 @@ export function playSfx(name: Sfx): void {
         { freq: 659, start: 0.05, dur: 0.16 },
         { freq: 880, start: 0.20, dur: 0.16 },
         { freq: 1175, start: 0.36, dur: 0.34 },
+      ])
+      break
+    case 'warn':
+      // Urgent double beep — "act now, stock is running out".
+      playNotes([
+        { freq: 880, start: 0, dur: 0.14, type: 'square', gain: 0.5 },
+        { freq: 1175, start: 0.16, dur: 0.20, type: 'square', gain: 0.5 },
+      ])
+      break
+    case 'winNormal':
+      // Bright ascending flourish + a short round of applause.
+      playNoise(1.2, 0.55)
+      playNotes([
+        { freq: 523, start: 0, dur: 0.12 },
+        { freq: 659, start: 0.10, dur: 0.12 },
+        { freq: 784, start: 0.20, dur: 0.18 },
+      ])
+      break
+    case 'winPairs':
+      // Echoed/paired motif for a çift finish (each note doubled), + applause.
+      playNoise(1.4, 0.55)
+      playNotes([
+        { freq: 587, start: 0, dur: 0.09 }, { freq: 587, start: 0.11, dur: 0.09 },
+        { freq: 880, start: 0.26, dur: 0.09 }, { freq: 880, start: 0.37, dur: 0.15 },
+      ])
+      break
+    case 'winElden':
+      // "Elden bitme" (the 800) — a bold, dramatic fanfare + long, loud applause.
+      playNoise(2.8, 0.8)
+      playNotes([
+        { freq: 392, start: 0, dur: 0.16, type: 'square', gain: 0.6 },
+        { freq: 523, start: 0.16, dur: 0.16, type: 'square', gain: 0.6 },
+        { freq: 784, start: 0.34, dur: 0.18, gain: 0.7 },
+        { freq: 1047, start: 0.54, dur: 0.36, gain: 0.7 },
+      ])
+      break
+    case 'winOkey':
+      // Finishing ON the okey — the grandest: a rising bravo run + long applause.
+      playNoise(2.6, 0.78)
+      playNotes([
+        { freq: 659, start: 0.04, dur: 0.15 },
+        { freq: 880, start: 0.19, dur: 0.15 },
+        { freq: 1175, start: 0.34, dur: 0.18 },
+        { freq: 1568, start: 0.54, dur: 0.36 },
       ])
       break
   }
