@@ -407,11 +407,12 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const warnedHandRef = useRef<number>(-1)
   useEffect(() => {
     if (!view) return
-    const msg = lastTurnMsgRef.current
-    if (msg && warnedHandRef.current !== view.handNo) {
+    // Ring the gong ONCE per hand when the last-turn warning first becomes relevant.
+    // The banner itself is rendered live above the nameplate (so it vanishes the moment
+    // the player discards and the turn passes on).
+    if (lastTurnMsgRef.current && warnedHandRef.current !== view.handNo) {
       warnedHandRef.current = view.handNo
-      playSfx('warn')
-      setToast(msg)
+      playSfx('gong')
     }
   }, [view?.handNo, view?.turn.seat, view?.turn.phase, view?.stockCount])
 
@@ -530,13 +531,16 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
   const canOpenCift = is101 && !view.you.hasOpened && pairSegments.length >= pairsNeeded
   const standingsForSeat = match.standings[view.seat] ?? 0
 
-  // Feed the last-turn warning (consumed by the effect above): only on the player's own
-  // low-stock turn. Prefer "open your hand" when they actually can; else a plain warning.
-  lastTurnMsgRef.current = (canLastTurnWarn && is101 && isMyTurn && view.status === 'PLAYING' && view.stockCount <= view.config.players)
-    ? (!view.you.hasOpened && (canOpenSeri || canOpenCift)
-        ? '⚠ Son tur olabilir — elini aç! (5 çift / 101 hazır)'
-        : '⚠ Son turdasın — sana başka taş gelmeyebilir')
-    : null
+  // Last-turn warning: only on the player's OWN low-stock turn — so it naturally clears
+  // the moment they discard and the turn passes on. Prefer "open your hand" when they
+  // can; else a plain warning. Rendered as a banner above the nameplate + a gong (once).
+  const lastTurnMsg: string | null =
+    (canLastTurnWarn && is101 && isMyTurn && view.status === 'PLAYING' && view.stockCount <= view.config.players)
+      ? (!view.you.hasOpened && (canOpenSeri || canOpenCift)
+          ? '⚠ Son tur olabilir — elini aç! (5 çift / 101 hazır)'
+          : '⚠ Son turdasın — sana başka taş gelmeyebilir')
+      : null
+  lastTurnMsgRef.current = lastTurnMsg
   const openSeriMelds = validSeriMelds
   // "Çift Aç" lays ALL the pairs the player arranged adjacently (not just the first
   // 5) in one press — pairs scattered elsewhere are left untouched. Keep ≥1 tile to
@@ -1004,6 +1008,19 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
             }}
           >
             {myTurnRing && <TurnRing deadlineMs={myTurnRing.deadlineMs} budgetMs={myTurnRing.budgetMs} radius={12} />}
+            {lastTurnMsg && (
+              <div
+                data-testid="last-turn-warning"
+                style={{
+                  position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 9,
+                  whiteSpace: 'nowrap', background: 'linear-gradient(180deg,#8a2323,#4a0d0d)', color: '#ffe2e2',
+                  border: '1px solid rgba(255,120,120,.6)', borderRadius: 10, padding: '6px 13px', fontSize: 13,
+                  fontWeight: 800, boxShadow: '0 5px 16px rgba(0,0,0,.55)', zIndex: 6, pointerEvents: 'none',
+                }}
+              >
+                {lastTurnMsg}
+              </div>
+            )}
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'radial-gradient(circle at 36% 30%, #5e6fb0 0%, #2c3768 100%)', border: '1.5px solid rgba(255,238,205,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.45)' }}>{seatName(view.seat).charAt(0).toUpperCase() || 'S'}</div>
             <span style={{ fontWeight: 700, fontSize: 14, textShadow: '0 1px 1px rgba(0,0,0,0.4)', letterSpacing: 0.2 }}>{seatName(view.seat)}</span>
             <span style={{ background: 'linear-gradient(180deg, #fbf6ea, #e8dcc4)', color: '#5a4420', borderRadius: 7, padding: '2px 8px', fontSize: 12, fontWeight: 800, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 1px rgba(0,0,0,0.25)' }}>{view.you.rack.length}</span>

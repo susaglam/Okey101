@@ -112,6 +112,7 @@ export type Sfx =
   | 'applause'  // a player finished the hand
   | 'applauseLong' // an okey-finish — longer applause + a "bravo" flourish
   | 'warn'      // last-turn warning (stock about to run out — open/act now)
+  | 'gong'      // resonant "dong" — the last-turn alert
   | 'winNormal' // a regular (per/run) finish
   | 'winPairs'  // a çift (5-pairs) finish
   | 'winElden'  // elden bitme (nobody else opened) — the big one
@@ -213,6 +214,17 @@ export function playSfx(name: Sfx): void {
       playNotes([
         { freq: 880, start: 0, dur: 0.14, type: 'square', gain: 0.5 },
         { freq: 1175, start: 0.16, dur: 0.20, type: 'square', gain: 0.5 },
+      ])
+      break
+    case 'gong':
+      // A struck-gong "dong": a soft strike transient + a low fundamental with a couple
+      // of inharmonic overtones and a long decay, so it rings/resonates.
+      playNoise(0.09, 0.4, 1800)
+      playNotes([
+        { freq: 146, start: 0, dur: 1.9, type: 'sine', gain: 1.0 },
+        { freq: 392, start: 0, dur: 1.5, type: 'sine', gain: 0.4 },
+        { freq: 790, start: 0, dur: 1.1, type: 'sine', gain: 0.22 },
+        { freq: 1180, start: 0, dur: 0.8, type: 'sine', gain: 0.13 },
       ])
       break
     case 'winNormal':
