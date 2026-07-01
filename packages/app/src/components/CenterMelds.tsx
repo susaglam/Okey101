@@ -7,8 +7,11 @@ import { orderMeldForDisplay, meldRepresentedValues, meldRepresentedColors } fro
 
 type Meld = { owner: number; kind: 'run' | 'group' | 'pair'; tiles: Tile[] }
 
-const CELL_W = 40
-const CELL_H = 52
+// Centre-table cells are smaller than the rack tiles — the laid melds should be
+// compact so the whole board fits without crowding (the tiles themselves are shrunk
+// to match via a [data-testid="center-melds"]-scoped CSS rule).
+const CELL_W = 32
+const CELL_H = 42
 const MIN_ROWS = 2 // keep a small board even when nearly empty
 
 function isRealOkey(t: Tile, okey: Tile): boolean {

@@ -115,6 +115,13 @@ body { overflow-x: hidden; }
 .okey-tile.sm .hole { width: 9px; height: 9px; bottom: 5px; }
 .okey-tile.sm .rep-value { font-size: 8px; top: 2px; right: 3px; }
 
+/* Centre-table melds: even smaller than a normal small tile (fits a 32×42 cell), so the
+   laid perler/çiftler stay compact. Scoped to the centre board only. */
+[data-testid="center-melds"] .okey-tile.sm { width: 28px; height: 38px; font-size: 15px; padding-top: 4px; border-radius: 5px; }
+[data-testid="center-melds"] .okey-tile.sm .hole { width: 7px; height: 7px; bottom: 4px; }
+[data-testid="center-melds"] .okey-tile.sm .rep-value { font-size: 7px; top: 1px; right: 2px; }
+[data-testid="center-melds"] .okey-tile.back.sm .okey-rep-badge { font-size: 7px; top: 1px; right: 2px; }
+
 /* Rakam kabartması — currentColor (button style={{color}}) rengini taşır */
 .okey-tile > span:first-child {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7), 0 -1px 1px rgba(0, 0, 0, 0.06);
