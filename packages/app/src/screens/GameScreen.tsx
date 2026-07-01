@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PlayerView, GameEvent } from '@cs-okey/engine'
-import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue, isWorkableDiscard, canLayOff } from '@cs-okey/engine'
+import { suggestDiscard, tilesEqual, tileToString, isValidMeldSet, isValidPairSet, openingValue, isWorkableDiscard, canLayOff, makeRng, deriveSeed } from '@cs-okey/engine'
+import { decide } from '@cs-okey/bot'
 import { DndContext, DragOverlay, closestCenter, pointerWithin, MeasuringStrategy } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent, CollisionDetection } from '@dnd-kit/core'
 
@@ -45,7 +46,7 @@ import { TileView } from '../components/Tile'
 import { TurnRing } from '../components/TurnRing'
 import { FeedbackWidget } from '../components/FeedbackWidget'
 import { StockPile } from '../components/StockPile'
-import { flyTile, animationsEnabled } from '../anim/fly'
+import { flyTile, animationsEnabled, ghostHandHint } from '../anim/fly'
 import { playSfx, setSoundEnabled, type Sfx } from '../anim/sound'
 import { Scoreboard } from '../components/Scoreboard'
 import { ScoreTable } from '../components/ScoreTable'
@@ -81,6 +82,28 @@ function discardSfxFor(tile: Tile, view: PlayerView): Sfx {
 function isOkeyFinish(view: PlayerView): boolean {
   return !!(view.okey && view.terminal?.reason === 'win' && view.terminal.finishingTile &&
     tilesEqual(view.terminal.finishingTile, view.okey))
+}
+
+/** Source/target DOM elements for the ghost-hand move hint, from the engine's suggested
+ *  move: draw → (stock|left floor) → rack; discard → rack → discard zone. Other moves
+ *  (open/lay-off/take-okey) get no hand hint. */
+function hintEndpoints(ev: GameEvent, view: PlayerView): { from: Element; to: Element } | null {
+  const rack = document.querySelector('[data-testid="slot-rack"]')
+  if (!rack) return null
+  if (ev.type === 'DrawFromStock') {
+    const stock = document.querySelector('[data-testid="stock-tile"], [data-testid="draw-stock"]')
+    return stock ? { from: stock, to: rack } : null
+  }
+  if (ev.type === 'DrawFromDiscard') {
+    const leftSeat = (view.seat + view.config.players - 1) % view.config.players
+    const floor = document.querySelector(`[data-seat="${leftSeat}"][data-testid="discard-pile"]`)
+    return floor ? { from: floor, to: rack } : null
+  }
+  if (ev.type === 'Discard') {
+    const zone = document.querySelector('[data-testid="discard-zone"]')
+    return zone ? { from: rack, to: zone } : null
+  }
+  return null
 }
 
 // Reddedilen hamleler için kullanıcı-dostu Türkçe mesajlar (toast).
@@ -415,6 +438,45 @@ export default function GameScreen({ adapter, user, onExitToMenu, onRestart, isR
       playSfx('gong')
     }
   }, [view?.handNo, view?.turn.seat, view?.turn.phase, view?.stockCount])
+
+  // Turn-timer audio: a clock tick each of the FINAL 10 seconds of the human's own turn,
+  // and a bell when it reaches zero (the instant the server's auto-action fires).
+  const tickRef = useRef<number>(999)
+  useEffect(() => {
+    const tt = adapter.turnTimer?.() ?? null
+    if (!view || !tt || tt.seat !== view.seat || view.status !== 'PLAYING') { tickRef.current = 999; return }
+    const id = setInterval(() => {
+      const remain = Math.ceil((tt.deadlineMs - Date.now()) / 1000)
+      if (remain === tickRef.current) return
+      tickRef.current = remain
+      if (remain <= 0) { playSfx('bell'); clearInterval(id) }
+      else if (remain <= 10) playSfx('tick')
+    }, 200)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adapter.turnTimer?.()?.deadlineMs, view?.turn.seat, view?.status])
+
+  // Move hint (premium moveHint): halfway through the human's own turn, animate a ghost
+  // hand (👆) from the engine-suggested source to the rack (draw) / discard zone
+  // (discard), looping until they act. Uses the bot oracle — the rack arrangement is
+  // irrelevant. Cancelled when the turn changes / they move.
+  const hintCancelRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    hintCancelRef.current(); hintCancelRef.current = () => {}
+    const canMoveHint = user ? can('moveHint', user) : true
+    const tt = adapter.turnTimer?.() ?? null
+    if (!canMoveHint || !view || !tt || tt.seat !== view.seat || view.status !== 'PLAYING') return
+    const delay = Math.max(300, (tt.deadlineMs - tt.budgetMs / 2) - Date.now())
+    const timer = setTimeout(() => {
+      try {
+        const ev = decide(view, adapter.legalMoves(), makeRng(deriveSeed(view.version, 'hint')))
+        const els = hintEndpoints(ev, view)
+        if (els) hintCancelRef.current = ghostHandHint(els.from, els.to, 3)
+      } catch { /* no hint on any failure */ }
+    }, delay)
+    return () => { clearTimeout(timer); hintCancelRef.current(); hintCancelRef.current = () => {} }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adapter.turnTimer?.()?.deadlineMs, view?.turn.seat, view?.turn.phase, view?.status])
 
   if (!view) return null
 

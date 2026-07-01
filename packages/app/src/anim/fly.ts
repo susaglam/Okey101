@@ -114,6 +114,45 @@ export function flyTile(opts: FlyOpts): Promise<void> {
   })
 }
 
+/**
+ * A looping "ghost hand" move hint: a 👆 cursor drifts from `from` to `to` a few times
+ * to show the player the engine-suggested move (take this tile / discard here). Returns
+ * a cancel fn; no-op (returns a no-op canceller) when animations are disabled or the
+ * endpoints are missing.
+ */
+export function ghostHandHint(
+  from: Element | DOMRect | null | undefined,
+  to: Element | DOMRect | null | undefined,
+  repeat = 3,
+): () => void {
+  if (!animationsEnabled()) return () => {}
+  const a = rectOf(from), b = rectOf(to)
+  if (!a || !b || !a.width || !b.width) return () => {}
+  const hand = document.createElement('div')
+  hand.textContent = '👆'
+  hand.setAttribute('aria-hidden', 'true')
+  Object.assign(hand.style, {
+    position: 'fixed',
+    left: `${a.left + a.width / 2 - 15}px`,
+    top: `${a.top + a.height / 2 - 6}px`,
+    fontSize: '30px',
+    zIndex: '360',
+    pointerEvents: 'none',
+    filter: 'drop-shadow(0 2px 5px rgba(0,0,0,.6))',
+    transform: 'none',
+  } as Partial<CSSStyleDeclaration>)
+  document.body.appendChild(hand)
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2)
+  const dy = b.top + b.height / 2 - (a.top + a.height / 2)
+  const tl = gsap.timeline({ repeat: Math.max(0, repeat - 1), onComplete: () => hand.remove() })
+  tl.set(hand, { x: 0, y: 0, opacity: 0 })
+    .to(hand, { opacity: 1, duration: 0.2 })
+    .to(hand, { x: dx, y: dy, duration: 0.9, ease: 'power1.inOut' })
+    .to(hand, { opacity: 0, duration: 0.25 })
+    .to(hand, { duration: 0.35 }) // brief pause between loops
+  return () => { tl.kill(); hand.remove() }
+}
+
 /** Bir testid ya da seçici ile ilk eşleşen elemanı bul (yoksa null). */
 export function q(selector: string): Element | null {
   if (typeof document === 'undefined') return null

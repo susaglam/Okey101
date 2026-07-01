@@ -113,6 +113,8 @@ export type Sfx =
   | 'applauseLong' // an okey-finish — longer applause + a "bravo" flourish
   | 'warn'      // last-turn warning (stock about to run out — open/act now)
   | 'gong'      // resonant "dong" — the last-turn alert
+  | 'tick'      // clock tick — each of the turn timer's last 10 seconds
+  | 'bell'      // time's-up bell/buzzer — the auto-action fires
   | 'winNormal' // a regular (per/run) finish
   | 'winPairs'  // a çift (5-pairs) finish
   | 'winElden'  // elden bitme (nobody else opened) — the big one
@@ -225,6 +227,18 @@ export function playSfx(name: Sfx): void {
         { freq: 392, start: 0, dur: 1.5, type: 'sine', gain: 0.4 },
         { freq: 790, start: 0, dur: 1.1, type: 'sine', gain: 0.22 },
         { freq: 1180, start: 0, dur: 0.8, type: 'sine', gain: 0.13 },
+      ])
+      break
+    case 'tick':
+      // Short, dry clock tick (one per second in the final 10s).
+      playNotes([{ freq: 1500, start: 0, dur: 0.035, type: 'square', gain: 0.5 }])
+      break
+    case 'bell':
+      // Time's-up bell/buzzer — two bright dings with a little ring.
+      playNotes([
+        { freq: 1318, start: 0, dur: 0.4, type: 'sine', gain: 0.9 },
+        { freq: 1976, start: 0, dur: 0.35, type: 'sine', gain: 0.4 },
+        { freq: 1318, start: 0.18, dur: 0.4, type: 'sine', gain: 0.7 },
       ])
       break
     case 'winNormal':

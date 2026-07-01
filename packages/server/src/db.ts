@@ -10,8 +10,8 @@ import bcrypt from 'bcryptjs'
 
 // ── Feature flags / seed groups (mirrors the client's auth.ts; will be the single
 //    source once the client talks to the server). ──────────────────────────────
-export type Feature = 'islekMarkers' | 'hint' | 'dragAssists' | 'okeyHelper' | 'lastTurnWarn'
-export const FEATURE_IDS: Feature[] = ['islekMarkers', 'hint', 'dragAssists', 'okeyHelper', 'lastTurnWarn']
+export type Feature = 'islekMarkers' | 'hint' | 'dragAssists' | 'okeyHelper' | 'lastTurnWarn' | 'moveHint'
+export const FEATURE_IDS: Feature[] = ['islekMarkers', 'hint', 'dragAssists', 'okeyHelper', 'lastTurnWarn', 'moveHint']
 const allFeatures = (on: boolean) =>
   Object.fromEntries(FEATURE_IDS.map((f) => [f, on])) as Record<Feature, boolean>
 

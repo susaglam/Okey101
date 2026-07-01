@@ -10,7 +10,7 @@
 // ─── Feature flags (gateable advantages) ──────────────────────────────────────
 
 /** A player-facing assist that a user group may grant or withhold. Extensible. */
-export type Feature = 'islekMarkers' | 'hint' | 'dragAssists' | 'okeyHelper' | 'lastTurnWarn'
+export type Feature = 'islekMarkers' | 'hint' | 'dragAssists' | 'okeyHelper' | 'lastTurnWarn' | 'moveHint'
 
 export const FEATURES: { id: Feature; label: string; desc: string }[] = [
   { id: 'islekMarkers', label: 'İşlek işaretleri', desc: 'Yere açınca eldeki işlenebilir taşların kırmızı nokta işareti' },
@@ -18,6 +18,7 @@ export const FEATURES: { id: Feature; label: string; desc: string }[] = [
   { id: 'dragAssists', label: 'Sürükle yardımları', desc: 'Sürüklerken yeşil hedef çerçeveleri (oto-İşle herkeste açık)' },
   { id: 'okeyHelper', label: 'Okey vurgusu', desc: 'Eldeki okey arkası dönük (kapalı) gösterilir, kolayca fark edilir. Kapalıysa kendi renk/sayısıyla görünür' },
   { id: 'lastTurnWarn', label: 'Son tur uyarısı', desc: 'Stok bitmek üzereyken ve sıra sana son kez geliyorken uyarı sesi + "elini aç / son turdasın" bildirimi' },
+  { id: 'moveHint', label: 'Hamle işaretçisi', desc: 'Süren yarılandığında motorun önerdiği hamleyi gösteren, kaynaktan ıstakana süzülen animasyonlu el (👆) işaretçisi (premium)' },
 ]
 export const FEATURE_IDS: Feature[] = FEATURES.map((f) => f.id)
 
